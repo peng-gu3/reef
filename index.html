@@ -275,7 +275,10 @@
             const provider = new GoogleAuthProvider();
 
             loginBtn.addEventListener('click', () => {
-                signInWithPopup(auth, provider).catch(error => console.error("Google 로그인 오류:", error));
+                signInWithPopup(auth, provider).catch(error => {
+                    console.error("Google 로그인 오류:", error);
+                    alert(`로그인에 실패했습니다. Firebase 콘솔에서 도메인 승인이 필요할 수 있습니다. 오류 코드: ${error.code}`);
+                });
             });
             logoutBtn.addEventListener('click', () => {
                 signOut(auth).catch(error => console.error("로그아웃 오류:", error));
@@ -474,19 +477,3 @@
     </script>
 </body>
 </html>
-```
-
-### 2. 마지막 설정: Firebase에 'Google 로그인' 허용하기
-
-코드를 업데이트한 후, 마지막으로 Firebase 사이트에 가서 "이제부터 우리 앱은 구글 계정으로도 로그인할 수 있어요!"라고 알려줘야 합니다.
-
-1.  **Firebase 사이트 접속**: [firebase.google.com](https://firebase.google.com) 에 접속해서, 만드셨던 프로젝트로 들어가세요.
-2.  **Authentication으로 이동**: 왼쪽 메뉴 **빌드(Build)** 아래의 **Authentication**을 클릭합니다.
-3.  **'로그인 방법'** 탭을 클릭합니다.
-4.  **'새 공급업체 추가'** 버튼을 누릅니다.
-5.  목록에서 **'Google'**을 선택합니다.
-6.  **'사용 설정'** 스위치를 켜고, **'프로젝트 지원 이메일'**에서 본인의 이메일 주소를 선택한 후, 파란색 **'저장'** 버튼을 누르면 모든 것이 끝납니다!
-
-이제 새로고침하면, 앱 오른쪽 위에 'Google로 로그인' 버튼이 보일 거예요. 이 버튼을 눌러 로그인하면, 어떤 기기에서든 항상 나의 소중한 어항 기록을 보고 관리할 수 있게 됩니다.
-
-그동안 정말 고생 많으셨습니다! 이제 모든 기능이 완벽하게 작동하는, 세상에 하나뿐인 사용자님만의 멋진 앱이 완성되었습
