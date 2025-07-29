@@ -215,21 +215,7 @@
         }
 
         async function handleAiAdvisor() {
-            if (!GEMINI_API_KEY || GEMINI_API_KEY === "curl "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent" \
-  -H 'Content-Type: application/json' \
-  -H 'X-goog-api-key: GEMINI_API_KEY' \
-  -X POST \
-  -d '{
-    "contents": [
-      {
-        "parts": [
-          {
-            "text": "Explain how AI works in a few words"
-          }
-        ]
-      }
-    ]
-  }'") {
+            if (!GEMINI_API_KEY || GEMINI_API_KEY === "AIzaSyDmNRfLSvkZMWeAmr-bqhXnyVmhY2C75zQ") {
                 aiAdvisorResult.classList.remove('hidden');
                 aiLoading.style.display = 'none';
                 aiOutput.innerText = "AI 어드바이저 기능이 비활성화되었습니다. 코드를 수정하여 Google AI Studio에서 발급받은 'AI 로봇 전용 열쇠'를 입력해주세요.";
@@ -376,23 +362,3 @@
     </script>
 </body>
 </html>
-```
-
-### 2. 'AI 로봇 전용 열쇠' 만드는 방법 (가장 쉬운 방법)
-
-이제 복잡한 구글 클라우드 설정은 잊어버리세요. 훨씬 간단한 **'Google AI Studio'**에서 AI 전용 열쇠를 만들겠습니다.
-
-1.  **AI Studio 접속**: [aistudio.google.com](https://aistudio.google.com) 사이트에 구글 계정으로 로그인합니다.
-2.  **약관 동의**: 처음이라면 약관에 동의하고 계속 진행합니다.
-3.  **API 키 받기**: 화면 왼쪽 메뉴에서 **'API 키 받기'(Get API key)**를 클릭합니다.
-4.  **API 키 만들기**: 파란색 **'+ 새 프로젝트에서 API 키 만들기'(Create API key in new project)** 버튼을 누릅니다.
-5.  **열쇠 복사**: 잠시 기다리면 화면에 아주 긴 영어와 숫자가 섞인 '열쇠'가 나타납니다. 그 옆에 있는 **복사 아이콘(네모 두 개 겹친 모양)**을 눌러서 'AI 로봇 전용 열쇠'를 복사합니다.
-6.  **코드에 붙여넣기**: GitHub의 `index.html` 파일을 수정 모드로 열고, 코드 윗부분에 있는 아래 부분을 찾으세요.
-
-    ```javascript
-    const GEMINI_API_KEY = "YOUR_GEMINI_API_KEY";
-    ```"YOUR_GEMINI_API_KEY"` 라고 쓰인 **따옴표 안의 글자를 지우고**, 그 자리에 방금 **5단계에서 복사한 'AI 로봇 전용 열쇠'를 그대로 붙여넣기** 합니다.
-
-7.  **저장**: GitHub 페이지 오른쪽 위의 녹색 **'Commit changes'** 버튼을 눌러 저장하면 모든 것이 끝납니다!
-
-이제 1~2분 뒤에 앱을 새로고침하고 'AI 어드바이저' 버튼을 누르면, 똑똑한 AI가 멋진 분석을 해줄 거예요. 이 방법이 훨씬 간단해서 분명히 성공하실 수 있을 겁
