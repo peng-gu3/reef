@@ -215,7 +215,21 @@
         }
 
         async function handleAiAdvisor() {
-            if (!GEMINI_API_KEY || GEMINI_API_KEY === "YOUR_GEMINI_API_KEY") {
+            if (!GEMINI_API_KEY || GEMINI_API_KEY === "curl "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent" \
+  -H 'Content-Type: application/json' \
+  -H 'X-goog-api-key: GEMINI_API_KEY' \
+  -X POST \
+  -d '{
+    "contents": [
+      {
+        "parts": [
+          {
+            "text": "Explain how AI works in a few words"
+          }
+        ]
+      }
+    ]
+  }'") {
                 aiAdvisorResult.classList.remove('hidden');
                 aiLoading.style.display = 'none';
                 aiOutput.innerText = "AI 어드바이저 기능이 비활성화되었습니다. 코드를 수정하여 Google AI Studio에서 발급받은 'AI 로봇 전용 열쇠'를 입력해주세요.";
