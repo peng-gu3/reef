@@ -100,9 +100,15 @@
 
     <script type="module">
         // Firebase 모듈 가져오기
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        const firebaseConfig = {
+  apiKey: "AIzaSyA5__GOcjGtGdCivk1mVH5Vt_Z_C_uo80M",
+  authDomain: "reef-e23b5.firebaseapp.com",
+  projectId: "reef-e23b5",
+  storageBucket: "reef-e23b5.firebasestorage.app",
+  messagingSenderId: "747921036469",
+  appId: "1:747921036469:web:c2c4274c9f206b51c55afc",
+  measurementId: "G-Q4JLDFWYYH"
+};
 
         // --- Firebase Setup ---
         // 중요: 아래 firebaseConfig 객체를 자신의 Firebase 프로젝트 정보로 교체해야 합니다.
@@ -349,7 +355,7 @@
                 } else { throw new Error("API로부터 유효한 응답을 받지 못했습니다."); }
             } catch (error) { console.error("Gemini API Error:", error); aiOutput.innerText = `AI 어드바이저를 불러오는 데 실패했습니다. 잠시 후 다시 시도해주세요.\n오류: ${error.message}`;
             } finally { aiLoading.style.display = 'none'; }
-        });
+        })
 
     </script>
 </body>
