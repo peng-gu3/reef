@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>해수어항 계산기</title>
+    <title>해수어항 계산기 (모든 기능 복원)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -43,6 +43,8 @@
                 <div class="input-group"><label for="ca">칼슘 (Ca)</label><input type="number" id="ca" placeholder="420"><span class="unit">ppm</span></div>
                 <div class="input-group"><label for="mg">마그네슘 (Mg)</label><input type="number" id="mg" placeholder="1350"><span class="unit">ppm</span></div>
                 <div class="input-group"><label for="kh">알칼리니티 (KH)</label><input type="number" step="0.1" id="kh" placeholder="8.0"><span class="unit">dKH</span></div>
+                <hr class="my-4">
+                <div class="input-group"><label for="no2">아질산염 (NO2)</label><input type="number" step="0.01" id="no2" placeholder="0.0"><span class="unit">ppm</span></div>
                 <div class="input-group"><label for="no3">질산염 (NO3)</label><input type="number" id="no3" placeholder="5"><span class="unit">ppm</span></div>
                 <div class="input-group"><label for="po4">인산염 (PO4)</label><input type="number" step="0.01" id="po4" placeholder="0.05"><span class="unit">ppm</span></div>
                 <button id="calculate-btn" class="w-full mt-4 bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition duration-300">계산하기</button>
@@ -64,7 +66,7 @@
                     <div class="overflow-y-auto max-h-96">
                         <table id="log-table" class="w-full">
                             <thead class="bg-gray-100 sticky top-0">
-                                <tr><th>날짜</th><th>Ca</th><th>Mg</th><th>KH</th><th>NO3</th><th>PO4</th><th>삭제</th></tr>
+                                <tr><th>날짜</th><th>온도</th><th>염도</th><th>pH</th><th>Ca</th><th>Mg</th><th>KH</th><th>NO2</th><th>NO3</th><th>PO4</th><th>삭제</th></tr>
                             </thead>
                             <tbody id="log-table-body"></tbody>
                         </table>
@@ -98,7 +100,6 @@
   appId: "1:747921036469:web:bb96a9ee15a7dfd5c55afc",
   measurementId: "G-6X45DZVK1G"
 };
-
         const calculateBtn = document.getElementById('calculate-btn');
         const saveBtn = document.getElementById('save-btn');
         const statusMessage = document.getElementById('status-message');
@@ -110,13 +111,13 @@
         const graphModal = document.getElementById('graph-modal');
         const closeGraphBtn = document.getElementById('close-graph-btn');
         
-        const inputIds = ['tankVolume', 'temp', 'salinity', 'ph', 'ca', 'mg', 'kh', 'no3', 'po4'];
+        const inputIds = ['tankVolume', 'temp', 'salinity', 'ph', 'ca', 'mg', 'kh', 'no2', 'no3', 'po4'];
         let currentInputs = {}, allRecords = [], myChart = null;
         
         const targets = {
             temp: { min: 25.5, max: 26.5 }, salinity: { min: 34, max: 35 }, ph: { min: 8.0, max: 8.3 },
             ca: { min: 400, max: 440, target: 420 }, mg: { min: 1250, max: 1440, target: 1350 },
-            kh: { min: 7.5, max: 8.5, target: 8.0 },
+            kh: { min: 7.5, max: 8.5, target: 8.0 }, no2: { max: 0 },
             no3: { min: 0.5, max: 2.0, target: 1.0 }, po4: { min: 0.03, max: 0.08, target: 0.05 }
         };
 
@@ -147,7 +148,7 @@
                 allRecords = [];
                 logTableBody.innerHTML = '';
                 if (snapshot.empty) {
-                    logTableBody.innerHTML = `<tr><td colspan="7" class="text-gray-500 py-4">저장된 기록이 없습니다.</td></tr>`;
+                    logTableBody.innerHTML = `<tr><td colspan="11" class="text-gray-500 py-4">저장된 기록이 없습니다.</td></tr>`;
                     showGraphBtn.classList.add('hidden');
                 } else {
                     snapshot.forEach(doc => {
@@ -160,8 +161,14 @@
                         tr.className = "border-b";
                         tr.innerHTML = `
                             <td>${record.date}</td>
-                            <td>${record.ca || '-'}</td><td>${record.mg || '-'}</td>
-                            <td>${record.kh || '-'}</td><td>${record.no3 || '-'}</td>
+                            <td>${record.temp || '-'}</td>
+                            <td>${record.salinity || '-'}</td>
+                            <td>${record.ph || '-'}</td>
+                            <td>${record.ca || '-'}</td>
+                            <td>${record.mg || '-'}</td>
+                            <td>${record.kh || '-'}</td>
+                            <td>${record.no2 || '-'}</td>
+                            <td>${record.no3 || '-'}</td>
                             <td>${record.po4 || '-'}</td>
                             <td><button data-id="${doc.id}" class="delete-btn text-red-500 hover:text-red-700">X</button></td>`;
                         logTableBody.appendChild(tr);
@@ -229,6 +236,9 @@
                     } else if (currentVal > target.max) {
                         message = `${key.toUpperCase()}: 높음. 환수 또는 도징 중단으로 조절 필요.`; type = 'result-high';
                     } else { message = `${key.toUpperCase()}: 안정적인 수치입니다.`; }
+                } else if (key === 'no2' && currentVal > target.max) {
+                    message = `${key.toUpperCase()}: 검출됨! 즉시 20% 환수를 권장합니다.`;
+                    type = 'result-action';
                 }
                 if(message) {
                     const p = document.createElement('p');
