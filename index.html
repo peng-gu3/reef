@@ -101,27 +101,38 @@
     <script type="module">
         // Firebase 모듈 가져오기
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- Firebase Setup ---
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        let app, db, auth, userId, recordsCollectionRef;
-
-        try {
-            const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-            if (!firebaseConfig) {
-                throw new Error("Firebase 구성 정보를 찾을 수 없습니다.");
-            }
-            app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            auth = getAuth(app);
-        } catch (e) {
-            console.error("Firebase 초기화 오류:", e);
-            document.body.innerHTML = '<div class="text-red-500 text-center p-8">Firebase 초기화에 실패했습니다. 페이지를 새로고침 해주세요.</div>';
-        }
+        // 중요: 아래 firebaseConfig 객체를 자신의 Firebase 프로젝트 정보로 교체해야 합니다.
+        // Firebase 콘솔에서 웹 앱을 만들고, 제공되는 config 정보를 여기에 복사해 붙여넣으세요.
+        const firebaseConfig = {
+            apiKey: "AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+            authDomain: "your-project-id.firebaseapp.com",
+            projectId: "your-project-id",
+            storageBucket: "your-project-id.appspot.com",
+            messagingSenderId: "123456789012",
+            appId: "1:123456789012:web:abcdef1234567890abcdef"
+        };
         // --- End Firebase Setup ---
 
+        // DOM 요소
+        const calculateBtn = document.getElementById('calculate-btn');
+        const saveBtn = document.getElementById('save-btn');
+        const resultsContainer = document.getElementById('results-container');
+        const resultsOutput = document.getElementById('results-output');
+        const aiAdvisorBtn = document.getElementById('ai-advisor-btn');
+        const aiAdvisorResult = document.getElementById('ai-advisor-result');
+        const aiLoading = document.getElementById('ai-loading');
+        const aiOutput = document.getElementById('ai-output');
+        const historyContainer = document.getElementById('history-container');
+        const historyTableBody = document.getElementById('history-table-body');
+        const clearHistoryBtn = document.getElementById('clear-history-btn');
+
+        let currentInputs = {};
+        let currentRecommendations = [];
+        
         // 사용자 맞춤 목표 수치
         const targets = {
             temp: { min: 25.5, max: 26.5 }, salinity: { min: 34, max: 35 }, ph: { min: 8.0, max: 8.3 },
@@ -140,50 +151,102 @@
         function getNo3Dose(rise) { if (rise <= 0.2) return 0; if (rise <= 0.4) return 0.3; if (rise <= 0.7) return 0.6; if (rise <= 1.0) return 0.9; return (rise / 1.0) * 0.9; }
         function getPo4Dose(rise) { if (rise <= 0.009) return 0; if (rise <= 0.02) return 0.3; if (rise <= 0.035) return 0.6; return (rise / 0.035) * 0.6; }
 
-        // DOM 요소
-        const calculateBtn = document.getElementById('calculate-btn');
-        const saveBtn = document.getElementById('save-btn');
-        const resultsContainer = document.getElementById('results-container');
-        const resultsOutput = document.getElementById('results-output');
-        const aiAdvisorBtn = document.getElementById('ai-advisor-btn');
-        const aiAdvisorResult = document.getElementById('ai-advisor-result');
-        const aiLoading = document.getElementById('ai-loading');
-        const aiOutput = document.getElementById('ai-output');
-        const historyTableBody = document.getElementById('history-table-body');
-        const clearHistoryBtn = document.getElementById('clear-history-btn');
 
-        let currentInputs = {};
-        let currentRecommendations = [];
+        // Firebase가 설정되었는지 확인하고 관련 기능 초기화
+        if (firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith("AIzaSyXXX")) {
+            let app, db, auth, userId, recordsCollectionRef;
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                initializeAppWithAuth(auth);
+            } catch (e) {
+                console.error("Firebase 초기화 오류:", e);
+                disableFirebaseFeatures("Firebase 구성 정보가 올바르지 않습니다.");
+            }
 
-        // Firebase 인증 및 앱 초기화
-        function initializeAppWithAuth() {
-            if (!auth) return;
-
-            onAuthStateChanged(auth, async (user) => {
-                if (user) {
-                    userId = user.uid;
-                    recordsCollectionRef = collection(db, 'artifacts', appId, 'users', userId, 'reef-tank-logs');
-                    listenForRecords();
-                } else {
-                    try {
-                        const authToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-                        if (authToken) {
-                            await signInWithCustomToken(auth, authToken);
-                        } else {
+            function initializeAppWithAuth(auth) {
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        recordsCollectionRef = collection(db, 'users', userId, 'reef-tank-logs');
+                        listenForRecords(recordsCollectionRef);
+                    } else {
+                        try {
                             await signInAnonymously(auth);
+                        } catch (error) {
+                            console.error("Firebase 익명 로그인 오류:", error);
+                            disableFirebaseFeatures("Firebase 인증에 실패했습니다.");
                         }
-                    } catch (error) {
-                        console.error("Firebase 로그인 오류:", error);
                     }
+                });
+            }
+            
+            saveBtn.addEventListener('click', async () => {
+                if (!recordsCollectionRef) { return; }
+                const hasValues = Object.values(currentInputs).some(v => !isNaN(v));
+                if (!hasValues || isNaN(currentInputs.tankVolume)) { return; }
+                const record = { ...currentInputs, createdAt: serverTimestamp() };
+                try { await addDoc(recordsCollectionRef, record); } catch (error) { console.error("기록 저장 오류:", error); }
+            });
+
+            historyTableBody.addEventListener('click', async (e) => {
+                if (e.target.classList.contains('delete-btn')) {
+                    if (!recordsCollectionRef) { return; }
+                    const docId = e.target.dataset.id;
+                    try { await deleteDoc(doc(recordsCollectionRef, docId)); } catch (error) { console.error("기록 삭제 오류:", error); }
                 }
             });
+
+            let clearConfirmState = false;
+            let clearConfirmTimeout;
+            clearHistoryBtn.addEventListener('click', async () => {
+                if (!clearConfirmState) {
+                    clearConfirmState = true;
+                    clearHistoryBtn.textContent = '정말 삭제하시겠습니까?';
+                    clearHistoryBtn.classList.remove('bg-red-500', 'hover:bg-red-600');
+                    clearHistoryBtn.classList.add('bg-yellow-500', 'hover:bg-yellow-600');
+                    clearConfirmTimeout = setTimeout(() => {
+                        clearConfirmState = false;
+                        clearHistoryBtn.textContent = '전체 기록 삭제';
+                        clearHistoryBtn.classList.add('bg-red-500', 'hover:bg-red-600');
+                        clearHistoryBtn.classList.remove('bg-yellow-500', 'hover:bg-yellow-600');
+                    }, 4000);
+                    return;
+                }
+                clearTimeout(clearConfirmTimeout);
+                if (!recordsCollectionRef) { return; }
+                try {
+                    const snapshot = await getDocs(recordsCollectionRef);
+                    const deletePromises = [];
+                    snapshot.forEach(doc => { deletePromises.push(deleteDoc(doc.ref)); });
+                    await Promise.all(deletePromises);
+                } catch (error) {
+                    console.error("전체 기록 삭제 오류:", error);
+                } finally {
+                    clearConfirmState = false;
+                    clearHistoryBtn.textContent = '전체 기록 삭제';
+                    clearHistoryBtn.classList.add('bg-red-500', 'hover:bg-red-600');
+                    clearHistoryBtn.classList.remove('bg-yellow-500', 'hover:bg-yellow-600');
+                }
+            });
+
+        } else {
+            // Firebase 설정이 없을 경우 로그 기능 비활성화
+            disableFirebaseFeatures("로그 기능을 사용하려면 Firebase 설정이 필요합니다.");
         }
-        
-        // 기록 리스너
-        function listenForRecords() {
-            if(!recordsCollectionRef) return;
-            const q = query(recordsCollectionRef, orderBy('createdAt', 'desc'));
-            
+
+        function disableFirebaseFeatures(message) {
+            historyContainer.innerHTML = `
+                <div class="p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 rounded-r-lg">
+                    <p class="font-bold">로그 기능 비활성화됨</p>
+                    <p class="text-sm mt-1">${message} 코드를 수정하여 자신의 Firebase 프로젝트 정보를 입력해주세요.</p>
+                </div>`;
+            saveBtn.style.display = 'none';
+        }
+
+        function listenForRecords(recordsRef) {
+            const q = query(recordsRef, orderBy('createdAt', 'desc'));
             onSnapshot(q, (snapshot) => {
                 historyTableBody.innerHTML = '';
                 if (snapshot.empty) {
@@ -195,15 +258,9 @@
                         tr.className = "border-b hover:bg-gray-50";
                         tr.innerHTML = `
                             <td>${record.createdAt ? new Date(record.createdAt.seconds * 1000).toLocaleDateString('ko-KR') : '날짜 없음'}</td>
-                            <td>${record.temp || '-'}</td>
-                            <td>${record.salinity || '-'}</td>
-                            <td>${record.ph || '-'}</td>
-                            <td>${record.ca || '-'}</td>
-                            <td>${record.mg || '-'}</td>
-                            <td>${record.kh || '-'}</td>
-                            <td>${record.no2 || '-'}</td>
-                            <td>${record.no3 || '-'}</td>
-                            <td>${record.po4 || '-'}</td>
+                            <td>${record.temp || '-'}</td><td>${record.salinity || '-'}</td><td>${record.ph || '-'}</td>
+                            <td>${record.ca || '-'}</td><td>${record.mg || '-'}</td><td>${record.kh || '-'}</td>
+                            <td>${record.no2 || '-'}</td><td>${record.no3 || '-'}</td><td>${record.po4 || '-'}</td>
                             <td><button data-id="${doc.id}" class="delete-btn text-red-500 hover:text-red-700 font-bold">X</button></td>
                         `;
                         historyTableBody.appendChild(tr);
@@ -270,75 +327,10 @@
 
             resultsContainer.classList.remove('hidden');
             aiAdvisorBtn.classList.remove('hidden');
-            saveBtn.classList.remove('hidden');
+            if (firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith("AIzaSyXXX")) {
+                 saveBtn.classList.remove('hidden');
+            }
             aiAdvisorResult.classList.add('hidden');
-        });
-
-        // 기록 저장 버튼
-        saveBtn.addEventListener('click', async () => {
-            if (!recordsCollectionRef) { console.error("DB 연결 안됨"); return; }
-            const hasValues = Object.values(currentInputs).some(v => !isNaN(v));
-            if (!hasValues || isNaN(currentInputs.tankVolume)) { return; }
-            
-            const record = { ...currentInputs, createdAt: serverTimestamp() };
-            try {
-                await addDoc(recordsCollectionRef, record);
-            } catch (error) {
-                console.error("기록 저장 오류:", error);
-            }
-        });
-
-        // 기록 삭제 버튼 (이벤트 위임)
-        historyTableBody.addEventListener('click', async (e) => {
-            if (e.target.classList.contains('delete-btn')) {
-                if (!recordsCollectionRef) { return; }
-                const docId = e.target.dataset.id;
-                try {
-                    await deleteDoc(doc(recordsCollectionRef, docId));
-                } catch (error) {
-                    console.error("기록 삭제 오류:", error);
-                }
-            }
-        });
-
-        // 전체 기록 삭제 버튼 (2단계 확인)
-        let clearConfirmState = false;
-        let clearConfirmTimeout;
-
-        clearHistoryBtn.addEventListener('click', async () => {
-            if (!clearConfirmState) {
-                clearConfirmState = true;
-                clearHistoryBtn.textContent = '정말 삭제하시겠습니까?';
-                clearHistoryBtn.classList.remove('bg-red-500', 'hover:bg-red-600');
-                clearHistoryBtn.classList.add('bg-yellow-500', 'hover:bg-yellow-600');
-
-                clearConfirmTimeout = setTimeout(() => {
-                    clearConfirmState = false;
-                    clearHistoryBtn.textContent = '전체 기록 삭제';
-                    clearHistoryBtn.classList.add('bg-red-500', 'hover:bg-red-600');
-                    clearHistoryBtn.classList.remove('bg-yellow-500', 'hover:bg-yellow-600');
-                }, 4000);
-                return;
-            }
-
-            clearTimeout(clearConfirmTimeout);
-            if (!recordsCollectionRef) { return; }
-
-            try {
-                const snapshot = await getDocs(recordsCollectionRef);
-                const deletePromises = [];
-                snapshot.forEach(doc => {
-                    deletePromises.push(deleteDoc(doc.ref));
-                });
-                await Promise.all(deletePromises);
-            } catch (error) {
-                console.error("전체 기록 삭제 오류:", error);
-            } finally {
-                clearConfirmState = false;
-                clearHistoryBtn.textContent = '전체 기록 삭제';
-                clearHistoryBtn.classList.add('bg-red-500', 'hover:bg-red-600');
-                clearHistoryBtn.classList.remove('bg-yellow-500', 'hover:bg-yellow-600');
-            }
         });
         
         // AI 어드바이저 버튼
@@ -358,11 +350,6 @@
             } catch (error) { console.error("Gemini API Error:", error); aiOutput.innerText = `AI 어드바이저를 불러오는 데 실패했습니다. 잠시 후 다시 시도해주세요.\n오류: ${error.message}`;
             } finally { aiLoading.style.display = 'none'; }
         });
-
-        // 앱 시작
-        if (db && auth) {
-            initializeAppWithAuth();
-        }
 
     </script>
 </body>
