@@ -29,6 +29,19 @@
 <body class="bg-blue-50">
 
     <div class="container mx-auto p-4 md:p-8 max-w-7xl">
+        <!-- 상단 인증 영역 -->
+        <div id="auth-container" class="flex justify-end items-center mb-4">
+            <div id="user-info" class="hidden items-center space-x-3">
+                <img id="user-photo" class="w-10 h-10 rounded-full" alt="User photo">
+                <span id="user-name" class="font-semibold text-gray-700"></span>
+                <button id="logout-btn" class="bg-gray-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600 transition duration-300 text-sm">로그아웃</button>
+            </div>
+            <button id="login-btn" class="bg-white text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-100 transition duration-300 flex items-center space-x-2 shadow">
+                <svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"></path><path fill="#FF3D00" d="m6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C16.318 4 9.656 8.337 6.306 14.691z"></path><path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0 1 24 36c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20z"></path><path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571l6.19 5.238C42.012 35.233 44 30.028 44 24c0-1.341-.138-2.65-.389-3.917z"></path></svg>
+                <span>Google로 로그인</span>
+            </button>
+        </div>
+
         <!-- 헤더 -->
         <div class="text-center mb-8">
             <h1 class="text-4xl font-bold text-blue-800">해수어항 도징 및 관리 로그</h1>
@@ -105,7 +118,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -134,8 +147,15 @@
         const graphModal = document.getElementById('graph-modal');
         const closeGraphBtn = document.getElementById('close-graph-btn');
         const recordDateInput = document.getElementById('recordDate');
+        const loginBtn = document.getElementById('login-btn');
+        const logoutBtn = document.getElementById('logout-btn');
+        const userInfoDiv = document.getElementById('user-info');
+        const userNameSpan = document.getElementById('user-name');
+        const userPhotoImg = document.getElementById('user-photo');
 
-        let currentInputs = {}, currentRecommendations = [], allRecords = [], myChart = null;
+        const inputIds = ['tankVolume', 'temp', 'salinity', 'ph', 'ca', 'mg', 'kh', 'no2', 'no3', 'po4'];
+
+        let currentInputs = {}, currentRecommendations = [], allRecords = [], myChart = null, recordsCollectionRef = null;
         
         const targets = {
             temp: { min: 25.5, max: 26.5 }, salinity: { min: 34, max: 35 }, ph: { min: 8.0, max: 8.3 },
@@ -154,13 +174,12 @@
         function getPo4Dose(rise) { if (rise <= 0.009) return 0; if (rise <= 0.02) return 0.3; if (rise <= 0.035) return 0.6; return (rise / 0.035) * 0.6; }
 
         function handleCalculate() {
-            currentInputs = {
-                tankVolume: parseFloat(document.getElementById('tankVolume').value), temp: parseFloat(document.getElementById('temp').value),
-                salinity: parseFloat(document.getElementById('salinity').value), ph: parseFloat(document.getElementById('ph').value),
-                ca: parseFloat(document.getElementById('ca').value), mg: parseFloat(document.getElementById('mg').value),
-                kh: parseFloat(document.getElementById('kh').value), no2: parseFloat(document.getElementById('no2').value),
-                no3: parseFloat(document.getElementById('no3').value), po4: parseFloat(document.getElementById('po4').value),
-            };
+            currentInputs = {};
+            inputIds.forEach(id => {
+                const inputElement = document.getElementById(id);
+                currentInputs[id] = parseFloat(inputElement.value);
+            });
+            
             if (isNaN(currentInputs.tankVolume) || currentInputs.tankVolume <= 0) { alert('어항 용량을 올바르게 입력해주세요.'); return; }
             resultsOutput.innerHTML = '';
             currentRecommendations = [];
@@ -202,8 +221,10 @@
             } else { currentRecommendations.forEach(rec => { const p = document.createElement('p'); p.className = `result-item ${rec.type}`; p.textContent = rec.text; resultsOutput.appendChild(p); }); }
             resultsContainer.classList.remove('hidden');
             aiAdvisorBtn.classList.remove('hidden');
-            if (firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith("AIzaSyXXX")) { saveBtn.classList.remove('hidden'); }
+            if (recordsCollectionRef) { saveBtn.classList.remove('hidden'); }
             aiAdvisorStatus.classList.add('hidden');
+            
+            saveInputData();
         }
 
         async function handleAiAdvisor() {
@@ -244,34 +265,55 @@
         }
 
         function initializeFirebase() {
-            let app, db, auth, userId, recordsCollectionRef;
+            let app, db, auth;
             try {
                 app = initializeApp(firebaseConfig); db = getFirestore(app); auth = getAuth(app);
             } catch (e) {
                 console.error("Firebase 초기화 오류:", e); disableFirebaseFeatures("Firebase 구성 정보가 올바르지 않습니다."); return;
             }
+            
+            const provider = new GoogleAuthProvider();
+
+            loginBtn.addEventListener('click', () => {
+                signInWithPopup(auth, provider).catch(error => console.error("Google 로그인 오류:", error));
+            });
+            logoutBtn.addEventListener('click', () => {
+                signOut(auth).catch(error => console.error("로그아웃 오류:", error));
+            });
+
             onAuthStateChanged(auth, async (user) => {
-                if (user) {
-                    userId = user.uid;
+                if (user) { // Google 사용자로 로그인한 경우
+                    loginBtn.classList.add('hidden');
+                    userInfoDiv.classList.remove('hidden');
+                    userInfoDiv.classList.add('flex');
+                    userNameSpan.textContent = user.displayName;
+                    userPhotoImg.src = user.photoURL;
+                    
+                    const userId = user.uid;
                     recordsCollectionRef = collection(db, 'users', userId, 'reef-tank-logs');
                     listenForRecords(recordsCollectionRef); attachFirebaseEventListeners(recordsCollectionRef);
-                } else {
-                    try { await signInAnonymously(auth); } catch (error) { console.error("Firebase 익명 로그인 오류:", error); disableFirebaseFeatures("Firebase 인증에 실패했습니다."); }
+                } else { // 로그아웃 상태
+                    loginBtn.classList.remove('hidden');
+                    userInfoDiv.classList.add('hidden');
+                    userInfoDiv.classList.remove('flex');
+                    
+                    recordsCollectionRef = null;
+                    disableFirebaseFeatures("로그인하여 기록을 관리하세요.");
                 }
             });
         }
 
         function disableFirebaseFeatures(message) {
-            historyContainer.innerHTML = `<div class="p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 rounded-r-lg"><p class="font-bold">로그 기능 비활성화됨</p><p class="text-sm mt-1">${message}</p></div>`;
-            saveBtn.style.display = 'none';
+            historyTableBody.innerHTML = `<tr><td colspan="11" class="text-gray-500 py-4">${message}</td></tr>`;
+            showGraphBtn.classList.add('hidden');
+            saveBtn.classList.add('hidden');
         }
 
         function listenForRecords(recordsRef) {
-            const q = query(recordsRef, orderBy('recordDate', 'asc')); // 날짜순으로 정렬
+            const q = query(recordsRef, orderBy('recordDate', 'asc'));
             onSnapshot(q, (snapshot) => {
                 allRecords = [];
                 historyTableBody.innerHTML = '';
-                
                 if (snapshot.empty) {
                     historyTableBody.innerHTML = `<tr><td colspan="11" class="text-gray-500 py-4">저장된 기록이 없습니다.</td></tr>`;
                     showGraphBtn.classList.add('hidden');
@@ -281,8 +323,7 @@
                         record.id = doc.id;
                         allRecords.push(record);
                     });
-
-                    [...allRecords].reverse().forEach(record => { // 화면에는 최신순으로 표시
+                    [...allRecords].reverse().forEach(record => {
                         const tr = document.createElement('tr');
                         tr.className = "border-b hover:bg-gray-50";
                         const displayDate = new Date(record.recordDate).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -294,7 +335,6 @@
                             <td><button data-id="${record.id}" class="delete-btn text-red-500 hover:text-red-700 font-bold">X</button></td>`;
                         historyTableBody.appendChild(tr);
                     });
-                    
                     if (allRecords.length > 1) { showGraphBtn.classList.remove('hidden'); } 
                     else { showGraphBtn.classList.add('hidden'); }
                 }
@@ -306,13 +346,12 @@
 
         function attachFirebaseEventListeners(recordsCollectionRef) {
             saveBtn.addEventListener('click', async () => {
+                if (!recordsCollectionRef) { alert("로그인 후 이용해주세요."); return; }
                 const hasValues = Object.values(currentInputs).some(v => !isNaN(v));
                 if (!hasValues || isNaN(currentInputs.tankVolume)) { alert("저장할 데이터가 없습니다. 먼저 수치를 입력하고 계산해주세요."); return; }
                 if (!recordDateInput.value) { alert("기록 날짜를 선택해주세요."); return; }
-                
                 saveBtn.disabled = true;
                 saveBtn.textContent = "저장 중...";
-
                 const record = { 
                     ...currentInputs, 
                     recordDate: recordDateInput.value,
@@ -336,6 +375,7 @@
             });
             let clearConfirmState = false; let clearConfirmTimeout;
             clearHistoryBtn.addEventListener('click', async () => {
+                if (!recordsCollectionRef) { alert("로그인 후 이용해주세요."); return; }
                 if (!clearConfirmState) {
                     clearConfirmState = true; clearHistoryBtn.textContent = '정말 삭제하시겠습니까?';
                     clearHistoryBtn.classList.remove('bg-red-500', 'hover:bg-red-600'); clearHistoryBtn.classList.add('bg-yellow-500', 'hover:bg-yellow-600');
@@ -382,13 +422,32 @@
             });
         }
         
-        // 오늘 날짜로 기본 설정
         function setTodayDate() {
             const today = new Date();
             const yyyy = today.getFullYear();
             const mm = String(today.getMonth() + 1).padStart(2, '0');
             const dd = String(today.getDate()).padStart(2, '0');
             recordDateInput.value = `${yyyy}-${mm}-${dd}`;
+        }
+
+        function saveInputData() {
+            const dataToSave = {};
+            inputIds.forEach(id => {
+                dataToSave[id] = document.getElementById(id).value;
+            });
+            localStorage.setItem('reefCalculatorInputs', JSON.stringify(dataToSave));
+        }
+
+        function loadInputData() {
+            const savedData = localStorage.getItem('reefCalculatorInputs');
+            if (savedData) {
+                const data = JSON.parse(savedData);
+                inputIds.forEach(id => {
+                    if (data[id]) {
+                        document.getElementById(id).value = data[id];
+                    }
+                });
+            }
         }
 
         showGraphBtn.addEventListener('click', () => {
@@ -404,8 +463,8 @@
         calculateBtn.addEventListener('click', handleCalculate);
         aiAdvisorBtn.addEventListener('click', handleAiAdvisor);
         
-        // 앱 시작 시 오늘 날짜 설정
         setTodayDate();
+        loadInputData();
 
         if (firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith("AIzaSyXXX")) {
             initializeFirebase();
@@ -415,3 +474,19 @@
     </script>
 </body>
 </html>
+```
+
+### 2. 마지막 설정: Firebase에 'Google 로그인' 허용하기
+
+코드를 업데이트한 후, 마지막으로 Firebase 사이트에 가서 "이제부터 우리 앱은 구글 계정으로도 로그인할 수 있어요!"라고 알려줘야 합니다.
+
+1.  **Firebase 사이트 접속**: [firebase.google.com](https://firebase.google.com) 에 접속해서, 만드셨던 프로젝트로 들어가세요.
+2.  **Authentication으로 이동**: 왼쪽 메뉴 **빌드(Build)** 아래의 **Authentication**을 클릭합니다.
+3.  **'로그인 방법'** 탭을 클릭합니다.
+4.  **'새 공급업체 추가'** 버튼을 누릅니다.
+5.  목록에서 **'Google'**을 선택합니다.
+6.  **'사용 설정'** 스위치를 켜고, **'프로젝트 지원 이메일'**에서 본인의 이메일 주소를 선택한 후, 파란색 **'저장'** 버튼을 누르면 모든 것이 끝납니다!
+
+이제 새로고침하면, 앱 오른쪽 위에 'Google로 로그인' 버튼이 보일 거예요. 이 버튼을 눌러 로그인하면, 어떤 기기에서든 항상 나의 소중한 어항 기록을 보고 관리할 수 있게 됩니다.
+
+그동안 정말 고생 많으셨습니다! 이제 모든 기능이 완벽하게 작동하는, 세상에 하나뿐인 사용자님만의 멋진 앱이 완성되었습
