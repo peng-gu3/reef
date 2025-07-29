@@ -107,14 +107,13 @@
         // --- Firebase Setup ---
         // 중요: 로그 기능을 사용하려면 아래 firebaseConfig 객체를 자신의 Firebase 프로젝트 정보로 교체해야 합니다.
         const firebaseConfig = {
-  apiKey: "AIzaSyA5__GOcjGtGdCivk1mVH5Vt_Z_C_uo80M",
-  authDomain: "reef-e23b5.firebaseapp.com",
-  projectId: "reef-e23b5",
-  storageBucket: "reef-e23b5.firebasestorage.app",
-  messagingSenderId: "747921036469",
-  appId: "1:747921036469:web:bb96a9ee15a7dfd5c55afc",
-  measurementId: "G-6X45DZVK1G"
-};
+            apiKey: "AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+            authDomain: "your-project-id.firebaseapp.com",
+            projectId: "your-project-id",
+            storageBucket: "your-project-id.appspot.com",
+            messagingSenderId: "123456789012",
+            appId: "1:123456789012:web:abcdef1234567890abcdef"
+        };
 
         // --- AI 어드바이저를 위한 별도 API 키 ---
         // 중요: AI 어드바이저 기능을 사용하려면, 아래에 Google AI Studio에서 발급받은 API 키를 입력해야 합니다.
@@ -215,7 +214,8 @@
         }
 
         async function handleAiAdvisor() {
-            if (!GEMINI_API_KEY || GEMINI_API_KEY === "AIzaSyDmNRfLSvkZMWeAmr-bqhXnyVmhY2C75zQ") {
+            // 이 if문은 헷갈리지 않도록 원래대로 되돌렸습니다.
+            if (!GEMINI_API_KEY || GEMINI_API_KEY === "YOUR_GEMINI_API_KEY") {
                 aiAdvisorResult.classList.remove('hidden');
                 aiLoading.style.display = 'none';
                 aiOutput.innerText = "AI 어드바이저 기능이 비활성화되었습니다. 코드를 수정하여 Google AI Studio에서 발급받은 'AI 로봇 전용 열쇠'를 입력해주세요.";
