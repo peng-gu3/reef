@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>해수어항 계산기 (안정화 버전)</title>
+    <title>해수어항 계산기 (최종 안정화 버전)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
     <style>
@@ -58,151 +58,159 @@
     </div>
 
     <script>
-        // --- AI 어드바이저를 위한 별도 API 키 ---
-        const GEMINI_API_KEY = "AIzaSyDmNRfLSvkZMWeAmr-bqhXnyVmhY2C75zQ"; // AI 기능을 사용하려면 여기에 키를 입력하세요.
+        document.addEventListener('DOMContentLoaded', function() {
+            // --- AI 어드바이저를 위한 별도 API 키 ---
+            const GEMINI_API_KEY = "AIzaSyDmNRfLSvkZMWeAmr-bqhXnyVmhY2C75zQ"; // AI 기능을 사용하려면 여기에 키를 입력하세요.
 
-        const calculateBtn = document.getElementById('calculate-btn');
-        const resultsContainer = document.getElementById('results-container');
-        const resultsOutput = document.getElementById('results-output');
-        const aiAdvisorBtn = document.getElementById('ai-advisor-btn');
-        const aiAdvisorStatus = document.getElementById('ai-advisor-status');
-        const aiLoading = document.getElementById('ai-loading');
-        const aiErrorOutput = document.getElementById('ai-error-output');
-        const inputIds = ['tankVolume', 'temp', 'salinity', 'ph', 'ca', 'mg', 'kh', 'no2', 'no3', 'po4'];
-        let currentInputs = {};
-        
-        const targets = {
-            temp: { min: 25.5, max: 26.5 }, salinity: { min: 34, max: 35 }, ph: { min: 8.0, max: 8.3 },
-            ca: { min: 400, max: 440, target: 420 }, mg: { min: 1250, max: 1440, target: 1350 },
-            kh: { min: 7.5, max: 8.5, target: 8.0 }, no2: { max: 0 },
-            no3: { min: 0.5, max: 2.0, target: 1.0 }, po4: { min: 0.03, max: 0.08, target: 0.05 }
-        };
-
-        const dosingFormulas = {
-            ca: (rise, volume) => (rise / 2) * (volume / 100),
-            mg: (rise, volume) => rise * (volume / 100),
-            kh: (rise, volume) => (rise / 0.1) * (volume / 100),
-        };
-        
-        function getNo3Dose(rise) { if (rise <= 0.2) return 0; if (rise <= 0.4) return 0.3; if (rise <= 0.7) return 0.6; if (rise <= 1.0) return 0.9; return (rise / 1.0) * 0.9; }
-        function getPo4Dose(rise) { if (rise <= 0.009) return 0; if (rise <= 0.02) return 0.3; if (rise <= 0.035) return 0.6; return (rise / 0.035) * 0.6; }
-
-        function handleCalculate() {
-            currentInputs = {};
-            inputIds.forEach(id => {
-                const inputElement = document.getElementById(id);
-                currentInputs[id] = parseFloat(inputElement.value);
-            });
+            const calculateBtn = document.getElementById('calculate-btn');
+            const resultsContainer = document.getElementById('results-container');
+            const resultsOutput = document.getElementById('results-output');
+            const aiAdvisorBtn = document.getElementById('ai-advisor-btn');
+            const aiAdvisorStatus = document.getElementById('ai-advisor-status');
+            const aiLoading = document.getElementById('ai-loading');
+            const aiErrorOutput = document.getElementById('ai-error-output');
+            const inputIds = ['tankVolume', 'temp', 'salinity', 'ph', 'ca', 'mg', 'kh', 'no2', 'no3', 'po4'];
+            let currentInputs = {};
             
-            if (isNaN(currentInputs.tankVolume) || currentInputs.tankVolume <= 0) { alert('어항 용량을 올바르게 입력해주세요.'); return; }
-            
-            resultsOutput.innerHTML = '';
-            let recommendations = [];
-            for (const key in targets) {
-                if (isNaN(currentInputs[key])) continue;
-                const currentVal = currentInputs[key]; const target = targets[key];
-                let message = ''; let type = 'result-good';
-                switch (key) {
-                    case 'ca': case 'mg': case 'kh':
-                        if (currentVal < target.min) {
-                            const riseAmount = target.target - currentVal; const dose = dosingFormulas[key](riseAmount, currentInputs.tankVolume);
-                            const dailyDose = (dose / 7).toFixed(1);
-                            message = `${key.toUpperCase()}: 낮음. 목표치(${target.target}ppm)까지 ${riseAmount.toFixed(1)}ppm 올리려면 약 ${dose.toFixed(1)}ml 도징 필요. (매일 약 ${dailyDose}ml 씩 7일간 분할 도징 권장)`;
-                            type = 'result-low';
-                        } else if (currentVal > target.max) { message = `${key.toUpperCase()}: 높음. 환수 또는 도징 중단으로 조절 필요.`; type = 'result-high';
-                        } else { message = `${key.toUpperCase()}: 안정적인 수치입니다.`; }
-                        break;
-                    case 'no2':
-                        if (currentVal > target.max) { message = `${key.toUpperCase()}: 검출됨! 즉시 20% 환수를 권장합니다.`; type = 'result-action';
-                        } else { message = `${key.toUpperCase()}: 안정적인 수치입니다. (검출 안됨)`; }
-                        break;
-                    case 'no3': case 'po4':
-                        if (currentVal < target.min) {
-                            const riseAmount = target.target - currentVal; const dose = (key === 'no3') ? getNo3Dose(riseAmount) : getPo4Dose(riseAmount);
-                            message = `${key.toUpperCase()}: 낮음. 목표치(${target.target})까지 ${riseAmount.toFixed(key === 'no3' ? 2 : 3)} 올리려면 약 ${dose.toFixed(1)}ml 도징 필요. (주의: 소량씩 테스트하며 조절하세요.)`;
-                            type = 'result-low';
-                        } else if (currentVal > target.max) { message = `${key.toUpperCase()}: 높음. 20% 환수 또는 리무버 사용을 권장합니다.`; type = 'result-high';
-                        } else { message = `${key.toUpperCase()}: 안정적인 수치입니다.`; }
-                        break;
-                    default:
-                        if (currentVal < target.min) { message = `${key.toUpperCase()}: 낮음. 목표 범위(${target.min}~${target.max})로 조절해주세요.`; type = 'result-low';
-                        } else if (currentVal > target.max) { message = `${key.toUpperCase()}: 높음. 목표 범위(${target.min}~${target.max})로 조절해주세요.`; type = 'result-high';
-                        } else { message = `${key.toUpperCase()}: 안정적인 수치입니다.`; }
-                        break;
-                }
-                recommendations.push({text: message, type: type});
-            }
-            if (recommendations.length === 0) { resultsOutput.innerHTML = '<p>분석할 데이터가 없습니다. 수치를 입력해주세요.</p>';
-            } else { recommendations.forEach(rec => { const p = document.createElement('p'); p.className = `result-item ${rec.type}`; p.textContent = rec.text; resultsOutput.appendChild(p); }); }
-            
-            resultsContainer.classList.remove('hidden');
-            aiAdvisorBtn.classList.remove('hidden');
-            aiAdvisorStatus.classList.add('hidden');
-            
-            saveInputData();
-        }
+            const targets = {
+                temp: { min: 25.5, max: 26.5 }, salinity: { min: 34, max: 35 }, ph: { min: 8.0, max: 8.3 },
+                ca: { min: 400, max: 440, target: 420 }, mg: { min: 1250, max: 1440, target: 1350 },
+                kh: { min: 7.5, max: 8.5, target: 8.0 }, no2: { max: 0 },
+                no3: { min: 0.5, max: 2.0, target: 1.0 }, po4: { min: 0.03, max: 0.08, target: 0.05 }
+            };
 
-        async function handleAiAdvisor() {
-            if (!GEMINI_API_KEY || GEMINI_API_KEY === "YOUR_GEMINI_API_KEY") {
-                aiAdvisorStatus.classList.remove('hidden'); aiLoading.style.display = 'none'; aiErrorOutput.classList.remove('hidden');
-                aiErrorOutput.innerText = "AI 어드바이저 기능이 비활성화되었습니다. 코드를 수정하여 Google AI Studio에서 발급받은 API 키를 입력해주세요.";
-                return;
-            }
-            const newWindow = window.open('', '_blank');
-            if (!newWindow) {
-                aiAdvisorStatus.classList.remove('hidden'); aiLoading.style.display = 'none'; aiErrorOutput.classList.remove('hidden');
-                aiErrorOutput.innerText = "팝업 창이 차단되었습니다. 이 사이트의 팝업을 허용하고 다시 시도해주세요.";
-                return;
-            }
-            newWindow.document.write('<h1>AI 어드바이저가 분석 중입니다... 잠시만 기다려주세요.</h1>');
-            aiAdvisorStatus.classList.remove('hidden'); aiLoading.style.display = 'flex'; aiErrorOutput.classList.add('hidden');
-            let prompt = `당신은 세계 최고의 해수어항 관리 전문가입니다. 아래는 한 사용자의 어항 데이터입니다. 이 정보를 바탕으로, 전문가의 입장에서 종합적인 분석과 조언을 친절하고 상세하게 제공해주세요. **사용자 어항 정보:**\n- 어항 용량: ${currentInputs.tankVolume}L\n- 온도: ${currentInputs.temp}°C\n- 염도: ${currentInputs.salinity} ppt\n- pH: ${currentInputs.ph}\n- 칼슘(Ca): ${currentInputs.ca} ppm\n- 마그네슘(Mg): ${currentInputs.mg} ppm\n- 알칼리니티(KH): ${currentInputs.kh} dKH\n- 아질산염(NO2): ${currentInputs.no2} ppm\n- 질산염(NO3): ${currentInputs.no3} ppm\n- 인산염(PO4): ${currentInputs.po4} ppm\n\n**분석 및 조언 요청:**\n1.  **종합 진단:** 현재 어항의 전반적인 상태를 한두 문장으로 요약해주세요.\n2.  **상세 분석:** 각 수치들이 서로에게 어떤 영향을 미치는지, 그리고 현재 수치가 산호나 생물에게 어떤 의미인지 설명해주세요.\n3.  **실행 계획:** 문제가 되는 수치가 있다면, 사용자가 따라하기 쉬운 단계별 실행 계획을 제시해주세요.\n4.  **장기적 관리 팁:** 현재 상태를 바탕으로 앞으로 어항을 더 안정적으로 유지하기 위한 팁을 2~3가지 제안해주세요.\n\n결과는 한국어로, 전문가적이면서도 이해하기 쉽게 작성해주세요.`;
-            try {
-                let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
-                const payload = { contents: chatHistory };
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
-                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                if (!response.ok) { throw new Error(`API 호출 실패: ${response.statusText}`); }
-                const result = await response.json();
-                if (result.candidates && result.candidates.length > 0) {
-                    const text = result.candidates[0].content.parts[0].text;
-                    newWindow.document.open();
-                    newWindow.document.write(`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>AI 어드바이저 분석 결과</title><style>body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; line-height: 1.7; padding: 2rem; background-color: #f8f9fa; color: #212529;} h1 { color: #4c6ef5; } pre { white-space: pre-wrap; word-wrap: break-word; background-color: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-size: 1rem; }</style></head><body><h1>✨ AI 어드바이저 분석 결과</h1><pre>${text}</pre></body></html>`);
-                    newWindow.document.close();
-                    aiAdvisorStatus.classList.add('hidden');
-                } else { throw new Error("API로부터 유효한 응답을 받지 못했습니다."); }
-            } catch (error) {
-                console.error("Gemini API Error:", error);
-                const errorMessage = `AI 어드바이저를 불러오는 데 실패했습니다. 잠시 후 다시 시도해주세요.\n오류: ${error.message}`;
-                newWindow.document.write(`<h1>오류 발생</h1><p>${errorMessage}</p>`);
-                aiLoading.style.display = 'none'; aiErrorOutput.classList.remove('hidden'); aiErrorOutput.innerText = errorMessage;
-            }
-        }
+            const dosingFormulas = {
+                ca: (rise, volume) => (rise / 2) * (volume / 100),
+                mg: (rise, volume) => rise * (volume / 100),
+                kh: (rise, volume) => (rise / 0.1) * (volume / 100),
+            };
+            
+            function getNo3Dose(rise) { if (rise <= 0.2) return 0; if (rise <= 0.4) return 0.3; if (rise <= 0.7) return 0.6; if (rise <= 1.0) return 0.9; return (rise / 1.0) * 0.9; }
+            function getPo4Dose(rise) { if (rise <= 0.009) return 0; if (rise <= 0.02) return 0.3; if (rise <= 0.035) return 0.6; return (rise / 0.035) * 0.6; }
 
-        function saveInputData() {
-            const dataToSave = {};
-            inputIds.forEach(id => {
-                dataToSave[id] = document.getElementById(id).value;
-            });
-            localStorage.setItem('reefCalculatorInputs', JSON.stringify(dataToSave));
-        }
-
-        function loadInputData() {
-            const savedData = localStorage.getItem('reefCalculatorInputs');
-            if (savedData) {
-                const data = JSON.parse(savedData);
-                inputIds.forEach(id => {
-                    if (data[id]) {
-                        document.getElementById(id).value = data[id];
+            function handleCalculate() {
+                try {
+                    currentInputs = {};
+                    inputIds.forEach(id => {
+                        const inputElement = document.getElementById(id);
+                        currentInputs[id] = parseFloat(inputElement.value);
+                    });
+                    
+                    if (isNaN(currentInputs.tankVolume) || currentInputs.tankVolume <= 0) { alert('어항 용량을 올바르게 입력해주세요.'); return; }
+                    
+                    resultsOutput.innerHTML = '';
+                    let recommendations = [];
+                    for (const key in targets) {
+                        if (isNaN(currentInputs[key])) continue;
+                        const currentVal = currentInputs[key]; const target = targets[key];
+                        let message = ''; let type = 'result-good';
+                        switch (key) {
+                            case 'ca': case 'mg': case 'kh':
+                                if (currentVal < target.min) {
+                                    const riseAmount = target.target - currentVal; const dose = dosingFormulas[key](riseAmount, currentInputs.tankVolume);
+                                    const dailyDose = (dose / 7).toFixed(1);
+                                    message = `${key.toUpperCase()}: 낮음. 목표치(${target.target}ppm)까지 ${riseAmount.toFixed(1)}ppm 올리려면 약 ${dose.toFixed(1)}ml 도징 필요. (매일 약 ${dailyDose}ml 씩 7일간 분할 도징 권장)`;
+                                    type = 'result-low';
+                                } else if (currentVal > target.max) { message = `${key.toUpperCase()}: 높음. 환수 또는 도징 중단으로 조절 필요.`; type = 'result-high';
+                                } else { message = `${key.toUpperCase()}: 안정적인 수치입니다.`; }
+                                break;
+                            case 'no2':
+                                if (currentVal > target.max) { message = `${key.toUpperCase()}: 검출됨! 즉시 20% 환수를 권장합니다.`; type = 'result-action';
+                                } else { message = `${key.toUpperCase()}: 안정적인 수치입니다. (검출 안됨)`; }
+                                break;
+                            case 'no3': case 'po4':
+                                if (currentVal < target.min) {
+                                    const riseAmount = target.target - currentVal; const dose = (key === 'no3') ? getNo3Dose(riseAmount) : getPo4Dose(riseAmount);
+                                    message = `${key.toUpperCase()}: 낮음. 목표치(${target.target})까지 ${riseAmount.toFixed(key === 'no3' ? 2 : 3)} 올리려면 약 ${dose.toFixed(1)}ml 도징 필요. (주의: 소량씩 테스트하며 조절하세요.)`;
+                                    type = 'result-low';
+                                } else if (currentVal > target.max) { message = `${key.toUpperCase()}: 높음. 20% 환수 또는 리무버 사용을 권장합니다.`; type = 'result-high';
+                                } else { message = `${key.toUpperCase()}: 안정적인 수치입니다.`; }
+                                break;
+                            default:
+                                if (currentVal < target.min) { message = `${key.toUpperCase()}: 낮음. 목표 범위(${target.min}~${target.max})로 조절해주세요.`; type = 'result-low';
+                                } else if (currentVal > target.max) { message = `${key.toUpperCase()}: 높음. 목표 범위(${target.min}~${target.max})로 조절해주세요.`; type = 'result-high';
+                                } else { message = `${key.toUpperCase()}: 안정적인 수치입니다.`; }
+                                break;
+                        }
+                        recommendations.push({text: message, type: type});
                     }
-                });
+                    if (recommendations.length === 0) { resultsOutput.innerHTML = '<p>분석할 데이터가 없습니다. 수치를 입력해주세요.</p>';
+                    } else { recommendations.forEach(rec => { const p = document.createElement('p'); p.className = `result-item ${rec.type}`; p.textContent = rec.text; resultsOutput.appendChild(p); }); }
+                    
+                    resultsContainer.classList.remove('hidden');
+                    aiAdvisorBtn.classList.remove('hidden');
+                    aiAdvisorStatus.classList.add('hidden');
+                    
+                    saveInputData();
+                } catch (error) {
+                    console.error("계산 중 오류 발생:", error);
+                    resultsContainer.classList.remove('hidden');
+                    resultsOutput.innerHTML = `<p class="result-item result-low">계산 중 오류가 발생했습니다. 페이지를 새로고침하고 다시 시도해주세요.</p>`;
+                }
             }
-        }
 
-        calculateBtn.addEventListener('click', handleCalculate);
-        aiAdvisorBtn.addEventListener('click', handleAiAdvisor);
-        
-        loadInputData(); // 앱 시작 시 저장된 입력값 불러오기
+            async function handleAiAdvisor() {
+                if (!GEMINI_API_KEY || GEMINI_API_KEY === "YOUR_GEMINI_API_KEY") {
+                    aiAdvisorStatus.classList.remove('hidden'); aiLoading.style.display = 'none'; aiErrorOutput.classList.remove('hidden');
+                    aiErrorOutput.innerText = "AI 어드바이저 기능이 비활성화되었습니다. 코드를 수정하여 Google AI Studio에서 발급받은 API 키를 입력해주세요.";
+                    return;
+                }
+                const newWindow = window.open('', '_blank');
+                if (!newWindow) {
+                    aiAdvisorStatus.classList.remove('hidden'); aiLoading.style.display = 'none'; aiErrorOutput.classList.remove('hidden');
+                    aiErrorOutput.innerText = "팝업 창이 차단되었습니다. 이 사이트의 팝업을 허용하고 다시 시도해주세요.";
+                    return;
+                }
+                newWindow.document.write('<h1>AI 어드바이저가 분석 중입니다... 잠시만 기다려주세요.</h1>');
+                aiAdvisorStatus.classList.remove('hidden'); aiLoading.style.display = 'flex'; aiErrorOutput.classList.add('hidden');
+                let prompt = `당신은 세계 최고의 해수어항 관리 전문가입니다. 아래는 한 사용자의 어항 데이터입니다. 이 정보를 바탕으로, 전문가의 입장에서 종합적인 분석과 조언을 친절하고 상세하게 제공해주세요. **사용자 어항 정보:**\n- 어항 용량: ${currentInputs.tankVolume}L\n- 온도: ${currentInputs.temp}°C\n- 염도: ${currentInputs.salinity} ppt\n- pH: ${currentInputs.ph}\n- 칼슘(Ca): ${currentInputs.ca} ppm\n- 마그네슘(Mg): ${currentInputs.mg} ppm\n- 알칼리니티(KH): ${currentInputs.kh} dKH\n- 아질산염(NO2): ${currentInputs.no2} ppm\n- 질산염(NO3): ${currentInputs.no3} ppm\n- 인산염(PO4): ${currentInputs.po4} ppm\n\n**분석 및 조언 요청:**\n1.  **종합 진단:** 현재 어항의 전반적인 상태를 한두 문장으로 요약해주세요.\n2.  **상세 분석:** 각 수치들이 서로에게 어떤 영향을 미치는지, 그리고 현재 수치가 산호나 생물에게 어떤 의미인지 설명해주세요.\n3.  **실행 계획:** 문제가 되는 수치가 있다면, 사용자가 따라하기 쉬운 단계별 실행 계획을 제시해주세요.\n4.  **장기적 관리 팁:** 현재 상태를 바탕으로 앞으로 어항을 더 안정적으로 유지하기 위한 팁을 2~3가지 제안해주세요.\n\n결과는 한국어로, 전문가적이면서도 이해하기 쉽게 작성해주세요.`;
+                try {
+                    let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+                    const payload = { contents: chatHistory };
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+                    const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                    if (!response.ok) { throw new Error(`API 호출 실패: ${response.statusText}`); }
+                    const result = await response.json();
+                    if (result.candidates && result.candidates.length > 0) {
+                        const text = result.candidates[0].content.parts[0].text;
+                        newWindow.document.open();
+                        newWindow.document.write(`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>AI 어드바이저 분석 결과</title><style>body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; line-height: 1.7; padding: 2rem; background-color: #f8f9fa; color: #212529;} h1 { color: #4c6ef5; } pre { white-space: pre-wrap; word-wrap: break-word; background-color: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-size: 1rem; }</style></head><body><h1>✨ AI 어드바이저 분석 결과</h1><pre>${text}</pre></body></html>`);
+                        newWindow.document.close();
+                        aiAdvisorStatus.classList.add('hidden');
+                    } else { throw new Error("API로부터 유효한 응답을 받지 못했습니다."); }
+                } catch (error) {
+                    console.error("Gemini API Error:", error);
+                    const errorMessage = `AI 어드바이저를 불러오는 데 실패했습니다. 잠시 후 다시 시도해주세요.\n오류: ${error.message}`;
+                    newWindow.document.write(`<h1>오류 발생</h1><p>${errorMessage}</p>`);
+                    aiLoading.style.display = 'none'; aiErrorOutput.classList.remove('hidden'); aiErrorOutput.innerText = errorMessage;
+                }
+            }
+
+            function saveInputData() {
+                const dataToSave = {};
+                inputIds.forEach(id => {
+                    dataToSave[id] = document.getElementById(id).value;
+                });
+                localStorage.setItem('reefCalculatorInputs', JSON.stringify(dataToSave));
+            }
+
+            function loadInputData() {
+                const savedData = localStorage.getItem('reefCalculatorInputs');
+                if (savedData) {
+                    const data = JSON.parse(savedData);
+                    inputIds.forEach(id => {
+                        if (data[id]) {
+                            document.getElementById(id).value = data[id];
+                        }
+                    });
+                }
+            }
+
+            calculateBtn.addEventListener('click', handleCalculate);
+            aiAdvisorBtn.addEventListener('click', handleAiAdvisor);
+            
+            loadInputData(); // 앱 시작 시 저장된 입력값 불러오기
+        });
     </script>
 </body>
 </html>
