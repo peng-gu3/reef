@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>해수어항 도징 계산기 (로그 기능 탑재)</title>
+    <title>해수어항 도징 계산기 (그래프 기능 탑재)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
             font-family: 'Noto Sans KR', sans-serif;
@@ -36,14 +37,10 @@
         <!-- 메인 컨텐츠 -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
-            <!-- 입력 폼 (lg 화면에서 1/3 차지) -->
+            <!-- 입력 폼 -->
             <div class="lg:col-span-1 bg-white p-6 rounded-lg shadow-lg">
                 <h2 class="text-2xl font-semibold mb-6 text-blue-700 border-b pb-2">어항 정보 입력</h2>
-                
-                <div class="input-group">
-                    <label for="tankVolume">어항 용량</label>
-                    <input type="number" id="tankVolume" placeholder="160"><span class="unit">L</span>
-                </div>
+                <div class="input-group"><label for="tankVolume">어항 용량</label><input type="number" id="tankVolume" placeholder="160"><span class="unit">L</span></div>
                 <hr class="my-4">
                 <div class="input-group"><label for="temp">온도</label><input type="number" step="0.1" id="temp" placeholder="26.0"><span class="unit">°C</span></div>
                 <div class="input-group"><label for="salinity">염도</label><input type="number" step="0.1" id="salinity" placeholder="34.5"><span class="unit">ppt</span></div>
@@ -55,24 +52,19 @@
                 <div class="input-group"><label for="no2">아질산염</label><input type="number" step="0.01" id="no2" placeholder="0.0"><span class="unit">ppm</span></div>
                 <div class="input-group"><label for="no3">질산염</label><input type="number" id="no3" placeholder="1.0"><span class="unit">ppm</span></div>
                 <div class="input-group"><label for="po4">인산염</label><input type="number" step="0.01" id="po4" placeholder="0.05"><span class="unit">ppm</span></div>
-
                 <button id="calculate-btn" class="w-full mt-4 bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition duration-300">계산하기</button>
                 <button id="save-btn" class="w-full mt-2 bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 transition duration-300 hidden">오늘 기록 저장</button>
             </div>
 
-            <!-- 결과 및 로그 표시 (lg 화면에서 2/3 차지) -->
+            <!-- 결과 및 로그 표시 -->
             <div class="lg:col-span-2 space-y-8">
                 <!-- 결과 표시 -->
                 <div id="results-container" class="bg-white p-6 rounded-lg shadow-lg hidden">
                     <h2 class="text-2xl font-semibold mb-6 text-blue-700 border-b pb-2">계산 결과 및 권장 사항</h2>
                     <div id="results-output" class="space-y-3"></div>
                     <button id="ai-advisor-btn" class="w-full mt-6 bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition duration-300 hidden">✨ AI 어드바이저에게 물어보기</button>
-                    <!-- AI 분석 결과는 새 창으로 뜨므로, 로딩 및 오류 메시지만 표시합니다. -->
                     <div id="ai-advisor-status" class="mt-6 hidden">
-                        <div id="ai-loading" class="flex justify-center items-center py-4">
-                            <div class="spinner"></div>
-                            <p class="ml-4 text-gray-600">AI가 어항 상태를 분석중입니다...</p>
-                        </div>
+                        <div id="ai-loading" class="flex justify-center items-center py-4"><div class="spinner"></div><p class="ml-4 text-gray-600">AI가 어항 상태를 분석중입니다...</p></div>
                         <div id="ai-error-output" class="p-4 bg-red-100 border-l-4 border-red-500 text-red-700 rounded-r-lg hidden"></div>
                     </div>
                     <div class="mt-6 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 rounded-r-lg"><p class="font-bold">⚠️ 중요 주의사항</p><p class="text-sm">본 계산 결과는 일반적인 참고용이며, 사용하는 도징 제품의 설명서를 반드시 우선적으로 확인하세요. 어항의 상태를 지속적으로 관찰하며 소량씩 나누어 안전하게 도징하는 것을 권장합니다.</p></div>
@@ -82,18 +74,15 @@
                 <div id="history-container" class="bg-white p-6 rounded-lg shadow-lg">
                     <div class="flex justify-between items-center mb-6 border-b pb-2">
                         <h2 class="text-2xl font-semibold text-blue-700">어항 관리 로그</h2>
-                        <button id="clear-history-btn" class="bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600 transition duration-300 text-sm">전체 기록 삭제</button>
+                        <div>
+                            <button id="show-graph-btn" class="bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-600 transition duration-300 text-sm mr-2 hidden">변동 그래프 보기</button>
+                            <button id="clear-history-btn" class="bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600 transition duration-300 text-sm">전체 기록 삭제</button>
+                        </div>
                     </div>
                     <div class="overflow-x-auto">
                         <table id="history-table" class="w-full text-sm">
-                            <thead class="bg-gray-100">
-                                <tr>
-                                    <th>날짜</th><th>온도</th><th>염도</th><th>pH</th><th>Ca</th><th>Mg</th><th>KH</th><th>NO2</th><th>NO3</th><th>PO4</th><th>삭제</th>
-                                </tr>
-                            </thead>
-                            <tbody id="history-table-body">
-                                <!-- 로그 데이터가 여기에 동적으로 추가됩니다 -->
-                            </tbody>
+                            <thead class="bg-gray-100"><tr><th>날짜</th><th>온도</th><th>염도</th><th>pH</th><th>Ca</th><th>Mg</th><th>KH</th><th>NO2</th><th>NO3</th><th>PO4</th><th>삭제</th></tr></thead>
+                            <tbody id="history-table-body"></tbody>
                         </table>
                     </div>
                 </div>
@@ -101,13 +90,22 @@
         </div>
     </div>
 
+    <!-- 그래프 모달 -->
+    <div id="graph-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl h-full max-h-[80vh] p-6 flex flex-col">
+            <div class="flex justify-between items-center border-b pb-2 mb-4">
+                <h2 class="text-2xl font-semibold text-blue-700">기간별 변동 내역</h2>
+                <button id="close-graph-btn" class="text-gray-500 hover:text-gray-800 font-bold text-2xl">&times;</button>
+            </div>
+            <div class="flex-grow relative"><canvas id="history-chart"></canvas></div>
+        </div>
+    </div>
+
     <script type="module">
-        // Firebase 모듈 가져오기
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- Firebase Setup ---
         const firebaseConfig = {
   apiKey: "AIzaSyA5__GOcjGtGdCivk1mVH5Vt_Z_C_uo80M",
   authDomain: "reef-e23b5.firebaseapp.com",
@@ -117,12 +115,8 @@
   appId: "1:747921036469:web:bb96a9ee15a7dfd5c55afc",
   measurementId: "G-6X45DZVK1G"
 };
-
-        // --- AI 어드바이저를 위한 별도 API 키 ---
         const GEMINI_API_KEY = "AIzaSyDmNRfLSvkZMWeAmr-bqhXnyVmhY2C75zQ";
 
-
-        // DOM 요소
         const calculateBtn = document.getElementById('calculate-btn');
         const saveBtn = document.getElementById('save-btn');
         const resultsContainer = document.getElementById('results-container');
@@ -134,9 +128,11 @@
         const historyContainer = document.getElementById('history-container');
         const historyTableBody = document.getElementById('history-table-body');
         const clearHistoryBtn = document.getElementById('clear-history-btn');
+        const showGraphBtn = document.getElementById('show-graph-btn');
+        const graphModal = document.getElementById('graph-modal');
+        const closeGraphBtn = document.getElementById('close-graph-btn');
 
-        let currentInputs = {};
-        let currentRecommendations = [];
+        let currentInputs = {}, currentRecommendations = [], allRecords = [], myChart = null;
         
         const targets = {
             temp: { min: 25.5, max: 26.5 }, salinity: { min: 34, max: 35 }, ph: { min: 8.0, max: 8.3 },
@@ -154,7 +150,6 @@
         function getNo3Dose(rise) { if (rise <= 0.2) return 0; if (rise <= 0.4) return 0.3; if (rise <= 0.7) return 0.6; if (rise <= 1.0) return 0.9; return (rise / 1.0) * 0.9; }
         function getPo4Dose(rise) { if (rise <= 0.009) return 0; if (rise <= 0.02) return 0.3; if (rise <= 0.035) return 0.6; return (rise / 0.035) * 0.6; }
 
-        
         function handleCalculate() {
             currentInputs = {
                 tankVolume: parseFloat(document.getElementById('tankVolume').value), temp: parseFloat(document.getElementById('temp').value),
@@ -163,12 +158,9 @@
                 kh: parseFloat(document.getElementById('kh').value), no2: parseFloat(document.getElementById('no2').value),
                 no3: parseFloat(document.getElementById('no3').value), po4: parseFloat(document.getElementById('po4').value),
             };
-
             if (isNaN(currentInputs.tankVolume) || currentInputs.tankVolume <= 0) { alert('어항 용량을 올바르게 입력해주세요.'); return; }
-
             resultsOutput.innerHTML = '';
             currentRecommendations = [];
-
             for (const key in targets) {
                 if (isNaN(currentInputs[key])) continue;
                 const currentVal = currentInputs[key]; const target = targets[key];
@@ -203,31 +195,28 @@
                 }
                 currentRecommendations.push({text: message, type: type});
             }
-            
             if (currentRecommendations.length === 0) { resultsOutput.innerHTML = '<p>분석할 데이터가 없습니다. 수치를 입력해주세요.</p>';
             } else { currentRecommendations.forEach(rec => { const p = document.createElement('p'); p.className = `result-item ${rec.type}`; p.textContent = rec.text; resultsOutput.appendChild(p); }); }
-
             resultsContainer.classList.remove('hidden');
             aiAdvisorBtn.classList.remove('hidden');
-            if (firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith("AIzaSyXXX")) {
-                 saveBtn.classList.remove('hidden');
-            }
+            if (firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith("AIzaSyXXX")) { saveBtn.classList.remove('hidden'); }
             aiAdvisorStatus.classList.add('hidden');
         }
 
         async function handleAiAdvisor() {
             if (!GEMINI_API_KEY || GEMINI_API_KEY === "YOUR_GEMINI_API_KEY") {
-                aiAdvisorStatus.classList.remove('hidden');
-                aiLoading.style.display = 'none';
-                aiErrorOutput.classList.remove('hidden');
+                aiAdvisorStatus.classList.remove('hidden'); aiLoading.style.display = 'none'; aiErrorOutput.classList.remove('hidden');
                 aiErrorOutput.innerText = "AI 어드바이저 기능이 비활성화되었습니다. 코드를 수정하여 Google AI Studio에서 발급받은 'AI 로봇 전용 열쇠'를 입력해주세요.";
                 return;
             }
-
-            aiAdvisorStatus.classList.remove('hidden');
-            aiLoading.style.display = 'flex';
-            aiErrorOutput.classList.add('hidden');
-            
+            const newWindow = window.open('', '_blank');
+            if (!newWindow) {
+                aiAdvisorStatus.classList.remove('hidden'); aiLoading.style.display = 'none'; aiErrorOutput.classList.remove('hidden');
+                aiErrorOutput.innerText = "팝업 창이 차단되었습니다. 이 사이트의 팝업을 허용하고 다시 시도해주세요.";
+                return;
+            }
+            newWindow.document.write('<h1>AI 어드바이저가 분석 중입니다... 잠시만 기다려주세요.</h1>');
+            aiAdvisorStatus.classList.remove('hidden'); aiLoading.style.display = 'flex'; aiErrorOutput.classList.add('hidden');
             let prompt = `당신은 세계 최고의 해수어항 관리 전문가입니다. 아래는 한 사용자의 어항 데이터와 1차적인 권장 사항입니다. 이 정보를 바탕으로, 전문가의 입장에서 종합적인 분석과 조언을 친절하고 상세하게 제공해주세요. **사용자 어항 정보:**\n- 어항 용량: ${currentInputs.tankVolume}L\n- 온도: ${currentInputs.temp}°C\n- 염도: ${currentInputs.salinity} ppt\n- pH: ${currentInputs.ph}\n- 칼슘(Ca): ${currentInputs.ca} ppm\n- 마그네슘(Mg): ${currentInputs.mg} ppm\n- 알칼리니티(KH): ${currentInputs.kh} dKH\n- 아질산염(NO2): ${currentInputs.no2} ppm\n- 질산염(NO3): ${currentInputs.no3} ppm\n- 인산염(PO4): ${currentInputs.po4} ppm\n\n**시스템의 1차 권장 사항:**\n${currentRecommendations.map(r => `- ${r.text}`).join('\n')}\n\n**분석 및 조언 요청:**\n1.  **종합 진단:** 현재 어항의 전반적인 상태를 한두 문장으로 요약해주세요.\n2.  **상세 분석:** 각 수치들이 서로에게 어떤 영향을 미치는지, 그리고 현재 수치가 산호나 생물에게 어떤 의미인지 설명해주세요. (예: KH가 낮으면 pH 안정성이 떨어질 수 있습니다.)\n3.  **실행 계획:** 1차 권장 사항을 바탕으로, 사용자가 따라하기 쉬운 단계별 실행 계획을 제시해주세요. 특히 도징 시 주의할 점을 강조해주세요.\n4.  **장기적 관리 팁:** 현재 상태를 바탕으로 앞으로 어항을 더 안정적으로 유지하기 위한 팁을 2~3가지 제안해주세요. (예: 질산염 관리를 위한 조언, 장비 점검 등)\n\n결과는 한국어로, 전문가적이면서도 이해하기 쉽게 작성해주세요.`;
             try {
                 let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
@@ -236,87 +225,66 @@
                 const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 if (!response.ok) { throw new Error(`API 호출 실패: ${response.statusText}`); }
                 const result = await response.json();
-                
                 if (result.candidates && result.candidates.length > 0) {
                     const text = result.candidates[0].content.parts[0].text;
-                    const newWindow = window.open('', '_blank');
-                    if (newWindow) {
-                        newWindow.document.write(`
-                            <!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>AI 어드바이저 분석 결과</title>
-                            <style>body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; line-height: 1.7; padding: 2rem; background-color: #f8f9fa; color: #212529;} h1 { color: #4c6ef5; } pre { white-space: pre-wrap; word-wrap: break-word; background-color: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-size: 1rem; }</style>
-                            </head><body><h1>✨ AI 어드바이저 분석 결과</h1><pre>${text}</pre></body></html>`);
-                        newWindow.document.close();
-                        aiAdvisorStatus.classList.add('hidden');
-                    } else {
-                        throw new Error("팝업 창이 차단되었습니다. 팝업을 허용해주세요.");
-                    }
+                    newWindow.document.open();
+                    newWindow.document.write(`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>AI 어드바이저 분석 결과</title><style>body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; line-height: 1.7; padding: 2rem; background-color: #f8f9fa; color: #212529;} h1 { color: #4c6ef5; } pre { white-space: pre-wrap; word-wrap: break-word; background-color: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-size: 1rem; }</style></head><body><h1>✨ AI 어드바이저 분석 결과</h1><pre>${text}</pre></body></html>`);
+                    newWindow.document.close();
+                    aiAdvisorStatus.classList.add('hidden');
                 } else { throw new Error("API로부터 유효한 응답을 받지 못했습니다."); }
             } catch (error) {
                 console.error("Gemini API Error:", error);
-                aiLoading.style.display = 'none';
-                aiErrorOutput.classList.remove('hidden');
-                aiErrorOutput.innerText = `AI 어드바이저를 불러오는 데 실패했습니다. 잠시 후 다시 시도해주세요.\n오류: ${error.message}`;
+                const errorMessage = `AI 어드바이저를 불러오는 데 실패했습니다. 잠시 후 다시 시도해주세요.\n오류: ${error.message}`;
+                newWindow.document.write(`<h1>오류 발생</h1><p>${errorMessage}</p>`);
+                aiLoading.style.display = 'none'; aiErrorOutput.classList.remove('hidden'); aiErrorOutput.innerText = errorMessage;
             }
         }
 
         function initializeFirebase() {
             let app, db, auth, userId, recordsCollectionRef;
             try {
-                app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
+                app = initializeApp(firebaseConfig); db = getFirestore(app); auth = getAuth(app);
             } catch (e) {
-                console.error("Firebase 초기화 오류:", e);
-                disableFirebaseFeatures("Firebase 구성 정보가 올바르지 않습니다.");
-                return;
+                console.error("Firebase 초기화 오류:", e); disableFirebaseFeatures("Firebase 구성 정보가 올바르지 않습니다."); return;
             }
-
             onAuthStateChanged(auth, async (user) => {
                 if (user) {
                     userId = user.uid;
                     recordsCollectionRef = collection(db, 'users', userId, 'reef-tank-logs');
-                    listenForRecords(recordsCollectionRef);
-                    attachFirebaseEventListeners(recordsCollectionRef);
+                    listenForRecords(recordsCollectionRef); attachFirebaseEventListeners(recordsCollectionRef);
                 } else {
-                    try {
-                        await signInAnonymously(auth);
-                    } catch (error) {
-                        console.error("Firebase 익명 로그인 오류:", error);
-                        disableFirebaseFeatures("Firebase 인증에 실패했습니다.");
-                    }
+                    try { await signInAnonymously(auth); } catch (error) { console.error("Firebase 익명 로그인 오류:", error); disableFirebaseFeatures("Firebase 인증에 실패했습니다."); }
                 }
             });
         }
 
         function disableFirebaseFeatures(message) {
-            historyContainer.innerHTML = `
-                <div class="p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 rounded-r-lg">
-                    <p class="font-bold">로그 기능 비활성화됨</p>
-                    <p class="text-sm mt-1">${message}</p>
-                </div>`;
+            historyContainer.innerHTML = `<div class="p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 rounded-r-lg"><p class="font-bold">로그 기능 비활성화됨</p><p class="text-sm mt-1">${message}</p></div>`;
             saveBtn.style.display = 'none';
         }
 
         function listenForRecords(recordsRef) {
             const q = query(recordsRef, orderBy('createdAt', 'desc'));
             onSnapshot(q, (snapshot) => {
+                allRecords = [];
                 historyTableBody.innerHTML = '';
                 if (snapshot.empty) {
                     historyTableBody.innerHTML = `<tr><td colspan="11" class="text-gray-500 py-4">저장된 기록이 없습니다.</td></tr>`;
+                    showGraphBtn.classList.add('hidden');
                 } else {
-                    snapshot.forEach(doc => {
-                        const record = doc.data();
+                    snapshot.forEach(doc => allRecords.push(doc.data()));
+                    allRecords.forEach(record => {
                         const tr = document.createElement('tr');
                         tr.className = "border-b hover:bg-gray-50";
                         tr.innerHTML = `
-                            <td>${record.createdAt ? new Date(record.createdAt.seconds * 1000).toLocaleDateString('ko-KR') : '날짜 없음'}</td>
+                            <td>${record.createdAt ? new Date(record.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '날짜 없음'}</td>
                             <td>${record.temp || '-'}</td><td>${record.salinity || '-'}</td><td>${record.ph || '-'}</td>
                             <td>${record.ca || '-'}</td><td>${record.mg || '-'}</td><td>${record.kh || '-'}</td>
                             <td>${record.no2 || '-'}</td><td>${record.no3 || '-'}</td><td>${record.po4 || '-'}</td>
-                            <td><button data-id="${doc.id}" class="delete-btn text-red-500 hover:text-red-700 font-bold">X</button></td>
-                        `;
+                            <td><button data-id="${doc.id}" class="delete-btn text-red-500 hover:text-red-700 font-bold">X</button></td>`;
                         historyTableBody.appendChild(tr);
                     });
+                    if (allRecords.length > 1) { showGraphBtn.classList.remove('hidden'); } else { showGraphBtn.classList.add('hidden'); }
                 }
             }, (error) => {
                 console.error("기록 수신 오류:", error);
@@ -331,46 +299,70 @@
                 const record = { ...currentInputs, createdAt: serverTimestamp() };
                 try { await addDoc(recordsCollectionRef, record); } catch (error) { console.error("기록 저장 오류:", error); }
             });
-
             historyTableBody.addEventListener('click', async (e) => {
                 if (e.target.classList.contains('delete-btn')) {
                     const docId = e.target.dataset.id;
                     try { await deleteDoc(doc(recordsCollectionRef, docId)); } catch (error) { console.error("기록 삭제 오류:", error); }
                 }
             });
-
-            let clearConfirmState = false;
-            let clearConfirmTimeout;
+            let clearConfirmState = false; let clearConfirmTimeout;
             clearHistoryBtn.addEventListener('click', async () => {
                 if (!clearConfirmState) {
-                    clearConfirmState = true;
-                    clearHistoryBtn.textContent = '정말 삭제하시겠습니까?';
-                    clearHistoryBtn.classList.remove('bg-red-500', 'hover:bg-red-600');
-                    clearHistoryBtn.classList.add('bg-yellow-500', 'hover:bg-yellow-600');
+                    clearConfirmState = true; clearHistoryBtn.textContent = '정말 삭제하시겠습니까?';
+                    clearHistoryBtn.classList.remove('bg-red-500', 'hover:bg-red-600'); clearHistoryBtn.classList.add('bg-yellow-500', 'hover:bg-yellow-600');
                     clearConfirmTimeout = setTimeout(() => {
-                        clearConfirmState = false;
-                        clearHistoryBtn.textContent = '전체 기록 삭제';
-                        clearHistoryBtn.classList.add('bg-red-500', 'hover:bg-red-600');
-                        clearHistoryBtn.classList.remove('bg-yellow-500', 'hover:bg-yellow-600');
+                        clearConfirmState = false; clearHistoryBtn.textContent = '전체 기록 삭제';
+                        clearHistoryBtn.classList.add('bg-red-500', 'hover:bg-red-600'); clearHistoryBtn.classList.remove('bg-yellow-500', 'hover:bg-yellow-600');
                     }, 4000);
                     return;
                 }
                 clearTimeout(clearConfirmTimeout);
                 try {
-                    const snapshot = await getDocs(recordsCollectionRef);
-                    const deletePromises = [];
+                    const snapshot = await getDocs(recordsCollectionRef); const deletePromises = [];
                     snapshot.forEach(doc => { deletePromises.push(deleteDoc(doc.ref)); });
                     await Promise.all(deletePromises);
                 } catch (error) {
                     console.error("전체 기록 삭제 오류:", error);
                 } finally {
-                    clearConfirmState = false;
-                    clearHistoryBtn.textContent = '전체 기록 삭제';
-                    clearHistoryBtn.classList.add('bg-red-500', 'hover:bg-red-600');
-                    clearHistoryBtn.classList.remove('bg-yellow-500', 'hover:bg-yellow-600');
+                    clearConfirmState = false; clearHistoryBtn.textContent = '전체 기록 삭제';
+                    clearHistoryBtn.classList.add('bg-red-500', 'hover:bg-red-600'); clearHistoryBtn.classList.remove('bg-yellow-500', 'hover:bg-yellow-600');
                 }
             });
         }
+
+        function renderGraph() {
+            if (myChart) { myChart.destroy(); }
+            const ctx = document.getElementById('history-chart').getContext('2d');
+            const reversedRecords = [...allRecords].reverse();
+            const labels = reversedRecords.map(r => new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }));
+            const datasets = [
+                { label: 'Ca (ppm)', data: reversedRecords.map(r => r.ca), borderColor: '#36A2EB', tension: 0.1, yAxisID: 'y' },
+                { label: 'Mg (ppm)', data: reversedRecords.map(r => r.mg), borderColor: '#FF6384', tension: 0.1, yAxisID: 'y' },
+                { label: 'KH (dKH)', data: reversedRecords.map(r => r.kh), borderColor: '#4BC0C0', tension: 0.1, yAxisID: 'y2' },
+                { label: 'NO3 (ppm)', data: reversedRecords.map(r => r.no3), borderColor: '#FF9F40', tension: 0.1, yAxisID: 'y2' },
+                { label: 'PO4 (ppm)', data: reversedRecords.map(r => r.po4), borderColor: '#9966FF', tension: 0.1, yAxisID: 'y2' },
+            ];
+            myChart = new Chart(ctx, {
+                type: 'line', data: { labels, datasets },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: {
+                        y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Ca / Mg (ppm)' } },
+                        y2: { type: 'linear', display: true, position: 'right', title: { display: true, text: 'KH / NO3 / PO4' }, grid: { drawOnChartArea: false } }
+                    }
+                }
+            });
+        }
+
+        showGraphBtn.addEventListener('click', () => {
+            graphModal.classList.remove('hidden');
+            graphModal.classList.add('flex');
+            renderGraph();
+        });
+        closeGraphBtn.addEventListener('click', () => {
+            graphModal.classList.add('hidden');
+            graphModal.classList.remove('flex');
+        });
 
         calculateBtn.addEventListener('click', handleCalculate);
         aiAdvisorBtn.addEventListener('click', handleAiAdvisor);
@@ -380,7 +372,6 @@
         } else {
             disableFirebaseFeatures("로그 기능을 사용하려면 Firebase 설정이 필요합니다.");
         }
-
     </script>
 </body>
 </html>
