@@ -40,6 +40,7 @@
             <!-- 입력 폼 -->
             <div class="lg:col-span-1 bg-white p-6 rounded-lg shadow-lg">
                 <h2 class="text-2xl font-semibold mb-6 text-blue-700 border-b pb-2">어항 정보 입력</h2>
+                <div class="input-group"><label for="recordDate">기록 날짜</label><input type="date" id="recordDate" class="text-left"><span class="unit"></span></div>
                 <div class="input-group"><label for="tankVolume">어항 용량</label><input type="number" id="tankVolume" placeholder="160"><span class="unit">L</span></div>
                 <hr class="my-4">
                 <div class="input-group"><label for="temp">온도</label><input type="number" step="0.1" id="temp" placeholder="26.0"><span class="unit">°C</span></div>
@@ -131,6 +132,7 @@
         const showGraphBtn = document.getElementById('show-graph-btn');
         const graphModal = document.getElementById('graph-modal');
         const closeGraphBtn = document.getElementById('close-graph-btn');
+        const recordDateInput = document.getElementById('recordDate');
 
         let currentInputs = {}, currentRecommendations = [], allRecords = [], myChart = null;
         
@@ -264,29 +266,27 @@
         }
 
         function listenForRecords(recordsRef) {
-            const q = query(recordsRef, orderBy('createdAt', 'asc')); // 오래된 기록부터 가져오도록 변경
+            const q = query(recordsRef, orderBy('recordDate', 'asc')); // 날짜순으로 정렬
             onSnapshot(q, (snapshot) => {
                 allRecords = [];
                 historyTableBody.innerHTML = '';
                 
-                const docsWithTimestamp = snapshot.docs.filter(doc => doc.data().createdAt);
-
-                if (docsWithTimestamp.length === 0) {
+                if (snapshot.empty) {
                     historyTableBody.innerHTML = `<tr><td colspan="11" class="text-gray-500 py-4">저장된 기록이 없습니다.</td></tr>`;
                     showGraphBtn.classList.add('hidden');
                 } else {
-                    docsWithTimestamp.forEach(doc => {
+                    snapshot.forEach(doc => {
                         const record = doc.data();
                         record.id = doc.id;
                         allRecords.push(record);
                     });
 
-                    // 화면에는 최신순으로 보여주기 위해 배열을 뒤집어서 표시
-                    [...allRecords].reverse().forEach(record => {
+                    [...allRecords].reverse().forEach(record => { // 화면에는 최신순으로 표시
                         const tr = document.createElement('tr');
                         tr.className = "border-b hover:bg-gray-50";
+                        const displayDate = new Date(record.recordDate).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
                         tr.innerHTML = `
-                            <td>${new Date(record.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}</td>
+                            <td>${displayDate}</td>
                             <td>${record.temp || '-'}</td><td>${record.salinity || '-'}</td><td>${record.ph || '-'}</td>
                             <td>${record.ca || '-'}</td><td>${record.mg || '-'}</td><td>${record.kh || '-'}</td>
                             <td>${record.no2 || '-'}</td><td>${record.no3 || '-'}</td><td>${record.po4 || '-'}</td>
@@ -294,11 +294,8 @@
                         historyTableBody.appendChild(tr);
                     });
                     
-                    if (allRecords.length > 1) {
-                        showGraphBtn.classList.remove('hidden');
-                    } else {
-                        showGraphBtn.classList.add('hidden');
-                    }
+                    if (allRecords.length > 1) { showGraphBtn.classList.remove('hidden'); } 
+                    else { showGraphBtn.classList.add('hidden'); }
                 }
             }, (error) => {
                 console.error("기록 수신 오류:", error);
@@ -310,7 +307,12 @@
             saveBtn.addEventListener('click', async () => {
                 const hasValues = Object.values(currentInputs).some(v => !isNaN(v));
                 if (!hasValues || isNaN(currentInputs.tankVolume)) { return; }
-                const record = { ...currentInputs, createdAt: serverTimestamp() };
+                
+                const record = { 
+                    ...currentInputs, 
+                    recordDate: recordDateInput.value, // 수동 입력 날짜 저장
+                    createdAt: serverTimestamp() // 정렬을 위한 서버 시간
+                };
                 try { await addDoc(recordsCollectionRef, record); } catch (error) { console.error("기록 저장 오류:", error); }
             });
             historyTableBody.addEventListener('click', async (e) => {
@@ -348,8 +350,7 @@
         function renderGraph() {
             if (myChart) { myChart.destroy(); }
             const ctx = document.getElementById('history-chart').getContext('2d');
-            // allRecords는 이미 오래된 순서이므로 뒤집을 필요 없음
-            const labels = allRecords.map(r => r.createdAt ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '');
+            const labels = allRecords.map(r => new Date(r.recordDate).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }));
             const datasets = [
                 { label: 'Ca (ppm)', data: allRecords.map(r => r.ca), borderColor: '#36A2EB', tension: 0.1, yAxisID: 'y' },
                 { label: 'Mg (ppm)', data: allRecords.map(r => r.mg), borderColor: '#FF6384', tension: 0.1, yAxisID: 'y' },
@@ -368,6 +369,15 @@
                 }
             });
         }
+        
+        // 오늘 날짜로 기본 설정
+        function setTodayDate() {
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            recordDateInput.value = `${yyyy}-${mm}-${dd}`;
+        }
 
         showGraphBtn.addEventListener('click', () => {
             graphModal.classList.remove('hidden');
@@ -382,6 +392,9 @@
         calculateBtn.addEventListener('click', handleCalculate);
         aiAdvisorBtn.addEventListener('click', handleAiAdvisor);
         
+        // 앱 시작 시 오늘 날짜 설정
+        setTodayDate();
+
         if (firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith("AIzaSyXXX")) {
             initializeFirebase();
         } else {
