@@ -370,7 +370,8 @@
                     setTimeout(() => saveStatus.textContent = '', 2000);
                 } catch (error) { 
                     console.error("기록 저장 오류:", error); 
-                    saveStatus.textContent = `저장 실패: ${error.message}`;
+                    saveStatus.textContent = `저장 실패!`;
+                    alert(`저장에 실패했습니다. Firebase 보안 규칙을 확인해주세요.\n오류: ${error.message}`);
                 } finally {
                     saveBtn.disabled = false;
                     saveBtn.textContent = "오늘 기록 저장";
