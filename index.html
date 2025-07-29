@@ -264,25 +264,29 @@
         }
 
         function listenForRecords(recordsRef) {
-            const q = query(recordsRef, orderBy('createdAt', 'desc'));
+            const q = query(recordsRef, orderBy('createdAt', 'asc')); // 오래된 기록부터 가져오도록 변경
             onSnapshot(q, (snapshot) => {
                 allRecords = [];
                 historyTableBody.innerHTML = '';
-                if (snapshot.empty) {
+                
+                const docsWithTimestamp = snapshot.docs.filter(doc => doc.data().createdAt);
+
+                if (docsWithTimestamp.length === 0) {
                     historyTableBody.innerHTML = `<tr><td colspan="11" class="text-gray-500 py-4">저장된 기록이 없습니다.</td></tr>`;
                     showGraphBtn.classList.add('hidden');
                 } else {
-                    snapshot.forEach(doc => {
+                    docsWithTimestamp.forEach(doc => {
                         const record = doc.data();
-                        record.id = doc.id; // 그래프를 위해 ID도 저장
+                        record.id = doc.id;
                         allRecords.push(record);
                     });
 
-                    allRecords.forEach(record => {
+                    // 화면에는 최신순으로 보여주기 위해 배열을 뒤집어서 표시
+                    [...allRecords].reverse().forEach(record => {
                         const tr = document.createElement('tr');
                         tr.className = "border-b hover:bg-gray-50";
                         tr.innerHTML = `
-                            <td>${record.createdAt ? new Date(record.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '날짜 없음'}</td>
+                            <td>${new Date(record.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}</td>
                             <td>${record.temp || '-'}</td><td>${record.salinity || '-'}</td><td>${record.ph || '-'}</td>
                             <td>${record.ca || '-'}</td><td>${record.mg || '-'}</td><td>${record.kh || '-'}</td>
                             <td>${record.no2 || '-'}</td><td>${record.no3 || '-'}</td><td>${record.po4 || '-'}</td>
@@ -290,8 +294,11 @@
                         historyTableBody.appendChild(tr);
                     });
                     
-                    if (allRecords.length > 1) { showGraphBtn.classList.remove('hidden'); } 
-                    else { showGraphBtn.classList.add('hidden'); }
+                    if (allRecords.length > 1) {
+                        showGraphBtn.classList.remove('hidden');
+                    } else {
+                        showGraphBtn.classList.add('hidden');
+                    }
                 }
             }, (error) => {
                 console.error("기록 수신 오류:", error);
@@ -309,6 +316,7 @@
             historyTableBody.addEventListener('click', async (e) => {
                 if (e.target.classList.contains('delete-btn')) {
                     const docId = e.target.dataset.id;
+                    if (!docId) { console.error("삭제할 ID를 찾을 수 없습니다."); return; }
                     try { await deleteDoc(doc(recordsCollectionRef, docId)); } catch (error) { console.error("기록 삭제 오류:", error); }
                 }
             });
@@ -340,14 +348,14 @@
         function renderGraph() {
             if (myChart) { myChart.destroy(); }
             const ctx = document.getElementById('history-chart').getContext('2d');
-            const reversedRecords = [...allRecords].reverse();
-            const labels = reversedRecords.map(r => r.createdAt ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '');
+            // allRecords는 이미 오래된 순서이므로 뒤집을 필요 없음
+            const labels = allRecords.map(r => r.createdAt ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '');
             const datasets = [
-                { label: 'Ca (ppm)', data: reversedRecords.map(r => r.ca), borderColor: '#36A2EB', tension: 0.1, yAxisID: 'y' },
-                { label: 'Mg (ppm)', data: reversedRecords.map(r => r.mg), borderColor: '#FF6384', tension: 0.1, yAxisID: 'y' },
-                { label: 'KH (dKH)', data: reversedRecords.map(r => r.kh), borderColor: '#4BC0C0', tension: 0.1, yAxisID: 'y2' },
-                { label: 'NO3 (ppm)', data: reversedRecords.map(r => r.no3), borderColor: '#FF9F40', tension: 0.1, yAxisID: 'y2' },
-                { label: 'PO4 (ppm)', data: reversedRecords.map(r => r.po4), borderColor: '#9966FF', tension: 0.1, yAxisID: 'y2' },
+                { label: 'Ca (ppm)', data: allRecords.map(r => r.ca), borderColor: '#36A2EB', tension: 0.1, yAxisID: 'y' },
+                { label: 'Mg (ppm)', data: allRecords.map(r => r.mg), borderColor: '#FF6384', tension: 0.1, yAxisID: 'y' },
+                { label: 'KH (dKH)', data: allRecords.map(r => r.kh), borderColor: '#4BC0C0', tension: 0.1, yAxisID: 'y2' },
+                { label: 'NO3 (ppm)', data: allRecords.map(r => r.no3), borderColor: '#FF9F40', tension: 0.1, yAxisID: 'y2' },
+                { label: 'PO4 (ppm)', data: allRecords.map(r => r.po4), borderColor: '#9966FF', tension: 0.1, yAxisID: 'y2' },
             ];
             myChart = new Chart(ctx, {
                 type: 'line', data: { labels, datasets },
