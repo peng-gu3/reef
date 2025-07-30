@@ -191,7 +191,7 @@
                 <canvas id="trendChart" class="w-full h-full"></canvas>
             </div>
 
-            <!-- Records and Comparison Results Section (initially visible on load) -->
+            <!-- Records and Comparison Results Section (always visible on load) -->
             <div id="viewRecordsContainer" class="bg-white rounded-2xl shadow p-6">
                 <h2 class="text-xl font-bold mb-4 text-gray-800">저장된 기록 및 비교 결과</h2>
                 <div class="overflow-x-auto mb-4">
@@ -363,14 +363,14 @@
                 if (key === 'kh') { // Special handling for KH (AM/PM)
                     const khAm = dataObject.khAm;
                     const khPm = dataObject.khPm;
-                    if (khAm !== null && !isNaN(khAm) && khPm !== null && !isNaN(khPm)) {
+                    if (typeof khAm === 'number' && !isNaN(khAm) && typeof khPm === 'number' && !isNaN(khPm)) {
                         val = Math.min(khAm, khPm); // Use the lower value for status/dosing
-                    } else if (khAm !== null && !isNaN(khAm)) {
+                    } else if (typeof khAm === 'number' && !isNaN(khAm)) {
                         val = khAm; // Use AM if PM is not available
-                    } else if (khPm !== null && !isNaN(khPm)) {
+                    } else if (typeof khPm === 'number' && !isNaN(khPm)) {
                         val = khPm; // Use PM if AM is not available
                     } else {
-                        val = null; // No KH data
+                        val = null; // No valid KH data
                     }
                 } else {
                     val = dataObject[key];
@@ -382,7 +382,7 @@
                 let recommendation = '';
                 let dosingPlan = '';
 
-                if (val !== null && !isNaN(val) && ref.min !== undefined) {
+                if (typeof val === 'number' && !isNaN(val) && ref.min !== undefined) { // Robust check for val
                     if (val < ref.min) {
                         statusText = '낮음';
                         statusClass = 'status-low';
@@ -430,11 +430,11 @@
                     statusItem.innerHTML = `
                         <div class="flex justify-between w-full items-center">
                             <span class="param-label">${ref.label} (오전)</span>
-                            <span class="param-value">${dataObject.khAm !== null ? dataObject.khAm.toFixed(2) : '-'} ${ref.unit || ''}</span>
+                            <span class="param-value">${typeof dataObject.khAm === 'number' && !isNaN(dataObject.khAm) ? dataObject.khAm.toFixed(2) : '-'} ${ref.unit || ''}</span>
                         </div>
                         <div class="flex justify-between w-full items-center">
                             <span class="param-label">${ref.label} (오후)</span>
-                            <span class="param-value">${dataObject.khPm !== null ? dataObject.khPm.toFixed(2) : '-'} ${ref.unit || ''}</span>
+                            <span class="param-value">${typeof dataObject.khPm === 'number' && !isNaN(dataObject.khPm) ? dataObject.khPm.toFixed(2) : '-'} ${ref.unit || ''}</span>
                         </div>
                         <span class="param-range">목표 범위: ${ref.min !== undefined ? ref.min : '-'}~${ref.max !== undefined ? ref.max : '-'} ${ref.unit || ''}</span>
                         <span class="status-message ${statusTextColor}">${statusText}</span>
@@ -445,7 +445,7 @@
                     statusItem.innerHTML = `
                         <div class="flex justify-between w-full items-center">
                             <span class="param-label">${ref.label || key.toUpperCase()}</span>
-                            <span class="param-value">${val !== null ? val.toFixed(ref.unit === 'pH' ? 2 : (ref.unit === 'dKH' ? 2 : 1)) : '-'} ${ref.unit || ''}</span>
+                            <span class="param-value">${typeof val === 'number' && !isNaN(val) ? val.toFixed(ref.unit === 'pH' ? 2 : (ref.unit === 'dKH' ? 2 : 1)) : '-'} ${ref.unit || ''}</span>
                         </div>
                         <span class="param-range">목표 범위: ${ref.min !== undefined ? ref.min : '-'}~${ref.max !== undefined ? ref.max : '-'} ${ref.unit || ''}</span>
                         <span class="status-message ${statusTextColor}">${statusText}</span>
@@ -457,7 +457,7 @@
             });
 
             // The container is always visible now, no need to toggle hidden class here.
-            // document.getElementById('consolidatedStatusContainer').classList.remove('hidden');
+            document.getElementById('consolidatedStatusContainer').classList.remove('hidden');
         }
 
 
@@ -495,7 +495,7 @@
             // Add datasets for general parameters
             params.forEach((key, i) => {
                 const dataPoints = records.map(r => r[key]);
-                const hasValidData = dataPoints.some(val => val !== null && !isNaN(val));
+                const hasValidData = dataPoints.some(val => typeof val === 'number' && !isNaN(val)); // Robust check
                 if (hasValidData) {
                     datasets.push({
                         label: reference[key].label || key.toUpperCase(),
@@ -513,7 +513,7 @@
             const khAmDataPoints = records.map(r => r.khAm);
             const khPmDataPoints = records.map(r => r.khPm);
 
-            if (khAmDataPoints.some(val => val !== null && !isNaN(val))) {
+            if (khAmDataPoints.some(val => typeof val === 'number' && !isNaN(val))) { // Robust check
                 datasets.push({
                     label: 'KH (오전)',
                     data: khAmDataPoints,
@@ -524,7 +524,7 @@
                     tension: 0.1
                 });
             }
-            if (khPmDataPoints.some(val => val !== null && !isNaN(val))) {
+            if (khPmDataPoints.some(val => typeof val === 'number' && !isNaN(val))) { // Robust check
                 datasets.push({
                     label: 'KH (오후)',
                     data: khPmDataPoints,
@@ -603,11 +603,11 @@
                     if (key === 'kh') { // Use the lower of AM/PM for KH dosing calculation
                         const khAm = record.khAm;
                         const khPm = record.khPm;
-                        if (khAm !== null && !isNaN(khAm) && khPm !== null && !isNaN(khPm)) {
+                        if (typeof khAm === 'number' && !isNaN(khAm) && typeof khPm === 'number' && !isNaN(khPm)) {
                             val = Math.min(khAm, khPm);
-                        } else if (khAm !== null && !isNaN(khAm)) {
+                        } else if (typeof khAm === 'number' && !isNaN(khAm)) {
                             val = khAm;
-                        } else if (khPm !== null && !isNaN(khPm)) {
+                        } else if (typeof khPm === 'number' && !isNaN(khPm)) {
                             val = khPm;
                         } else {
                             val = null;
@@ -616,7 +616,7 @@
                         val = record[key];
                     }
 
-                    if (ref.unitDose && val !== null && !isNaN(val)) {
+                    if (ref.unitDose && typeof val === 'number' && !isNaN(val)) { // Robust check for val
                         let target = ref.min;
 
                         if (val >= target) {
@@ -777,11 +777,11 @@
                     td.className = 'border border-gray-300 px-3 py-2 text-center text-gray-700';
                     // Special handling for KH AM/PM display in table
                     if (key === 'khAm' || key === 'khPm') {
-                        td.textContent = r[key] !== null ? r[key].toFixed(2) : '-';
+                        td.textContent = (typeof r[key] === 'number' && !isNaN(r[key])) ? r[key].toFixed(2) : '-';
                     } else if (key === 'ph') {
-                        td.textContent = r[key] !== null ? r[key].toFixed(2) : '-';
+                        td.textContent = (typeof r[key] === 'number' && !isNaN(r[key])) ? r[key].toFixed(2) : '-';
                     } else if (key === 'temp' || key === 'salinity' || key === 'no2' || key === 'no3' || key === 'po4') {
-                        td.textContent = r[key] !== null ? r[key].toFixed(1) : '-';
+                        td.textContent = (typeof r[key] === 'number' && !isNaN(r[key])) ? r[key].toFixed(1) : '-';
                     } else {
                         td.textContent = r[key] !== null ? r[key] : '-'; // Display '-' for null values
                     }
