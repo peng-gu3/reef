@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>*</title>
+    <title>해수어항 도징 계산기 (최종 완성 버전)</title>
     <!-- Tailwind CSS CDN for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts for Noto Sans KR -->
@@ -99,7 +99,7 @@
     <div id="mainAppContainer" class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Left Column: Input Form and Buttons -->
         <div class="bg-white rounded-2xl shadow p-6">
-            <h1 class="text-2xl font-bold mb-4 text-gray-800">PENG_GU</h1>
+            <h1 class="text-2xl font-bold mb-4 text-gray-800">해수어항 도징 계산기</h1>
             <!-- Input Form Section -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div class="flex flex-col">
@@ -190,8 +190,8 @@
                 <canvas id="trendChart" class="w-full h-full"></canvas>
             </div>
 
-            <!-- Records and Comparison Results Section (initially hidden, shown by "결과 보기" button) -->
-            <div id="viewRecordsContainer" class="bg-white rounded-2xl shadow p-6 hidden">
+            <!-- Records and Comparison Results Section (initially visible on load) -->
+            <div id="viewRecordsContainer" class="bg-white rounded-2xl shadow p-6">
                 <h2 class="text-xl font-bold mb-4 text-gray-800">저장된 기록 및 비교 결과</h2>
                 <div class="overflow-x-auto mb-4">
                     <table id="recordsTable" class="w-full table-auto border-collapse text-sm">
@@ -496,7 +496,7 @@
             ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
             if (!records.length) {
-                showMessageBox('그래프를 그릴 저장된 기록이 없습니다.');
+                // Do not show messageBox here, as displayRecordsTable will handle no records message.
                 document.getElementById('chartContainer').classList.remove('hidden'); // Keep chart container visible
                 return;
             }
@@ -556,7 +556,7 @@
 
 
             if (datasets.length === 0) {
-                showMessageBox('그래프를 그릴 유효한 수치 데이터가 없습니다.');
+                // Do not show messageBox here, as displayRecordsTable will handle no records message.
                 document.getElementById('chartContainer').classList.remove('hidden'); // Keep chart container visible
                 return;
             }
@@ -756,15 +756,24 @@
         function displayRecordsTable() {
             const records = getRecords().sort((a, b) => a.date.localeCompare(b.date)); // Sort records by date
 
-            if (!records.length) {
-                // If no records, clear the table and hide container
-                document.querySelector('#recordsTable tbody').innerHTML = '';
-                document.getElementById('viewRecordsContainer').classList.add('hidden');
-                return;
-            }
+            // Ensure the container is visible regardless of records presence
+            document.getElementById('viewRecordsContainer').classList.remove('hidden');
 
             const tbody = document.querySelector('#recordsTable tbody');
             tbody.innerHTML = ''; // Clear existing table rows
+
+            if (!records.length) {
+                // If no records, display a message within the table area
+                const noRecordsRow = document.createElement('tr');
+                noRecordsRow.innerHTML = `<td colspan="14" class="border px-3 py-2 text-center text-gray-500">저장된 기록이 없습니다.</td>`;
+                tbody.appendChild(noRecordsRow);
+
+                // Also clear dosing plan and hide completion buttons
+                document.getElementById('dosingPlanList').innerHTML = '<li>저장된 기록이 없어 도징 계획을 계산할 수 없습니다.</li>';
+                document.getElementById('completeDosingBtn').classList.add('hidden');
+                document.getElementById('dosingCompletionStatus').classList.add('hidden');
+                return;
+            }
 
             // Populate the table with records
             records.forEach(r => {
@@ -846,9 +855,6 @@
 
                 tbody.appendChild(tr); // Add the row to the table body
             });
-
-            // Show the records container
-            document.getElementById('viewRecordsContainer').classList.remove('hidden');
 
             // Initially render dosing plan for the latest record when table is displayed
             if (records.length > 0) {
@@ -1016,7 +1022,6 @@
             renderTrendChart();
             // Display records table and dosing plan on initial load
             displayRecordsTable();
-            document.getElementById('viewRecordsContainer').classList.remove('hidden'); // Ensure it's visible on load
         });
     </script>
 </body>
