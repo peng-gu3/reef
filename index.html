@@ -170,7 +170,9 @@
                 </div>
             </div>
             <div class="flex flex-wrap gap-4">
-                <button id="saveRecordAndShowResultsBtn" class="px-6 py-3 bg-blue-500 text-white font-semibold rounded-2xl shadow-md hover:bg-blue-600 transition-colors duration-200">기록 저장 및 결과 보기</button>
+                <button id="saveRecordBtn" class="px-6 py-3 bg-blue-500 text-white font-semibold rounded-2xl shadow-md hover:bg-blue-600 transition-colors duration-200">기록 저장 및 결과 보기</button>
+                <button id="editRecordBtn" class="px-6 py-3 bg-gray-500 text-white font-semibold rounded-2xl shadow-md hover:bg-gray-600 transition-colors duration-200">수정</button>
+                <button id="cancelEditBtn" class="px-6 py-3 bg-red-500 text-white font-semibold rounded-2xl shadow-md hover:bg-red-600 transition-colors duration-200 hidden">취소</button>
             </div>
         </div>
 
@@ -247,6 +249,10 @@
         const MIN_DAILY_DOSE = 0.3; // ml
         // Threshold for total dose to recommend single-day dosing (e.g., if total dose is less than 7 * MIN_DAILY_DOSE)
         const SINGLE_DOSE_THRESHOLD = MIN_DAILY_DOSE * 7; // 2.1ml
+
+        // Global state for edit mode
+        let isEditMode = false;
+        let currentEditingDate = null; // Stores the date of the record being edited
 
         // Reference ranges for various water parameters
         // 'unitDose' function calculates the amount needed to increase the parameter by a certain value per liter
@@ -686,8 +692,8 @@
         // Event listener for the custom message box button
         document.getElementById('customMessageBoxButton').addEventListener('click', hideMessageBox);
 
-        // Event listener for the "Save Record and Show Results" button (combined)
-        document.getElementById('saveRecordAndShowResultsBtn').addEventListener('click', () => {
+        // Event listener for the "Save Record / Update Record" button
+        document.getElementById('saveRecordBtn').addEventListener('click', () => {
             const date = document.getElementById('dateInput').value;
             const volume = parseFloat(document.getElementById('volumeInput').value);
 
@@ -700,20 +706,75 @@
                 return;
             }
 
-            // Create a record object from input values
-            const record = getCurrentFormValues(); // Get all current form values
+            const record = getCurrentFormValues();
+            let records = getRecords();
 
-            // Get existing records, filter out any existing record for the same date, then add the new one
-            let records = getRecords().filter(r => r.date !== record.date);
-            records.push(record);
-            saveRecords(records); // Save the updated list of records
+            if (isEditMode) {
+                // Update existing record
+                records = records.filter(r => r.date !== currentEditingDate); // Remove old record
+                records.push(record); // Add updated record
+                saveRecords(records);
+                showMessageBox('기록이 수정되었습니다.');
 
-            showMessageBox('기록이 저장되었습니다.');
-            updateConsolidatedStatuses(record); // Update consolidated statuses based on the newly saved record
-            renderTrendChart(); // Re-render the chart after saving a new record
-            localStorage.removeItem('completedDosingDate'); // Reset completion status for new record
-            displayRecordsTable(); // Show records table and dosing plan for the newly saved record
+                // Reset edit mode
+                isEditMode = false;
+                currentEditingDate = null;
+                document.getElementById('saveRecordBtn').textContent = '기록 저장 및 결과 보기';
+                document.getElementById('editRecordBtn').classList.remove('hidden');
+                document.getElementById('cancelEditBtn').classList.add('hidden');
+                document.getElementById('dateInput').disabled = false;
+            } else {
+                // Save new record
+                if (records.some(r => r.date === record.date)) {
+                    showMessageBox('해당 날짜의 기록이 이미 존재합니다. 수정하려면 \'수정\' 버튼을 사용하세요.');
+                    return;
+                }
+                records.push(record);
+                saveRecords(records);
+                showMessageBox('기록이 저장되었습니다.');
+                localStorage.removeItem('completedDosingDate'); // Reset completion status for new record
+            }
+            
+            updateConsolidatedStatuses(record); // Update consolidated statuses
+            renderTrendChart(); // Re-render chart
+            displayRecordsTable(); // Show records table and dosing plan
         });
+
+        // Event listener for the "Edit" button
+        document.getElementById('editRecordBtn').addEventListener('click', () => {
+            const dateInput = document.getElementById('dateInput');
+            if (!dateInput.value) {
+                showMessageBox('수정할 기록을 먼저 선택해주세요 (테이블에서 날짜 클릭).');
+                return;
+            }
+
+            // Enter edit mode
+            isEditMode = true;
+            currentEditingDate = dateInput.value; // Store the date of the record being edited
+
+            document.getElementById('saveRecordBtn').textContent = '수정 완료';
+            document.getElementById('editRecordBtn').classList.add('hidden'); // Hide Edit button
+            document.getElementById('cancelEditBtn').classList.remove('hidden'); // Show Cancel button
+            dateInput.disabled = true; // Disable date input during edit
+            showMessageBox(`날짜 ${currentEditingDate}의 기록을 수정합니다.`);
+        });
+
+        // Event listener for the "Cancel" button
+        document.getElementById('cancelEditBtn').addEventListener('click', () => {
+            // Exit edit mode
+            isEditMode = false;
+            currentEditingDate = null;
+
+            document.getElementById('saveRecordBtn').textContent = '기록 저장 및 결과 보기';
+            document.getElementById('editRecordBtn').classList.remove('hidden'); // Show Edit button
+            document.getElementById('cancelEditBtn').classList.add('hidden'); // Hide Cancel button
+            document.getElementById('dateInput').disabled = false; // Enable date input
+
+            // Optionally clear form or revert to last loaded state
+            // For simplicity, we just enable date input, user can re-select from table.
+            showMessageBox('수정 모드를 취소했습니다.');
+        });
+
 
         // Initialize the date input with today's date and update statuses on load if records exist
         document.addEventListener('DOMContentLoaded', () => {
