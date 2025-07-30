@@ -245,22 +245,42 @@
         }
 
         /**
-         * Updates the status display next to each input field.
-         * @param {Object} latestRecord - The most recent record to base statuses on.
+         * Collects current values from all input fields.
+         * @returns {Object} An object containing current input values.
          */
-        function updateInputStatuses(latestRecord) {
+        function getCurrentFormValues() {
+            return {
+                date: document.getElementById('dateInput').value,
+                volume: parseFloat(document.getElementById('volumeInput').value) || null,
+                temp: parseFloat(document.getElementById('tempInput').value) || null,
+                salinity: parseFloat(document.getElementById('salinityInput').value) || null,
+                ph: parseFloat(document.getElementById('phInput').value) || null,
+                ca: parseFloat(document.getElementById('caInput').value) || null,
+                mg: parseFloat(document.getElementById('mgInput').value) || null,
+                kh: parseFloat(document.getElementById('khInput').value) || null,
+                no2: parseFloat(document.getElementById('no2Input').value) || null,
+                no3: parseFloat(document.getElementById('no3Input').value) || null,
+                po4: parseFloat(document.getElementById('po4Input').value) || null
+            };
+        }
+
+        /**
+         * Updates the status display next to each input field.
+         * @param {Object} dataObject - An object containing parameter values (e.g., a record or current form values).
+         */
+        function updateInputStatuses(dataObject) {
             const paramsToMonitor = ['temp', 'salinity', 'ph', 'ca', 'mg', 'kh', 'no2', 'no3', 'po4'];
             paramsToMonitor.forEach(key => {
                 const statusSpan = document.getElementById(`${key}Status`);
-                if (!statusSpan) return; // Skip if status span doesn't exist
+                if (!statusSpan) return;
 
                 const ref = reference[key];
-                const val = latestRecord[key];
+                const val = dataObject[key];
 
-                statusSpan.textContent = ''; // Clear previous status
-                statusSpan.className = 'text-sm font-semibold min-w-[60px] text-right'; // Reset classes
+                statusSpan.textContent = '';
+                statusSpan.className = 'text-sm font-semibold min-w-[60px] text-right';
 
-                if (val !== null && ref.min !== undefined) {
+                if (val !== null && !isNaN(val) && ref.min !== undefined) {
                     if (val < ref.min) {
                         statusSpan.textContent = '낮음';
                         statusSpan.classList.add('status-low');
@@ -337,13 +357,13 @@
             const latest = records[records.length - 1]; // Get the most recent record
             let planHTML = '<h3 class="font-semibold mb-2 text-blue-900">7일간 도징 계획</h3><ul class="list-disc list-inside text-blue-800">';
 
-            if (latest && latest.volume) { // Ensure latest record and volume exist
+            if (latest && latest.volume && !isNaN(latest.volume) && latest.volume > 0) { // Ensure latest record and valid volume exist
                 Object.keys(reference).forEach(key => {
                     const ref = reference[key];
                     const val = latest[key];
 
-                    // Only calculate dosing if unitDose is defined and the value is not null
-                    if (ref.unitDose && val !== null) {
+                    // Only calculate dosing if unitDose is defined and the value is not null and not NaN
+                    if (ref.unitDose && val !== null && !isNaN(val)) {
                         let target = ref.min; // Target is the minimum recommended value
 
                         if (val >= target) { // If current value is at or above target, no dosing needed
@@ -358,8 +378,11 @@
                         planHTML += `<li>${key.toUpperCase()}: 일일 ${dailyDose.toFixed(2)}ml</li>`;
                     }
                 });
+                if (planHTML === '<h3 class="font-semibold mb-2 text-blue-900">7일간 도징 계획</h3><ul class="list-disc list-inside text-blue-800">') {
+                    planHTML += '<li>모든 파라미터가 정상 범위이거나 도징이 필요하지 않습니다.</li>';
+                }
             } else {
-                planHTML += '<li>최신 기록 또는 수조 부피 정보가 없어 도징 계획을 계산할 수 없습니다.</li>';
+                planHTML += '<li>최신 기록 또는 유효한 수조 부피 정보가 없어 도징 계획을 계산할 수 없습니다.</li>';
             }
             planHTML += '</ul>';
             document.getElementById('dosagePlan').innerHTML = planHTML; // Display the dosing plan
@@ -432,16 +455,30 @@
                 'rgb(0, 255, 255)'    // Cyan (for PO4)
             ];
 
-            // Prepare datasets for Chart.js
-            const datasets = params.map((key, i) => ({
-                label: key.toUpperCase(), // Label for the legend
-                data: records.map(r => r[key]), // Data points for the parameter
-                borderColor: colors[i % colors.length], // Assign a color, cycle through colors if more params than colors
-                backgroundColor: colors[i % colors.length], // Same color for background (if fill is true)
-                fill: false, // Do not fill the area under the line
-                spanGaps: true, // Connect data points even if there are nulls
-                tension: 0.1 // Smooth out the lines
-            }));
+            // Filter out datasets that only contain null or non-numeric values
+            const datasets = params.map((key, i) => {
+                const dataPoints = records.map(r => r[key]);
+                // Check if there's at least one valid number in the data points for this parameter
+                const hasValidData = dataPoints.some(val => val !== null && !isNaN(val));
+
+                if (hasValidData) {
+                    return {
+                        label: key.toUpperCase(),
+                        data: dataPoints,
+                        borderColor: colors[i % colors.length],
+                        backgroundColor: colors[i % colors.length],
+                        fill: false,
+                        spanGaps: true,
+                        tension: 0.1
+                    };
+                }
+                return null; // Return null for datasets with no valid data
+            }).filter(dataset => dataset !== null); // Filter out null datasets
+
+            if (datasets.length === 0) {
+                showMessageBox('그래프를 그릴 유효한 수치 데이터가 없습니다.');
+                return;
+            }
 
             // Destroy existing chart instance to prevent memory leaks and redraw issues
             if (window.trendChart) {
@@ -499,15 +536,36 @@
             const day = today.getDate().toString().padStart(2, '0');
             document.getElementById('dateInput').value = `${year}-${month}-${day}`;
 
+            // Add event listeners for real-time status updates on input change
+            const numericInputs = ['tempInput', 'salinityInput', 'phInput', 'caInput', 'mgInput', 'khInput', 'no2Input', 'no3Input', 'po4Input'];
+            numericInputs.forEach(inputId => {
+                const inputElement = document.getElementById(inputId);
+                if (inputElement) {
+                    inputElement.addEventListener('input', () => {
+                        updateInputStatuses(getCurrentFormValues());
+                    });
+                }
+            });
+
             // Load and display statuses for the latest record on page load
             const records = getRecords();
             if (records.length > 0) {
                 const latest = records.sort((a,b)=>a.date.localeCompare(b.date))[records.length - 1];
-                updateInputStatuses(latest);
-                // Pre-fill volume input with the latest saved volume if available
-                if (latest.volume) {
-                    document.getElementById('volumeInput').value = latest.volume;
-                }
+                
+                // Pre-fill inputs with latest record values for user convenience
+                document.getElementById('dateInput').value = latest.date || '';
+                document.getElementById('volumeInput').value = latest.volume !== null ? latest.volume : 160;
+                document.getElementById('tempInput').value = latest.temp !== null ? latest.temp : '';
+                document.getElementById('salinityInput').value = latest.salinity !== null ? latest.salinity : '';
+                document.getElementById('phInput').value = latest.ph !== null ? latest.ph : '';
+                document.getElementById('caInput').value = latest.ca !== null ? latest.ca : '';
+                document.getElementById('mgInput').value = latest.mg !== null ? latest.mg : '';
+                document.getElementById('khInput').value = latest.kh !== null ? latest.kh : '';
+                document.getElementById('no2Input').value = latest.no2 !== null ? latest.no2 : '';
+                document.getElementById('no3Input').value = latest.no3 !== null ? latest.no3 : '';
+                document.getElementById('po4Input').value = latest.po4 !== null ? latest.po4 : '';
+
+                updateInputStatuses(latest); // Update statuses based on loaded data
             }
         });
     </script>
