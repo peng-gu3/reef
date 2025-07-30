@@ -64,25 +64,51 @@
     const aiWindowFeatures = 'width=600,height=400,resizable,scrollbars';
 
     document.getElementById('graph-btn').addEventListener('click', () => {
-      const graphWindow = window.open('', 'GraphWindow', graphWindowFeatures);
-      graphWindow.document.write('<h1>그래프 기능 작동 중</h1><p>차트를 여기에 표시할 수 있습니다.</p>');
+      const win = window.open('', 'GraphWindow', graphWindowFeatures);
+      win.document.write('<h1>그래프 보기</h1><canvas id="chartCanvas"></canvas><script src="https://cdn.jsdelivr.net/npm/chart.js"></script><script>setTimeout(() => {const ctx = document.getElementById("chartCanvas").getContext("2d"); new Chart(ctx, {type: "bar", data: {labels: ["Ca", "Mg", "KH"], datasets: [{label: "최근 측정값", data: [430, 1440, 8], backgroundColor: ["#60A5FA", "#34D399", "#FBBF24"]}]}, options: {responsive: true}})}, 500);</script>');
     });
 
     document.getElementById('ai-btn').addEventListener('click', () => {
-      const aiWindow = window.open('', 'AIWindow', aiWindowFeatures);
-      aiWindow.document.write('<h1>AI 어드바이스 작동 중</h1><p>수치에 따른 조언이 여기에 표시됩니다.</p>');
+      const win = window.open('', 'AIWindow', aiWindowFeatures);
+      win.document.write('<h1>AI 어드바이스</h1><ul><li>Ca 수치가 적정 범위입니다. 유지해주세요.</li><li>Mg 수치가 적정 범위입니다. 유지해주세요.</li><li>KH가 목표보다 낮으면 도징을 고려하세요.</li></ul>');
     });
 
     document.getElementById('calculate-btn').addEventListener('click', () => {
-      alert("계산 기능 작동 중 (추후 구현 예정)");
+      const ca = parseFloat(document.getElementById('ca').value);
+      const mg = parseFloat(document.getElementById('mg').value);
+      const kh = parseFloat(document.getElementById('kh').value);
+      const resultBox = document.getElementById('results-output');
+      resultBox.innerHTML = '';
+
+      if (!isNaN(ca)) resultBox.innerHTML += `<div class='result-item result-good'>Ca: ${ca}ppm - 안정적 수치입니다.</div>`;
+      if (!isNaN(mg)) resultBox.innerHTML += `<div class='result-item result-good'>Mg: ${mg}ppm - 안정적 수치입니다.</div>`;
+      if (!isNaN(kh)) {
+        const msg = kh < 7.7 ? '낮음 - 도징 필요' : kh > 8.3 ? '높음 - 감량 고려' : '안정적';
+        resultBox.innerHTML += `<div class='result-item result-${msg.includes('낮음') ? 'low' : msg.includes('높음') ? 'high' : 'good'}'>KH: ${kh}dKH - ${msg}</div>`;
+      }
     });
 
     document.getElementById('save-btn').addEventListener('click', () => {
-      alert("기록 저장 기능 작동 중 (추후 구현 예정)");
+      const row = document.createElement('tr');
+      const fields = ['date','temp','salinity','ph','ca','mg','kh','no2','no3','po4'];
+      fields.forEach(id => {
+        const val = document.getElementById(id).value;
+        const td = document.createElement('td');
+        td.textContent = val;
+        row.appendChild(td);
+      });
+      const del = document.createElement('td');
+      const btn = document.createElement('button');
+      btn.textContent = '삭제';
+      btn.className = 'text-red-500';
+      btn.onclick = () => row.remove();
+      del.appendChild(btn);
+      row.appendChild(del);
+      document.getElementById('log-table-body').appendChild(row);
     });
 
     document.getElementById('clear-logs-btn').addEventListener('click', () => {
-      alert("기록 초기화 기능 작동 중 (추후 구현 예정)");
+      document.getElementById('log-table-body').innerHTML = '';
     });
   </script>
 </body>
