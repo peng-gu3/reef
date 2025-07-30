@@ -63,58 +63,11 @@
     const graphWindowFeatures = 'width=1000,height=600,resizable,scrollbars';
     const aiWindowFeatures = 'width=600,height=400,resizable,scrollbars';
 
-    document.getElementById('graph-btn').onclick = () => {
-      const tbody = document.getElementById('log-table-body');
-      const rows = Array.from(tbody.querySelectorAll('tr'));
-      if (rows.length === 0) return alert('기록이 없습니다.');
-
-      const labels = rows.map(row => row.children[0].textContent);
-      const caData = rows.map(row => parseFloat(row.children[4].textContent));
-      const khData = rows.map(row => parseFloat(row.children[6].textContent));
-      const no3Data = rows.map(row => parseFloat(row.children[8].textContent));
-
-      const graphWin = window.open('', '그래프보기', graphWindowFeatures);
-      graphWin.document.write(`
-        <html><head><title>그래프 보기</title>
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        </head><body>
-        <canvas id="chart" width="900" height="500"></canvas>
-        <script>
-          const ctx = document.getElementById('chart').getContext('2d');
-          new Chart(ctx, {
-            type: 'line',
-            data: {
-              labels: ${JSON.stringify(labels)},
-              datasets: [
-                { label: 'Ca', data: ${JSON.stringify(caData)}, borderColor: 'blue', fill: false },
-                { label: 'KH', data: ${JSON.stringify(khData)}, borderColor: 'green', fill: false },
-                { label: 'NO₃', data: ${JSON.stringify(no3Data)}, borderColor: 'red', fill: false },
-              ]
-            },
-            options: { responsive: true }
-          });
-        </script>
-        </body></html>
-      `);
-    };
-
-    document.getElementById('ai-btn').onclick = () => {
-      const temp = parseFloat(document.getElementById('temp').value);
-      const ca = parseFloat(document.getElementById('ca').value);
-      const kh = parseFloat(document.getElementById('kh').value);
-      const no3 = parseFloat(document.getElementById('no3').value);
-      const po4 = parseFloat(document.getElementById('po4').value);
-
-      let advice = '';
-      if (ca < 415) advice += '- 칼슘 보충이 필요합니다.\n';
-      if (kh < 7.7) advice += '- KH 보충이 필요합니다.\n';
-      if (no3 < 0.5) advice += '- 질산염(NO₃) 농도가 낮아 Nitro 도징 권장.\n';
-      if (po4 < 0.03) advice += '- 인산염(PO₄) 농도가 낮아 Phos 도징 권장.\n';
-      if (temp > 26.5) advice += '- 수온이 높습니다. 냉각기나 환기 확인 필요.\n';
-
-      const aiWin = window.open('', 'AI어드바이스', aiWindowFeatures);
-      aiWin.document.write('<html><head><title>AI 어드바이스</title></head><body><h2>AI 어드바이스</h2><pre>' + advice + '</pre></body></html>');
-    };
+    document.getElementById('graph-btn').addEventListener('click', () => alert("그래프 기능 준비 중"));
+    document.getElementById('ai-btn').addEventListener('click', () => alert("AI 어드바이스 기능 준비 중"));
+    document.getElementById('calculate-btn').addEventListener('click', () => alert("계산 기능 준비 중"));
+    document.getElementById('save-btn').addEventListener('click', () => alert("기록 저장 기능 준비 중"));
+    document.getElementById('clear-logs-btn').addEventListener('click', () => alert("기록 초기화 기능 준비 중"));
   </script>
 </body>
 </html>
