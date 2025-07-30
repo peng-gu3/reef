@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>*</title>
+    <title>해수어항 도징 계산기 (최종 완성 버전)</title>
     <!-- Tailwind CSS CDN for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts for Noto Sans KR -->
@@ -99,7 +99,7 @@
     <div id="mainAppContainer" class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Left Column: Input Form and Buttons -->
         <div class="bg-white rounded-2xl shadow p-6">
-            <h1 class="text-2xl font-bold mb-4 text-gray-800">PENG_GU</h1>
+            <h1 class="text-2xl font-bold mb-4 text-gray-800">해수어항 도징 계산기</h1>
             <!-- Input Form Section -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div class="flex flex-col">
@@ -608,6 +608,33 @@
             }
         }
 
+        /**
+         * Loads a specific record's data into the input form fields.
+         * @param {Object} record - The record object to load.
+         */
+        function loadRecordIntoForm(record) {
+            document.getElementById('dateInput').value = record.date || '';
+            document.getElementById('volumeInput').value = record.volume !== null ? record.volume : 160;
+            document.getElementById('tempInput').value = record.temp !== null ? record.temp : '';
+            document.getElementById('salinityInput').value = record.salinity !== null ? record.salinity : '';
+            document.getElementById('phInput').value = record.ph !== null ? record.ph : '';
+            document.getElementById('caInput').value = record.ca !== null ? record.ca : '';
+            document.getElementById('mgInput').value = record.mg !== null ? record.mg : '';
+            document.getElementById('khInput').value = record.kh !== null ? record.kh : '';
+            document.getElementById('no2Input').value = record.no2 !== null ? record.no2 : '';
+            document.getElementById('no3Input').value = record.no3 !== null ? record.no3 : '';
+            document.getElementById('po4Input').value = record.po4 !== null ? record.po4 : '';
+            document.getElementById('creatureInput').value = record.creature || '';
+            
+            // Reset edit mode state when loading a new record from the table
+            isEditMode = false;
+            currentEditingDate = null;
+            document.getElementById('saveRecordBtn').textContent = '기록 저장 및 결과 보기';
+            document.getElementById('editRecordBtn').classList.remove('hidden');
+            document.getElementById('cancelEditBtn').classList.add('hidden');
+            document.getElementById('dateInput').disabled = false;
+        }
+
 
         /**
          * Displays records in the table.
@@ -629,9 +656,11 @@
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-gray-50 cursor-pointer'; // Add cursor pointer for clickability
 
-                // Make the row clickable to show dosing plan for that record
+                // Make the row clickable to show dosing plan for that record AND load into form
                 tr.addEventListener('click', () => {
-                    renderDosingPlanForRecord(r);
+                    loadRecordIntoForm(r); // Load data into input fields
+                    updateConsolidatedStatuses(r); // Update consolidated status section
+                    renderDosingPlanForRecord(r); // Show dosing plan for selected record
                 });
 
                 // Add data cells for each parameter, including volume and creature
@@ -663,9 +692,23 @@
                         document.getElementById('dosingPlanList').innerHTML = '';
                         document.getElementById('completeDosingBtn').classList.add('hidden');
                         document.getElementById('dosingCompletionStatus').classList.add('hidden');
+                        // Clear form inputs if all records are deleted
+                        document.getElementById('dateInput').value = '';
+                        document.getElementById('volumeInput').value = '160'; // Reset to default
+                        document.getElementById('tempInput').value = '';
+                        document.getElementById('salinityInput').value = '';
+                        document.getElementById('phInput').value = '';
+                        document.getElementById('caInput').value = '';
+                        document.getElementById('mgInput').value = '';
+                        document.getElementById('khInput').value = '';
+                        document.getElementById('no2Input').value = '';
+                        document.getElementById('no3Input').value = '';
+                        document.getElementById('po4Input').value = '';
+                        document.getElementById('creatureInput').value = '';
                     } else {
                         // Otherwise, update statuses and dosing plan based on the new latest record
                         const newLatest = updatedRecords.sort((a,b)=>a.date.localeCompare(b.date))[updatedRecords.length - 1];
+                        loadRecordIntoForm(newLatest); // Load new latest into form
                         updateConsolidatedStatuses(newLatest);
                         renderDosingPlanForRecord(newLatest);
                     }
@@ -770,8 +813,32 @@
             document.getElementById('cancelEditBtn').classList.add('hidden'); // Hide Cancel button
             document.getElementById('dateInput').disabled = false; // Enable date input
 
-            // Optionally clear form or revert to last loaded state
-            // For simplicity, we just enable date input, user can re-select from table.
+            // Re-load the latest record into the form when cancelling edit mode, for consistency
+            const records = getRecords();
+            if (records.length > 0) {
+                const latest = records.sort((a,b)=>a.date.localeCompare(b.date))[records.length - 1];
+                loadRecordIntoForm(latest);
+                updateConsolidatedStatuses(latest);
+                renderDosingPlanForRecord(latest);
+            } else {
+                // If no records, clear the form
+                document.getElementById('dateInput').value = '';
+                document.getElementById('volumeInput').value = '160';
+                document.getElementById('tempInput').value = '';
+                document.getElementById('salinityInput').value = '';
+                document.getElementById('phInput').value = '';
+                document.getElementById('caInput').value = '';
+                document.getElementById('mgInput').value = '';
+                document.getElementById('khInput').value = '';
+                document.getElementById('no2Input').value = '';
+                document.getElementById('no3Input').value = '';
+                document.getElementById('po4Input').value = '';
+                document.getElementById('creatureInput').value = '';
+                updateConsolidatedStatuses({}); // Clear consolidated status
+                document.getElementById('dosingPlanList').innerHTML = ''; // Clear dosing plan
+                document.getElementById('completeDosingBtn').classList.add('hidden');
+                document.getElementById('dosingCompletionStatus').classList.add('hidden');
+            }
             showMessageBox('수정 모드를 취소했습니다.');
         });
 
@@ -790,19 +857,7 @@
                 const latest = records.sort((a,b)=>a.date.localeCompare(b.date))[records.length - 1];
                 
                 // Pre-fill inputs with latest record values for user convenience
-                document.getElementById('dateInput').value = latest.date || '';
-                document.getElementById('volumeInput').value = latest.volume !== null ? latest.volume : 160;
-                document.getElementById('tempInput').value = latest.temp !== null ? latest.temp : '';
-                document.getElementById('salinityInput').value = latest.salinity !== null ? latest.salinity : '';
-                document.getElementById('phInput').value = latest.ph !== null ? latest.ph : '';
-                document.getElementById('caInput').value = latest.ca !== null ? latest.ca : '';
-                document.getElementById('mgInput').value = latest.mg !== null ? latest.mg : '';
-                document.getElementById('khInput').value = latest.kh !== null ? latest.kh : '';
-                document.getElementById('no2Input').value = latest.no2 !== null ? latest.no2 : '';
-                document.getElementById('no3Input').value = latest.no3 !== null ? latest.no3 : '';
-                document.getElementById('po4Input').value = latest.po4 !== null ? latest.po4 : '';
-                document.getElementById('creatureInput').value = latest.creature || ''; // Pre-fill creature input
-
+                loadRecordIntoForm(latest); // Use the new helper function
                 updateConsolidatedStatuses(latest); // Update consolidated statuses based on loaded data
             }
 
@@ -812,7 +867,11 @@
                 const inputElement = document.getElementById(inputId);
                 if (inputElement) {
                     inputElement.addEventListener('input', () => {
-                        updateConsolidatedStatuses(getCurrentFormValues());
+                        // Only update consolidated status based on current form values if not in edit mode
+                        // or if the date matches the current editing date (to prevent unintended updates)
+                        if (!isEditMode || document.getElementById('dateInput').value === currentEditingDate) {
+                            updateConsolidatedStatuses(getCurrentFormValues());
+                        }
                     });
                 }
             });
