@@ -141,9 +141,15 @@
                     </div>
                 </div>
                 <div class="flex flex-col">
-                    <label for="khInput" class="block font-medium text-gray-700 mb-1">KH (dKH)</label>
+                    <label for="khAmInput" class="block font-medium text-gray-700 mb-1">KH (dKH) 오전</label>
                     <div class="flex items-center gap-2">
-                        <input id="khInput" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
+                        <input id="khAmInput" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
+                    </div>
+                </div>
+                <div class="flex flex-col">
+                    <label for="khPmInput" class="block font-medium text-gray-700 mb-1">KH (dKH) 오후</label>
+                    <div class="flex items-center gap-2">
+                        <input id="khPmInput" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
                     </div>
                 </div>
                 <div class="flex flex-col">
@@ -198,7 +204,8 @@
                                 <th class="border border-gray-300 px-3 py-2 text-gray-700">pH</th>
                                 <th class="border border-gray-300 px-3 py-2 text-gray-700">Ca</th>
                                 <th class="border border-gray-300 px-3 py-2 text-gray-700">Mg</th>
-                                <th class="border border-gray-300 px-3 py-2 text-gray-700">KH</th>
+                                <th class="border border-gray-300 px-3 py-2 text-gray-700">KH (오전)</th>
+                                <th class="border border-gray-300 px-3 py-2 text-gray-700">KH (오후)</th>
                                 <th class="border border-gray-300 px-3 py-2 text-gray-700">NO₂</th>
                                 <th class="border border-gray-300 px-3 py-2 text-gray-700">NO₃</th>
                                 <th class="border border-gray-300 px-3 py-2 text-gray-700">PO₄</th>
@@ -329,12 +336,13 @@
                 ph: parseFloat(document.getElementById('phInput').value) || null,
                 ca: parseFloat(document.getElementById('caInput').value) || null,
                 mg: parseFloat(document.getElementById('mgInput').value) || null,
-                kh: parseFloat(document.getElementById('khInput').value) || null,
+                khAm: parseFloat(document.getElementById('khAmInput').value) || null, // KH AM
+                khPm: parseFloat(document.getElementById('khPmInput').value) || null, // KH PM
                 no2: parseFloat(document.getElementById('no2Input').value) || null,
                 no3: parseFloat(document.getElementById('no3Input').value) || null,
                 po4: parseFloat(document.getElementById('po4Input').value) || null,
                 creature: document.getElementById('creatureInput').value || null,
-                isDosingCompleted: false // Default for new records
+                isDosingCompleted: false // Default for new records, will be overwritten if existing
             };
         }
 
@@ -351,7 +359,51 @@
 
             paramsToMonitor.forEach(key => {
                 const ref = reference[key];
-                const val = dataObject[key];
+                let val;
+                if (key === 'kh') { // Special handling for KH (AM/PM)
+                    const khAm = dataObject.khAm;
+                    const khPm = dataObject.khPm;
+                    if (khAm !== null && !isNaN(khAm) && khPm !== null && !isNaN(khPm)) {
+                        val = Math.min(khAm, khPm); // Use the lower value for status/dosing
+                        // Display both values in the status item
+                        statusDetailsContainer.innerHTML += `
+                            <div class="status-item ${val < ref.min ? 'status-low' : (val > ref.max ? 'status-high' : 'status-normal')} flex flex-col">
+                                <div class="flex justify-between w-full items-center">
+                                    <span class="param-label">${ref.label} (오전)</span>
+                                    <span class="param-value">${khAm !== null ? khAm.toFixed(2) : '-'} ${ref.unit || ''}</span>
+                                </div>
+                                <div class="flex justify-between w-full items-center">
+                                    <span class="param-label">${ref.label} (오후)</span>
+                                    <span class="param-value">${khPm !== null ? khPm.toFixed(2) : '-'} ${ref.unit || ''}</span>
+                                </div>
+                                <span class="param-range">목표 범위: ${ref.min !== undefined ? ref.min : '-'}~${ref.max !== undefined ? ref.max : '-'} ${ref.unit || ''}</span>
+                                <span class="status-message ${val < ref.min ? 'status-text-low' : (val > ref.max ? 'status-text-high' : 'status-text-normal')}">${val < ref.min ? '낮음' : (val > ref.max ? '높음' : '정상')}</span>
+                                ${ref.unitDose && val < ref.min && dataObject.volume > 0 ? `
+                                    <span class="dosing-recommendation">권장 도징: ${(() => {
+                                        const diff = ref.min - val;
+                                        const totalDose = ref.unitDose(diff, dataObject.volume);
+                                        let dailyDose = Math.floor(totalDose / 7 * 10) / 10;
+                                        if (totalDose < SINGLE_DOSE_THRESHOLD) {
+                                            return `${totalDose.toFixed(2)}${ref.doseUnit} (하루에 모두 도징 권장)`;
+                                        } else {
+                                            return `${totalDose.toFixed(2)}${ref.doseUnit} (일일 ${dailyDose.toFixed(2)}${ref.doseUnit}씩 7일간 분할 권장)`;
+                                        }
+                                    })()}</span>` : ''}
+                            </div>
+                        `;
+                        hasValidDataForStatus = true;
+                        return; // Skip the generic rendering for KH
+                    } else if (khAm !== null && !isNaN(khAm)) {
+                        val = khAm; // Use AM if PM is not available
+                    } else if (khPm !== null && !isNaN(khPm)) {
+                        val = khPm; // Use PM if AM is not available
+                    } else {
+                        val = null; // No KH data
+                    }
+                } else {
+                    val = dataObject[key];
+                }
+
                 let statusText = '데이터 없음';
                 let statusClass = 'bg-gray-100'; // Default light gray background
                 let statusTextColor = 'text-gray-500'; // Default gray text color
@@ -400,19 +452,22 @@
                     }
                 }
 
-                const statusItem = document.createElement('div');
-                statusItem.className = `status-item ${statusClass} flex flex-col`; // Use flex-col for stacked content
-                statusItem.innerHTML = `
-                    <div class="flex justify-between w-full items-center">
-                        <span class="param-label">${ref.label || key.toUpperCase()}</span>
-                        <span class="param-value">${val !== null ? val.toFixed(ref.unit === 'pH' ? 2 : (ref.unit === 'dKH' ? 2 : 1)) : '-'} ${ref.unit || ''}</span>
-                    </div>
-                    <span class="param-range">목표 범위: ${ref.min !== undefined ? ref.min : '-'}~${ref.max !== undefined ? ref.max : '-'} ${ref.unit || ''}</span>
-                    <span class="status-message ${statusTextColor}">${statusText}</span>
-                    ${recommendation ? `<span class="dosing-recommendation">${recommendation}</span>` : ''}
-                    ${dosingPlan ? `<span class="dosing-recommendation">${dosingPlan}</span>` : ''}
-                `;
-                statusDetailsContainer.appendChild(statusItem);
+                // Only render if not KH (as KH is handled separately above)
+                if (key !== 'kh') {
+                    const statusItem = document.createElement('div');
+                    statusItem.className = `status-item ${statusClass} flex flex-col`; // Use flex-col for stacked content
+                    statusItem.innerHTML = `
+                        <div class="flex justify-between w-full items-center">
+                            <span class="param-label">${ref.label || key.toUpperCase()}</span>
+                            <span class="param-value">${val !== null ? val.toFixed(ref.unit === 'pH' ? 2 : (ref.unit === 'dKH' ? 2 : 1)) : '-'} ${ref.unit || ''}</span>
+                        </div>
+                        <span class="param-range">목표 범위: ${ref.min !== undefined ? ref.min : '-'}~${ref.max !== undefined ? ref.max : '-'} ${ref.unit || ''}</span>
+                        <span class="status-message ${statusTextColor}">${statusText}</span>
+                        ${recommendation ? `<span class="dosing-recommendation">${recommendation}</span>` : ''}
+                        ${dosingPlan ? `<span class="dosing-recommendation">${dosingPlan}</span>` : ''}
+                    `;
+                    statusDetailsContainer.appendChild(statusItem);
+                }
             });
 
             // Show or hide the consolidated status container based on whether there's valid data
@@ -446,30 +501,59 @@
                 return;
             }
 
-            const params = ['temp', 'salinity', 'ph', 'ca', 'mg', 'kh', 'no2', 'no3', 'po4'];
+            const params = ['temp', 'salinity', 'ph', 'ca', 'mg', 'no2', 'no3', 'po4']; // Exclude KH for now, will add KH AM/PM separately
             const colors = [
                 'rgb(255, 99, 132)', 'rgb(255, 159, 64)', 'rgb(255, 205, 86)',
-                'rgb(75, 192, 192)', 'rgb(54, 162, 235)', 'rgb(153, 102, 255)',
-                'rgb(201, 203, 207)', 'rgb(255, 0, 255)', 'rgb(0, 255, 255)'
+                'rgb(75, 192, 192)', 'rgb(54, 162, 235)', 'rgb(201, 203, 207)', // Colors for non-KH params
+                'rgb(255, 0, 255)', 'rgb(0, 255, 255)'
             ];
 
-            const datasets = params.map((key, i) => {
+            const datasets = [];
+
+            // Add datasets for general parameters
+            params.forEach((key, i) => {
                 const dataPoints = records.map(r => r[key]);
                 const hasValidData = dataPoints.some(val => val !== null && !isNaN(val));
-
                 if (hasValidData) {
-                    return {
-                        label: reference[key].label || key.toUpperCase(), // Use Korean label if defined
+                    datasets.push({
+                        label: reference[key].label || key.toUpperCase(),
                         data: dataPoints,
                         borderColor: colors[i % colors.length],
                         backgroundColor: colors[i % colors.length],
                         fill: false,
                         spanGaps: true,
                         tension: 0.1
-                    };
+                    });
                 }
-                return null;
-            }).filter(dataset => dataset !== null);
+            });
+
+            // Add datasets for KH AM and KH PM separately
+            const khAmDataPoints = records.map(r => r.khAm);
+            const khPmDataPoints = records.map(r => r.khPm);
+
+            if (khAmDataPoints.some(val => val !== null && !isNaN(val))) {
+                datasets.push({
+                    label: 'KH (오전)',
+                    data: khAmDataPoints,
+                    borderColor: 'rgb(153, 102, 255)', // Purple for KH AM
+                    backgroundColor: 'rgb(153, 102, 255)',
+                    fill: false,
+                    spanGaps: true,
+                    tension: 0.1
+                });
+            }
+            if (khPmDataPoints.some(val => val !== null && !isNaN(val))) {
+                datasets.push({
+                    label: 'KH (오후)',
+                    data: khPmDataPoints,
+                    borderColor: 'rgb(100, 100, 255)', // Lighter purple/blue for KH PM
+                    backgroundColor: 'rgb(100, 100, 255)',
+                    fill: false,
+                    spanGaps: true,
+                    tension: 0.1
+                });
+            }
+
 
             if (datasets.length === 0) {
                 showMessageBox('그래프를 그릴 유효한 수치 데이터가 없습니다.');
@@ -533,7 +617,22 @@
             if (record && record.volume && !isNaN(record.volume) && record.volume > 0) {
                 Object.keys(reference).forEach(key => {
                     const ref = reference[key];
-                    const val = record[key];
+                    let val;
+                    if (key === 'kh') { // Use the lower of AM/PM for KH dosing calculation
+                        const khAm = record.khAm;
+                        const khPm = record.khPm;
+                        if (khAm !== null && !isNaN(khAm) && khPm !== null && !isNaN(khPm)) {
+                            val = Math.min(khAm, khPm);
+                        } else if (khAm !== null && !isNaN(khAm)) {
+                            val = khAm;
+                        } else if (khPm !== null && !isNaN(khPm)) {
+                            val = khPm;
+                        } else {
+                            val = null;
+                        }
+                    } else {
+                        val = record[key];
+                    }
 
                     if (ref.unitDose && val !== null && !isNaN(val)) {
                         let target = ref.min;
@@ -551,7 +650,7 @@
                         if (key === 'no3' || key === 'po4') {
                             if (dailyDose < MIN_DAILY_DOSE) {
                                 dosingMessage = `권장 도징: 해당 일 도징 건너뛰고 다음 날 수치 확인`;
-                            } else if (totalDosing < SINGLE_DOSE_THRESHOLD) { // Use totalDose here
+                            } else if (totalDose < SINGLE_DOSE_THRESHOLD) { // Use totalDose here
                                 dosingMessage = `권장 도징: ${totalDose.toFixed(2)}${ref.doseUnit} (하루에 모두 도징 권장)`;
                             } else {
                                 dosingMessage = `권장 도징: ${totalDose.toFixed(2)}${ref.doseUnit} (일일 ${dailyDose.toFixed(2)}${ref.doseUnit}씩 7일간 분할 권장)`;
@@ -634,7 +733,8 @@
             document.getElementById('phInput').value = record.ph !== null ? record.ph : '';
             document.getElementById('caInput').value = record.ca !== null ? record.ca : '';
             document.getElementById('mgInput').value = record.mg !== null ? record.mg : '';
-            document.getElementById('khInput').value = record.kh !== null ? record.kh : '';
+            document.getElementById('khAmInput').value = record.khAm !== null ? record.khAm : ''; // Load KH AM
+            document.getElementById('khPmInput').value = record.khPm !== null ? record.khPm : ''; // Load KH PM
             document.getElementById('no2Input').value = record.no2 !== null ? record.no2 : '';
             document.getElementById('no3Input').value = record.no3 !== null ? record.no3 : '';
             document.getElementById('po4Input').value = record.po4 !== null ? record.po4 : '';
@@ -657,7 +757,8 @@
             const records = getRecords().sort((a, b) => a.date.localeCompare(b.date)); // Sort records by date
 
             if (!records.length) {
-                showMessageBox('저장된 기록이 없습니다.');
+                // If no records, clear the table and hide container
+                document.querySelector('#recordsTable tbody').innerHTML = '';
                 document.getElementById('viewRecordsContainer').classList.add('hidden');
                 return;
             }
@@ -678,10 +779,21 @@
                 });
 
                 // Add data cells for each parameter, including volume and creature
-                ['date', 'volume', 'temp', 'salinity', 'ph', 'ca', 'mg', 'kh', 'no2', 'no3', 'po4', 'creature'].forEach(key => {
+                // Note: KH is split into KH (오전) and KH (오후)
+                const columns = ['date', 'volume', 'temp', 'salinity', 'ph', 'ca', 'mg', 'khAm', 'khPm', 'no2', 'no3', 'po4', 'creature'];
+                columns.forEach(key => {
                     const td = document.createElement('td');
                     td.className = 'border border-gray-300 px-3 py-2 text-center text-gray-700';
-                    td.textContent = r[key] !== null ? r[key] : '-'; // Display '-' for null values
+                    // Special handling for KH AM/PM display in table
+                    if (key === 'khAm' || key === 'khPm') {
+                        td.textContent = r[key] !== null ? r[key].toFixed(2) : '-';
+                    } else if (key === 'ph') {
+                        td.textContent = r[key] !== null ? r[key].toFixed(2) : '-';
+                    } else if (key === 'temp' || key === 'salinity' || key === 'no2' || key === 'no3' || key === 'po4') {
+                        td.textContent = r[key] !== null ? r[key].toFixed(1) : '-';
+                    } else {
+                        td.textContent = r[key] !== null ? r[key] : '-'; // Display '-' for null values
+                    }
                     tr.appendChild(td);
                 });
 
@@ -714,7 +826,8 @@
                         document.getElementById('phInput').value = '';
                         document.getElementById('caInput').value = '';
                         document.getElementById('mgInput').value = '';
-                        document.getElementById('khInput').value = '';
+                        document.getElementById('khAmInput').value = '';
+                        document.getElementById('khPmInput').value = '';
                         document.getElementById('no2Input').value = '';
                         document.getElementById('no3Input').value = '';
                         document.getElementById('po4Input').value = '';
@@ -851,7 +964,8 @@
                 document.getElementById('phInput').value = '';
                 document.getElementById('caInput').value = '';
                 document.getElementById('mgInput').value = '';
-                document.getElementById('khInput').value = '';
+                document.getElementById('khAmInput').value = '';
+                document.getElementById('khPmInput').value = '';
                 document.getElementById('no2Input').value = '';
                 document.getElementById('no3Input').value = '';
                 document.getElementById('po4Input').value = '';
@@ -884,7 +998,7 @@
             }
 
             // Add event listeners for real-time status updates on input change
-            const inputIds = ['tempInput', 'salinityInput', 'phInput', 'caInput', 'mgInput', 'khInput', 'no2Input', 'no3Input', 'po4Input'];
+            const inputIds = ['tempInput', 'salinityInput', 'phInput', 'caInput', 'mgInput', 'khAmInput', 'khPmInput', 'no2Input', 'no3Input', 'po4Input'];
             inputIds.forEach(inputId => {
                 const inputElement = document.getElementById(inputId);
                 if (inputElement) {
@@ -902,6 +1016,7 @@
             renderTrendChart();
             // Display records table and dosing plan on initial load
             displayRecordsTable();
+            document.getElementById('viewRecordsContainer').classList.remove('hidden'); // Ensure it's visible on load
         });
     </script>
 </body>
