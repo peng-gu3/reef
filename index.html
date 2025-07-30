@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>펭구 수질기록부</title>
+    <title>해수어항 도징 계산기 (최종 완성 버전)</title>
     <!-- Tailwind CSS CDN for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts for Noto Sans KR -->
@@ -87,6 +87,11 @@
             color: #1D4ED8; /* Blue-700 */
             margin-top: 4px;
         }
+        .dosing-completed-text {
+            color: #065F46; /* Green-700 */
+            font-weight: bold;
+            margin-left: 10px;
+        }
     </style>
 </head>
 <body class="bg-gray-100 p-6">
@@ -169,9 +174,9 @@
         <!-- Right Column: Graph and Records/Comparison Results -->
         <div class="flex flex-col gap-6">
             <!-- Graph Section (initially visible) -->
-            <div id="chartContainer" class="bg-white rounded-2xl shadow p-6 h-[400px]"> <!-- Added fixed height -->
+            <div id="chartContainer" class="bg-white rounded-2xl shadow p-6 h-[400px]">
                 <h2 class="text-xl font-bold mb-4 text-gray-800">수질 파라미터 추이</h2>
-                <canvas id="trendChart" class="w-full h-full"></canvas> <!-- Added w-full h-full -->
+                <canvas id="trendChart" class="w-full h-full"></canvas>
             </div>
 
             <!-- Records and Comparison Results Section (initially hidden, shown by "결과 보기" button) -->
@@ -200,8 +205,14 @@
                         </tbody>
                     </table>
                 </div>
-                <div id="dosagePlan" class="bg-blue-50 p-4 rounded-lg border border-blue-200 text-blue-800">
+                <div id="dosagePlan" class="bg-blue-50 p-4 rounded-lg border border-blue-200 text-blue-800 flex flex-col">
                     <!-- Dosing plan will be inserted here by JavaScript -->
+                    <div class="flex items-center mb-2">
+                        <h3 class="font-semibold text-blue-900">도징 계획</h3>
+                        <button id="completeDosingBtn" class="px-3 py-1 bg-green-600 text-white rounded-lg text-xs hover:bg-green-700 transition-colors duration-200 ml-auto">도징 완료</button>
+                        <span id="dosingCompletionStatus" class="dosing-completed-text hidden">완료됨</span>
+                    </div>
+                    <ul id="dosingPlanList" class="list-disc list-inside text-blue-800"></ul>
                 </div>
             </div>
         </div>
@@ -228,20 +239,25 @@
     </div>
 
     <script>
+        // Minimum daily dose for NO3 and PO4
+        const MIN_DAILY_DOSE = 0.3; // ml
+        // Threshold for total dose to recommend single-day dosing (e.g., if total dose is less than 7 * MIN_DAILY_DOSE)
+        const SINGLE_DOSE_THRESHOLD = MIN_DAILY_DOSE * 7; // 2.1ml
+
         // Reference ranges for various water parameters
         // 'unitDose' function calculates the amount needed to increase the parameter by a certain value per liter
         const reference = {
             temp: { min: 25, max: 26, label: '온도', unit: '°C' },
             salinity: { min: 34, max: 35, label: '염도', unit: 'ppt' },
             ph: { min: 8.0, max: 8.3, label: 'pH', unit: '' },
-            ca: { min: 420, max: 430, unitDose: (diff, volume) => (diff * volume) / 100, label: 'Ca', unit: 'ppm', doseUnit: 'ml' }, // Example: 100ppm increase per 1 unit dose for 1L
-            mg: { min: 1400, max: 1440, unitDose: (diff, volume) => (diff * volume) / 100, label: 'Mg', unit: 'ppm', doseUnit: 'ml' }, // Example: 100ppm increase per 1 unit dose for 1L
-            kh: { min: 7.0, max: 8.0, unitDose: (diff, volume) => (diff * volume) / 10, label: 'KH', unit: 'dKH', doseUnit: 'ml' },   // Example: 10dKH increase per 1 unit dose for 1L
+            ca: { min: 420, max: 430, unitDose: (diff, volume) => (diff * volume) / 100, label: 'Ca', unit: 'ppm', doseUnit: 'ml' },
+            mg: { min: 1400, max: 1440, unitDose: (diff, volume) => (diff * volume) / 100, label: 'Mg', unit: 'ppm', doseUnit: 'ml' },
+            kh: { min: 7.0, max: 8.0, unitDose: (diff, volume) => (diff * volume) / 10, label: 'KH', unit: 'dKH', doseUnit: 'ml' },
             no2: { min: 0, max: 0.02, label: 'NO₂', unit: 'ppm', recommendationHigh: '검출됨! 즉시 환수를 권장합니다.' },
             // Updated unitDose for NO3 based on provided image: 1ml per 100L increases NO3 by 1ppm
-            no3: { min: 0.5, max: 2.0, unit: 'ppm', label: 'NO₃', unitDose: (diff, volume) => (diff * volume) / 100, doseUnit: 'ml', recommendationHigh: '높음. 20% 환수 또는 리무버 사용을 권장합니다.' },
+            no3: { min: 0.5, max: 2.0, unit: 'ppm', label: 'NO₃', unitDose: (diff, volume) => (diff * volume) / 100, doseUnit: 'ml', minDaily: MIN_DAILY_DOSE, recommendationHigh: '높음. 20% 환수 또는 리무버 사용을 권장합니다.' },
             // unitDose for PO4 based on provided image: 1ml per 100L increases PO4 by 0.1ppm
-            po4: { min: 0.03, max: 0.1, unit: 'ppm', label: 'PO₄', unitDose: (diff, volume) => (diff * volume) / 10, doseUnit: 'ml', recommendationHigh: '높음. 20% 환수 또는 리무버 사용을 권장합니다.' }
+            po4: { min: 0.03, max: 0.1, unit: 'ppm', label: 'PO₄', unitDose: (diff, volume) => (diff * volume) / 10, doseUnit: 'ml', minDaily: MIN_DAILY_DOSE, recommendationHigh: '높음. 20% 환수 또는 리무버 사용을 권장합니다.' }
         };
 
         // --- Utility Functions for Local Storage and Message Box ---
@@ -339,8 +355,19 @@
                         if (ref.unitDose && dataObject.volume > 0) { // Check if unitDose is defined and volume is valid for low values
                             const diff = ref.min - val;
                             const totalDose = ref.unitDose(diff, dataObject.volume);
-                            const dailyDose = totalDose / 7;
-                            dosingPlan = `권장 도징: ${totalDose.toFixed(2)}${ref.doseUnit} (일일 ${dailyDose.toFixed(2)}${ref.doseUnit}씩 7일간 분할 권장)`;
+                            let dailyDose = totalDose / 7;
+
+                            // Apply minimum daily dose for NO3 and PO4
+                            if ((key === 'no3' || key === 'po4') && dailyDose < MIN_DAILY_DOSE) {
+                                dailyDose = MIN_DAILY_DOSE;
+                            }
+
+                            // Recommend single-day dosing if total amount is very small
+                            if (totalDose < SINGLE_DOSE_THRESHOLD) {
+                                dosingPlan = `권장 도징: ${totalDose.toFixed(2)}${ref.doseUnit} (하루에 모두 도징 권장)`;
+                            } else {
+                                dosingPlan = `권장 도징: ${totalDose.toFixed(2)}${ref.doseUnit} (일일 ${dailyDose.toFixed(2)}${ref.doseUnit}씩 7일간 분할 권장)`;
+                            }
                         }
                     } else if (val > ref.max) {
                         statusText = '높음';
@@ -479,9 +506,17 @@
         function displayRecordsAndDosingPlan() {
             const records = getRecords().sort((a, b) => a.date.localeCompare(b.date)); // Sort records by date
 
+            const dosingPlanList = document.getElementById('dosingPlanList');
+            dosingPlanList.innerHTML = ''; // Clear previous dosing plan items
+
+            const completeDosingBtn = document.getElementById('completeDosingBtn');
+            const dosingCompletionStatus = document.getElementById('dosingCompletionStatus');
+
             if (!records.length) {
                 showMessageBox('저장된 기록이 없습니다.');
                 document.getElementById('viewRecordsContainer').classList.add('hidden');
+                completeDosingBtn.classList.add('hidden');
+                dosingCompletionStatus.classList.add('hidden');
                 return;
             }
 
@@ -537,10 +572,8 @@
 
             // --- Dosing Plan Calculation (based on the latest record) ---
             const latest = records[records.length - 1]; // Get the most recent record
-            // Changed title from "7일간 도징 계획" to "도징 계획"
-            let planHTML = '<h3 class="font-semibold mb-2 text-blue-900">도징 계획</h3><ul class="list-disc list-inside text-blue-800">';
-
             let hasDosingRecommendation = false;
+            
             if (latest && latest.volume && !isNaN(latest.volume) && latest.volume > 0) { // Ensure latest record and valid volume exist
                 Object.keys(reference).forEach(key => {
                     const ref = reference[key];
@@ -557,20 +590,58 @@
                         const diff = target - val; // Calculate the difference needed
                         // Calculate total dose needed for the entire tank volume
                         const totalDose = ref.unitDose(diff, latest.volume);
-                        const dailyDose = totalDose / 7; // Divide by 7 for daily dosing over 7 days
+                        let dailyDose = totalDose / 7; // Divide by 7 for daily dosing over 7 days
 
-                        planHTML += `<li>${ref.label || key.toUpperCase()}: 일일 ${dailyDose.toFixed(2)}${ref.doseUnit}</li>`;
+                        // Apply minimum daily dose for NO3 and PO4
+                        if ((key === 'no3' || key === 'po4') && dailyDose < MIN_DAILY_DOSE) {
+                            dailyDose = MIN_DAILY_DOSE;
+                        }
+
+                        let dosingMessage = '';
+                        // Recommend single-day dosing if total amount is very small
+                        if (totalDose < SINGLE_DOSE_THRESHOLD) {
+                            dosingMessage = `권장 도징: ${totalDose.toFixed(2)}${ref.doseUnit} (하루에 모두 도징 권장)`;
+                        } else {
+                            dosingMessage = `권장 도징: ${totalDose.toFixed(2)}${ref.doseUnit} (일일 ${dailyDose.toFixed(2)}${ref.doseUnit}씩 7일간 분할 권장)`;
+                        }
+                        
+                        const listItem = document.createElement('li');
+                        listItem.textContent = `${ref.label || key.toUpperCase()}: ${dosingMessage}`;
+                        dosingPlanList.appendChild(listItem);
                         hasDosingRecommendation = true;
                     }
                 });
                 if (!hasDosingRecommendation) {
-                    planHTML += '<li>모든 파라미터가 정상 범위이거나 도징이 필요하지 않습니다.</li>';
+                    const listItem = document.createElement('li');
+                    listItem.textContent = '모든 파라미터가 정상 범위이거나 도징이 필요하지 않습니다.';
+                    dosingPlanList.appendChild(listItem);
                 }
             } else {
-                planHTML += '<li>최신 기록 또는 유효한 수조 부피 정보가 없어 도징 계획을 계산할 수 없습니다.</li>';
+                const listItem = document.createElement('li');
+                listItem.textContent = '최신 기록 또는 유효한 수조 부피 정보가 없어 도징 계획을 계산할 수 없습니다.';
+                dosingPlanList.appendChild(listItem);
             }
-            planHTML += '</ul>';
-            document.getElementById('dosagePlan').innerHTML = planHTML; // Display the dosing plan
+
+            // --- Dosing Completion Button Logic ---
+            const completedDosingDate = localStorage.getItem('completedDosingDate');
+            if (latest && latest.date === completedDosingDate) {
+                completeDosingBtn.classList.add('hidden');
+                dosingCompletionStatus.classList.remove('hidden');
+            } else {
+                completeDosingBtn.classList.remove('hidden');
+                dosingCompletionStatus.classList.add('hidden');
+                // Ensure the event listener is only added once
+                if (!completeDosingBtn.dataset.listenerAdded) {
+                    completeDosingBtn.addEventListener('click', () => {
+                        if (latest && latest.date) {
+                            localStorage.setItem('completedDosingDate', latest.date);
+                            showMessageBox('도징 계획이 완료 처리되었습니다!');
+                            displayRecordsAndDosingPlan(); // Re-render to update status
+                        }
+                    });
+                    completeDosingBtn.dataset.listenerAdded = 'true';
+                }
+            }
         }
 
         // --- Event Listeners ---
@@ -615,6 +686,8 @@
             showMessageBox('기록이 저장되었습니다.');
             updateConsolidatedStatuses(record); // Update consolidated statuses based on the newly saved record
             renderTrendChart(); // Re-render the chart after saving a new record
+            localStorage.removeItem('completedDosingDate'); // Reset completion status for new record
+            displayRecordsAndDosingPlan(); // Re-render dosing plan to reflect new record and reset status
         });
 
         // Event listener for the new "View Results" button
