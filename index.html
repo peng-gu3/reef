@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>펭구 수질일보</title>
+    <title>*</title>
     <!-- Tailwind CSS CDN for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts for Noto Sans KR -->
@@ -360,18 +360,23 @@
                         if (ref.unitDose && dataObject.volume > 0) { // Check if unitDose is defined and volume is valid for low values
                             const diff = ref.min - val;
                             const totalDose = ref.unitDose(diff, dataObject.volume);
-                            let dailyDose = totalDose / 7;
+                            let dailyDose = Math.floor(totalDose / 7 * 10) / 10; // Round down to one decimal place
 
-                            // Apply minimum daily dose for NO3 and PO4
-                            if ((key === 'no3' || key === 'po4') && dailyDose < MIN_DAILY_DOSE) {
-                                dailyDose = MIN_DAILY_DOSE;
-                            }
-
-                            // Recommend single-day dosing if total amount is very small
-                            if (totalDose < SINGLE_DOSE_THRESHOLD) {
-                                dosingPlan = `권장 도징: ${totalDose.toFixed(2)}${ref.doseUnit} (하루에 모두 도징 권장)`;
-                            } else {
-                                dosingPlan = `권장 도징: ${totalDose.toFixed(2)}${ref.doseUnit} (일일 ${dailyDose.toFixed(2)}${ref.doseUnit}씩 7일간 분할 권장)`;
+                            // Apply minimum daily dose for NO3 and PO4 and handle skipping
+                            if (key === 'no3' || key === 'po4') {
+                                if (dailyDose < MIN_DAILY_DOSE) {
+                                    dosingPlan = `권장 도징: 해당 일 도징 건너뛰고 다음 날 수치 확인`;
+                                } else if (totalDose < SINGLE_DOSE_THRESHOLD) {
+                                    dosingPlan = `권장 도징: ${totalDose.toFixed(2)}${ref.doseUnit} (하루에 모두 도징 권장)`;
+                                } else {
+                                    dosingPlan = `권장 도징: ${totalDose.toFixed(2)}${ref.doseUnit} (일일 ${dailyDose.toFixed(2)}${ref.doseUnit}씩 7일간 분할 권장)`;
+                                }
+                            } else { // For other parameters (Ca, Mg, KH)
+                                if (totalDose < SINGLE_DOSE_THRESHOLD) {
+                                    dosingPlan = `권장 도징: ${totalDose.toFixed(2)}${ref.doseUnit} (하루에 모두 도징 권장)`;
+                                } else {
+                                    dosingPlan = `권장 도징: ${totalDose.toFixed(2)}${ref.doseUnit} (일일 ${dailyDose.toFixed(2)}${ref.doseUnit}씩 7일간 분할 권장)`;
+                                }
                             }
                         }
                     } else if (val > ref.max) {
@@ -532,17 +537,24 @@
 
                         const diff = target - val;
                         const totalDose = ref.unitDose(diff, record.volume);
-                        let dailyDose = totalDose / 7;
-
-                        if ((key === 'no3' || key === 'po4') && dailyDose < MIN_DAILY_DOSE) {
-                            dailyDose = MIN_DAILY_DOSE;
-                        }
+                        let dailyDose = Math.floor(totalDose / 7 * 10) / 10; // Round down to one decimal place
 
                         let dosingMessage = '';
-                        if (totalDose < SINGLE_DOSE_THRESHOLD) {
-                            dosingMessage = `권장 도징: ${totalDose.toFixed(2)}${ref.doseUnit} (하루에 모두 도징 권장)`;
-                        } else {
-                            dosingMessage = `권장 도징: ${totalDose.toFixed(2)}${ref.doseUnit} (일일 ${dailyDose.toFixed(2)}${ref.doseUnit}씩 7일간 분할 권장)`;
+                        // Apply minimum daily dose for NO3 and PO4 and handle skipping
+                        if (key === 'no3' || key === 'po4') {
+                            if (dailyDose < MIN_DAILY_DOSE) {
+                                dosingMessage = `권장 도징: 해당 일 도징 건너뛰고 다음 날 수치 확인`;
+                            } else if (totalDose < SINGLE_DOSE_THRESHOLD) {
+                                dosingMessage = `권장 도징: ${totalDose.toFixed(2)}${ref.doseUnit} (하루에 모두 도징 권장)`;
+                            } else {
+                                dosingMessage = `권장 도징: ${totalDose.toFixed(2)}${ref.doseUnit} (일일 ${dailyDose.toFixed(2)}${ref.doseUnit}씩 7일간 분할 권장)`;
+                            }
+                        } else { // For other parameters (Ca, Mg, KH)
+                            if (totalDose < SINGLE_DOSE_THRESHOLD) {
+                                dosingMessage = `권장 도징: ${totalDose.toFixed(2)}${ref.doseUnit} (하루에 모두 도징 권장)`;
+                            } else {
+                                dosingMessage = `권장 도징: ${totalDose.toFixed(2)}${ref.doseUnit} (일일 ${dailyDose.toFixed(2)}${ref.doseUnit}씩 7일간 분할 권장)`;
+                            }
                         }
                         
                         const listItem = document.createElement('li');
