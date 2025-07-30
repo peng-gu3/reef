@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>해수어항 도징 계산기 (최종 완성 버전)</title>
+    <title>*</title>
     <!-- Tailwind CSS CDN for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts for Noto Sans KR -->
@@ -99,7 +99,7 @@
     <div id="mainAppContainer" class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Left Column: Input Form and Buttons -->
         <div class="bg-white rounded-2xl shadow p-6">
-            <h1 class="text-2xl font-bold mb-4 text-gray-800">해수어항 도징 계산기</h1>
+            <h1 class="text-2xl font-bold mb-4 text-gray-800">PENG_GU</h1>
             <!-- Input Form Section -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div class="flex flex-col">
@@ -179,6 +179,7 @@
                 <button id="saveRecordBtn" class="px-6 py-3 bg-blue-500 text-white font-semibold rounded-2xl shadow-md hover:bg-blue-600 transition-colors duration-200">기록 저장 및 결과 보기</button>
                 <button id="editRecordBtn" class="px-6 py-3 bg-gray-500 text-white font-semibold rounded-2xl shadow-md hover:bg-gray-600 transition-colors duration-200">수정</button>
                 <button id="cancelEditBtn" class="px-6 py-3 bg-red-500 text-white font-semibold rounded-2xl shadow-md hover:bg-red-600 transition-colors duration-200 hidden">취소</button>
+                <button id="clearRecordsBtn" class="px-6 py-3 bg-red-700 text-white font-semibold rounded-2xl shadow-md hover:bg-red-800 transition-colors duration-200">기록 초기화</button>
             </div>
         </div>
 
@@ -503,9 +504,9 @@
 
             const params = ['temp', 'salinity', 'ph', 'ca', 'mg', 'no2', 'no3', 'po4']; // Exclude KH for now, will add KH AM/PM separately
             const colors = [
-                'rgb(255, 99, 132)', 'rgb(255, 159, 64)', 'rgb(255, 205, 86)',
-                'rgb(75, 192, 192)', 'rgb(54, 162, 235)', 'rgb(201, 203, 207)', // Colors for non-KH params
-                'rgb(255, 0, 255)', 'rgb(0, 255, 255)'
+                'rgb(255, 99, 132)', 'rgb(255, 159, 64)', 'rgb(255, 255, 0)', // Red, Orange, Yellow
+                'rgb(75, 192, 192)', 'rgb(54, 162, 235)', 'rgb(201, 203, 207)', // Green, Blue, Grey
+                'rgb(255, 0, 255)', 'rgb(0, 255, 255)' // Magenta, Cyan
             ];
 
             const datasets = [];
@@ -982,6 +983,50 @@
                 document.getElementById('dosingCompletionStatus').classList.add('hidden');
             }
             showMessageBox('수정 모드를 취소했습니다.');
+        });
+
+        // Event listener for the "Clear Records" button
+        document.getElementById('clearRecordsBtn').addEventListener('click', () => {
+            showMessageBox('모든 기록을 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다.', true); // Pass true to indicate a confirmation message
+
+            // Custom confirmation logic for the message box
+            const confirmButton = document.getElementById('customMessageBoxButton');
+            const originalClickListener = confirmButton.onclick; // Store original listener if any
+
+            confirmButton.onclick = () => {
+                hideMessageBox();
+                // Proceed with clearing only if confirmed
+                localStorage.removeItem('records');
+                localStorage.removeItem('completedDosingDate'); // Also clear dosing completion status
+
+                // Reset UI to initial state
+                document.getElementById('dateInput').value = '';
+                document.getElementById('volumeInput').value = '160'; // Reset to default
+                document.getElementById('tempInput').value = '';
+                document.getElementById('salinityInput').value = '';
+                document.getElementById('phInput').value = '';
+                document.getElementById('caInput').value = '';
+                document.getElementById('mgInput').value = '';
+                document.getElementById('khAmInput').value = '';
+                document.getElementById('khPmInput').value = '';
+                document.getElementById('no2Input').value = '';
+                document.getElementById('no3Input').value = '';
+                document.getElementById('po4Input').value = '';
+                document.getElementById('creatureInput').value = '';
+
+                updateConsolidatedStatuses({}); // Clear consolidated status
+                document.getElementById('dosingPlanList').innerHTML = '<li>저장된 기록이 없어 도징 계획을 계산할 수 없습니다.</li>';
+                document.getElementById('completeDosingBtn').classList.add('hidden');
+                document.getElementById('dosingCompletionStatus').classList.add('hidden');
+
+                renderTrendChart(); // Re-render chart (will show no data)
+                displayRecordsTable(); // Re-render table (will show no records message)
+
+                showMessageBox('모든 기록이 초기화되었습니다.');
+                confirmButton.onclick = originalClickListener; // Restore original listener
+            };
+            // For a confirmation, you might want a "Cancel" button too, but for simplicity, we'll use one button.
+            // If you need a full "Yes/No" dialog, the message box logic would need to be expanded.
         });
 
 
