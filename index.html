@@ -75,70 +75,69 @@
                     <label for="tempInput" class="block font-medium text-gray-700 mb-1">온도 (°C)</label>
                     <div class="flex items-center gap-2">
                         <input id="tempInput" type="number" step="0.1" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
-                        <span id="tempStatus" class="text-sm font-semibold min-w-[60px] text-right"></span>
+                        <!-- <span id="tempStatus" class="text-sm font-semibold min-w-[60px] text-right"></span> -->
                     </div>
                 </div>
                 <div class="flex flex-col">
                     <label for="salinityInput" class="block font-medium text-gray-700 mb-1">염도 (ppt)</label>
                     <div class="flex items-center gap-2">
                         <input id="salinityInput" type="number" step="0.1" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
-                        <span id="salinityStatus" class="text-sm font-semibold min-w-[60px] text-right"></span>
+                        <!-- <span id="salinityStatus" class="text-sm font-semibold min-w-[60px] text-right"></span> -->
                     </div>
                 </div>
                 <div class="flex flex-col">
                     <label for="phInput" class="block font-medium text-gray-700 mb-1">pH</label>
                     <div class="flex items-center gap-2">
                         <input id="phInput" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
-                        <span id="phStatus" class="text-sm font-semibold min-w-[60px] text-right"></span>
+                        <!-- <span id="phStatus" class="text-sm font-semibold min-w-[60px] text-right"></span> -->
                     </div>
                 </div>
                 <div class="flex flex-col">
                     <label for="caInput" class="block font-medium text-gray-700 mb-1">Ca (ppm)</label>
                     <div class="flex items-center gap-2">
                         <input id="caInput" type="number" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
-                        <span id="caStatus" class="text-sm font-semibold min-w-[60px] text-right"></span>
+                        <!-- <span id="caStatus" class="text-sm font-semibold min-w-[60px] text-right"></span> -->
                     </div>
                 </div>
                 <div class="flex flex-col">
                     <label for="mgInput" class="block font-medium text-gray-700 mb-1">Mg (ppm)</label>
                     <div class="flex items-center gap-2">
                         <input id="mgInput" type="number" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
-                        <span id="mgStatus" class="text-sm font-semibold min-w-[60px] text-right"></span>
+                        <!-- <span id="mgStatus" class="text-sm font-semibold min-w-[60px] text-right"></span> -->
                     </div>
                 </div>
                 <div class="flex flex-col">
                     <label for="khInput" class="block font-medium text-gray-700 mb-1">KH (dKH)</label>
                     <div class="flex items-center gap-2">
                         <input id="khInput" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
-                        <span id="khStatus" class="text-sm font-semibold min-w-[60px] text-right"></span>
+                        <!-- <span id="khStatus" class="text-sm font-semibold min-w-[60px] text-right"></span> -->
                     </div>
                 </div>
                 <div class="flex flex-col">
                     <label for="no2Input" class="block font-medium text-gray-700 mb-1">NO₂ (ppm)</label>
                     <div class="flex items-center gap-2">
                         <input id="no2Input" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
-                        <span id="no2Status" class="text-sm font-semibold min-w-[60px] text-right"></span>
+                        <!-- <span id="no2Status" class="text-sm font-semibold min-w-[60px] text-right"></span> -->
                     </div>
                 </div>
                 <div class="flex flex-col">
                     <label for="no3Input" class="block font-medium text-gray-700 mb-1">NO₃ (ppm)</label>
                     <div class="flex items-center gap-2">
                         <input id="no3Input" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
-                        <span id="no3Status" class="text-sm font-semibold min-w-[60px] text-right"></span>
+                        <!-- <span id="no3Status" class="text-sm font-semibold min-w-[60px] text-right"></span> -->
                     </div>
                 </div>
                 <div class="flex flex-col">
                     <label for="po4Input" class="block font-medium text-gray-700 mb-1">PO₄ (ppm)</label>
                     <div class="flex items-center gap-2">
                         <input id="po4Input" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
-                        <span id="po4Status" class="text-sm font-semibold min-w-[60px] text-right"></span>
+                        <!-- <span id="po4Status" class="text-sm font-semibold min-w-[60px] text-right"></span> -->
                     </div>
                 </div>
             </div>
             <div class="flex flex-wrap gap-4">
                 <button id="saveRecordOnlyBtn" class="px-6 py-3 bg-blue-500 text-white font-semibold rounded-2xl shadow-md hover:bg-blue-600 transition-colors duration-200">기록 저장</button>
                 <button id="viewResultsBtn" class="px-6 py-3 bg-indigo-500 text-white font-semibold rounded-2xl shadow-md hover:bg-indigo-600 transition-colors duration-200">결과 보기</button>
-                <!-- "그래프 보기" 버튼 제거됨 -->
             </div>
         </div>
 
@@ -184,6 +183,14 @@
         </div>
     </div>
 
+    <!-- Consolidated Status Section at the bottom -->
+    <div id="consolidatedStatusContainer" class="max-w-6xl mx-auto bg-white rounded-2xl shadow p-6 mt-6 hidden">
+        <h2 class="text-xl font-bold mb-4 text-gray-800">현재 수질 상태</h2>
+        <div id="statusDetails" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Status details will be inserted here by JavaScript -->
+        </div>
+    </div>
+
     <!-- Custom Message Box HTML -->
     <div id="customMessageBoxOverlay" class="message-box-overlay hidden">
         <div class="message-box">
@@ -196,15 +203,15 @@
         // Reference ranges for various water parameters
         // 'unitDose' function calculates the amount needed to increase the parameter by a certain value per liter
         const reference = {
-            temp: { min: 25, max: 26 },
-            salinity: { min: 34, max: 35 },
-            ph: { min: 8.0, max: 8.3 },
-            ca: { min: 420, max: 430, unitDose: (diff, volume) => (diff * volume) / 100 }, // Example: 100ppm increase per 1 unit dose for 1L
-            mg: { min: 1400, max: 1440, unitDose: (diff, volume) => (diff * volume) / 100 }, // Example: 100ppm increase per 1 unit dose for 1L
-            kh: { min: 7.0, max: 8.0, unitDose: (diff, volume) => (diff * volume) / 10 },   // Example: 10dKH increase per 1 unit dose for 1L
-            no2: { min: 0, max: 0.02 },
-            no3: { min: 0.5, max: 2.0, unitDose: (diff, volume) => (diff * volume) / 100 }, // Example: 100ppm increase per 1 unit dose for 1L
-            po4: { min: 0.03, max: 0.1 }
+            temp: { min: 25, max: 26, label: '온도' },
+            salinity: { min: 34, max: 35, label: '염도' },
+            ph: { min: 8.0, max: 8.3, label: 'pH' },
+            ca: { min: 420, max: 430, unitDose: (diff, volume) => (diff * volume) / 100, label: 'Ca' }, // Example: 100ppm increase per 1 unit dose for 1L
+            mg: { min: 1400, max: 1440, unitDose: (diff, volume) => (diff * volume) / 100, label: 'Mg' }, // Example: 100ppm increase per 1 unit dose for 1L
+            kh: { min: 7.0, max: 8.0, unitDose: (diff, volume) => (diff * volume) / 10, label: 'KH' },   // Example: 10dKH increase per 1 unit dose for 1L
+            no2: { min: 0, max: 0.02, label: 'NO₂' },
+            no3: { min: 0.5, max: 2.0, unitDose: (diff, volume) => (diff * volume) / 100, label: 'NO₃' }, // Example: 100ppm increase per 1 unit dose for 1L
+            po4: { min: 0.03, max: 0.1, label: 'PO₄' }
         };
 
         // --- Utility Functions for Local Storage and Message Box ---
@@ -274,35 +281,53 @@
         }
 
         /**
-         * Updates the status display next to each input field.
+         * Updates the consolidated status display at the bottom of the page.
          * @param {Object} dataObject - An object containing parameter values (e.g., a record or current form values).
          */
-        function updateInputStatuses(dataObject) {
-            const paramsToMonitor = ['temp', 'salinity', 'ph', 'ca', 'mg', 'kh', 'no2', 'no3', 'po4'];
-            paramsToMonitor.forEach(key => {
-                const statusSpan = document.getElementById(`${key}Status`);
-                if (!statusSpan) return;
+        function updateConsolidatedStatuses(dataObject) {
+            const statusDetailsContainer = document.getElementById('statusDetails');
+            statusDetailsContainer.innerHTML = ''; // Clear previous statuses
 
+            const paramsToMonitor = ['temp', 'salinity', 'ph', 'ca', 'mg', 'kh', 'no2', 'no3', 'po4'];
+            let hasValidDataForStatus = false;
+
+            paramsToMonitor.forEach(key => {
                 const ref = reference[key];
                 const val = dataObject[key];
-
-                statusSpan.textContent = '';
-                statusSpan.className = 'text-sm font-semibold min-w-[60px] text-right';
+                let statusText = '데이터 없음';
+                let statusClass = 'text-gray-500'; // Default gray for no data
 
                 if (val !== null && !isNaN(val) && ref.min !== undefined) {
+                    hasValidDataForStatus = true;
                     if (val < ref.min) {
-                        statusSpan.textContent = '낮음';
-                        statusSpan.classList.add('status-low');
+                        statusText = '낮음';
+                        statusClass = 'status-low';
                     } else if (val > ref.max) {
-                        statusSpan.textContent = '높음';
-                        statusSpan.classList.add('status-high');
+                        statusText = '높음';
+                        statusClass = 'status-high';
                     } else {
-                        statusSpan.textContent = '정상';
-                        statusSpan.classList.add('status-normal');
+                        statusText = '정상';
+                        statusClass = 'status-normal';
                     }
                 }
+
+                const statusItem = document.createElement('div');
+                statusItem.className = 'flex justify-between items-center p-2 border border-gray-200 rounded-lg';
+                statusItem.innerHTML = `
+                    <span class="font-medium text-gray-700">${ref.label || key.toUpperCase()}</span>
+                    <span class="${statusClass} font-semibold">${statusText}</span>
+                `;
+                statusDetailsContainer.appendChild(statusItem);
             });
+
+            // Show or hide the consolidated status container based on whether there's valid data
+            if (hasValidDataForStatus) {
+                document.getElementById('consolidatedStatusContainer').classList.remove('hidden');
+            } else {
+                document.getElementById('consolidatedStatusContainer').classList.add('hidden');
+            }
         }
+
 
         /**
          * Renders the trend chart using Chart.js.
@@ -311,25 +336,18 @@
             const records = getRecords().sort((a, b) => a.date.localeCompare(b.date)); // Sort records by date
 
             // Always destroy existing chart if it exists and is a Chart instance
-            // This ensures that .destroy() is only called on a valid Chart.js object.
             if (window.trendChart instanceof Chart) {
                 window.trendChart.destroy();
                 window.trendChart = null; // Clear reference after destroying
             }
 
             const ctx = document.getElementById('trendChart').getContext('2d');
-            // Clear canvas only if it's not the first render and there are no records to draw
-            if (!records.length && ctx) {
-                ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); // Clear canvas
-            }
-
+            // Clear canvas regardless of records presence, to ensure a clean slate
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
             if (!records.length) {
-                // No records to display, so show a message and keep the chart container visible
-                // but ensure records container is hidden.
                 showMessageBox('그래프를 그릴 저장된 기록이 없습니다.');
-                document.getElementById('chartContainer').classList.remove('hidden');
-                document.getElementById('viewRecordsContainer').classList.add('hidden');
+                document.getElementById('chartContainer').classList.remove('hidden'); // Keep chart container visible
                 return;
             }
 
@@ -346,7 +364,7 @@
 
                 if (hasValidData) {
                     return {
-                        label: key.toUpperCase(),
+                        label: reference[key].label || key.toUpperCase(), // Use Korean label if defined
                         data: dataPoints,
                         borderColor: colors[i % colors.length],
                         backgroundColor: colors[i % colors.length],
@@ -359,10 +377,8 @@
             }).filter(dataset => dataset !== null);
 
             if (datasets.length === 0) {
-                // No valid numeric data to plot, show a message.
                 showMessageBox('그래프를 그릴 유효한 수치 데이터가 없습니다.');
-                document.getElementById('chartContainer').classList.remove('hidden');
-                document.getElementById('viewRecordsContainer').classList.add('hidden');
+                document.getElementById('chartContainer').classList.remove('hidden'); // Keep chart container visible
                 return;
             }
 
@@ -404,7 +420,6 @@
             });
 
             document.getElementById('chartContainer').classList.remove('hidden');
-            document.getElementById('viewRecordsContainer').classList.add('hidden');
         }
 
         /**
@@ -416,7 +431,7 @@
             if (!records.length) {
                 showMessageBox('저장된 기록이 없습니다.');
                 document.getElementById('viewRecordsContainer').classList.add('hidden');
-                document.getElementById('chartContainer').classList.add('hidden'); // Hide chart if no records
+                // chartContainer should remain visible as per new requirement
                 return;
             }
 
@@ -432,11 +447,11 @@
                     const val = r[key];
                     if (val !== null && ref.min !== undefined) { // Check if value exists and reference min is defined
                         if (val < ref.min) {
-                            state.push(`${key.toUpperCase()}: 낮음`);
+                            state.push(`${ref.label || key.toUpperCase()}: 낮음`);
                         } else if (val > ref.max) {
-                            state.push(`${key.toUpperCase()}: 높음`);
+                            state.push(`${ref.label || key.toUpperCase()}: 높음`);
                         } else {
-                            state.push(`${key.toUpperCase()}: 정상`);
+                            state.push(`${ref.label || key.toUpperCase()}: 정상`);
                         }
                     }
                 });
@@ -475,12 +490,13 @@
                     displayRecordsAndDosingPlan(); // Re-render the table
                     // If no records left, clear input statuses
                     if (updatedRecords.length === 0) {
-                        updateInputStatuses({}); // Clear all statuses
+                        updateConsolidatedStatuses({}); // Clear all statuses
                     } else {
                         // Otherwise, update statuses based on the new latest record
                         const newLatest = updatedRecords.sort((a,b)=>a.date.localeCompare(b.date))[updatedRecords.length - 1];
-                        updateInputStatuses(newLatest);
+                        updateConsolidatedStatuses(newLatest);
                     }
+                    renderTrendChart(); // Re-render chart after deletion
                 });
                 tdDelete.appendChild(deleteBtn);
                 tr.appendChild(tdDelete);
@@ -490,41 +506,7 @@
 
             // Show the records container
             document.getElementById('viewRecordsContainer').classList.remove('hidden');
-            document.getElementById('chartContainer').classList.add('hidden'); // Hide graphs if records are viewed
-
-            // --- Dosing Plan Calculation (based on the latest record) ---
-            const latest = records[records.length - 1]; // Get the most recent record
-            let planHTML = '<h3 class="font-semibold mb-2 text-blue-900">7일간 도징 계획</h3><ul class="list-disc list-inside text-blue-800">';
-
-            if (latest && latest.volume && !isNaN(latest.volume) && latest.volume > 0) { // Ensure latest record and valid volume exist
-                Object.keys(reference).forEach(key => {
-                    const ref = reference[key];
-                    const val = latest[key];
-
-                    // Only calculate dosing if unitDose is defined and the value is not null and not NaN
-                    if (ref.unitDose && val !== null && !isNaN(val)) {
-                        let target = ref.min; // Target is the minimum recommended value
-
-                        if (val >= target) { // If current value is at or above target, no dosing needed
-                            return;
-                        }
-
-                        const diff = target - val; // Calculate the difference needed
-                        // Calculate total dose needed for the entire tank volume
-                        const totalDose = ref.unitDose(diff, latest.volume);
-                        const dailyDose = totalDose / 7; // Divide by 7 for daily dosing over 7 days
-
-                        planHTML += `<li>${key.toUpperCase()}: 일일 ${dailyDose.toFixed(2)}ml</li>`;
-                    }
-                });
-                if (planHTML === '<h3 class="font-semibold mb-2 text-blue-900">7일간 도징 계획</h3><ul class="list-disc list-inside text-blue-800">') {
-                    planHTML += '<li>모든 파라미터가 정상 범위이거나 도징이 필요하지 않습니다.</li>';
-                }
-            } else {
-                planHTML += '<li>최신 기록 또는 유효한 수조 부피 정보가 없어 도징 계획을 계산할 수 없습니다.</li>';
-            }
-            planHTML += '</ul>';
-            document.getElementById('dosagePlan').innerHTML = planHTML; // Display the dosing plan
+            // chartContainer should remain visible as per new requirement
         }
 
         // --- Event Listeners ---
@@ -567,7 +549,7 @@
             saveRecords(records); // Save the updated list of records
 
             showMessageBox('기록이 저장되었습니다.');
-            updateInputStatuses(record); // Update statuses next to inputs based on the newly saved record
+            updateConsolidatedStatuses(record); // Update consolidated statuses based on the newly saved record
             renderTrendChart(); // Re-render the chart after saving a new record
         });
 
@@ -583,17 +565,6 @@
             const month = (today.getMonth() + 1).toString().padStart(2, '0');
             const day = today.getDate().toString().padStart(2, '0');
             document.getElementById('dateInput').value = `${year}-${month}-${day}`;
-
-            // Add event listeners for real-time status updates on input change
-            const numericInputs = ['tempInput', 'salinityInput', 'phInput', 'caInput', 'mgInput', 'khInput', 'no2Input', 'no3Input', 'po4Input'];
-            numericInputs.forEach(inputId => {
-                const inputElement = document.getElementById(inputId);
-                if (inputElement) {
-                    inputElement.addEventListener('input', () => {
-                        updateInputStatuses(getCurrentFormValues());
-                    });
-                }
-            });
 
             // Load and display statuses for the latest record on page load
             const records = getRecords();
@@ -613,8 +584,19 @@
                 document.getElementById('no3Input').value = latest.no3 !== null ? latest.no3 : '';
                 document.getElementById('po4Input').value = latest.po4 !== null ? latest.po4 : '';
 
-                updateInputStatuses(latest); // Update statuses based on loaded data
+                updateConsolidatedStatuses(latest); // Update consolidated statuses based on loaded data
             }
+
+            // Add event listeners for real-time status updates on input change
+            const inputIds = ['tempInput', 'salinityInput', 'phInput', 'caInput', 'mgInput', 'khInput', 'no2Input', 'no3Input', 'po4Input'];
+            inputIds.forEach(inputId => {
+                const inputElement = document.getElementById(inputId);
+                if (inputElement) {
+                    inputElement.addEventListener('input', () => {
+                        updateConsolidatedStatuses(getCurrentFormValues());
+                    });
+                }
+            });
 
             // Render the graph on initial load
             renderTrendChart();
