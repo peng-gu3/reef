@@ -66,6 +66,8 @@
       };
 
       window.addEventListener('DOMContentLoaded', () => {
+        const logTable = document.getElementById('log-table-body');
+
         document.getElementById('calculate-btn').addEventListener('click', () => {
           const fields = ['temp','salinity','ph','ca','mg','kh','no2','no3','po4'];
           const resultBox = document.getElementById('results-output');
@@ -102,11 +104,11 @@
           btn.onclick = () => row.remove();
           del.appendChild(btn);
           row.appendChild(del);
-          document.getElementById('log-table-body').appendChild(row);
+          logTable.appendChild(row);
         });
 
         document.getElementById('clear-logs-btn').addEventListener('click', () => {
-          document.getElementById('log-table-body').innerHTML = '';
+          logTable.innerHTML = '';
         });
 
         document.getElementById('graph-btn').addEventListener('click', () => {
