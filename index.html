@@ -1,297 +1,93 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>해수어항 계산기 (모든 기능 복원)</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body { font-family: 'Noto Sans KR', sans-serif; }
-        .input-group { display: flex; align-items: center; margin-bottom: 1rem; }
-        .input-group label { flex: 1; font-weight: 600; color: #4A5568; }
-        .input-group input { flex: 2; padding: 0.5rem; border: 1px solid #CBD5E0; border-radius: 0.375rem; text-align: right; }
-        .input-group .unit { margin-left: 0.5rem; min-width: 40px; color: #718096; }
-        .result-item { padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 0.5rem; font-weight: 500; }
-        .result-good { background-color: #E6FFFA; color: #234E52; border-left: 4px solid #38B2AC; }
-        .result-low { background-color: #FFF5F5; color: #C53030; border-left: 4px solid #FC8181; }
-        .result-high { background-color: #FAF5FF; color: #6B46C1; border-left: 4px solid #B794F4; }
-        .result-action { background-color: #FEFCBF; color: #744210; border-left: 4px solid #F6E05E; }
-        #log-table th, #log-table td { padding: 0.5rem; text-align: center; font-size: 0.8rem; }
-        button:disabled { opacity: 0.7; cursor: not-allowed; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>해수어항 관리 도징 계산기</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: 'Noto Sans KR', sans-serif; background-color: #F0F4F8; }
+    .container { max-width: 800px; margin: auto; padding: 1rem; }
+    .input-group { display: flex; align-items: center; margin-bottom: 1rem; }
+    .input-group label { flex: 1; font-weight: 600; color: #374151; }
+    .input-group input { flex: 2; padding: 0.5rem; border: 1px solid #CBD5E0; border-radius: 0.375rem; text-align: right; }
+    .input-unit { margin-left: 0.5rem; color: #6B7280; min-width: 30px; }
+    .button { width: 100%; padding: 0.75rem; font-weight: 600; border-radius: 0.375rem; }
+    #results { margin-top: 1rem; }
+    .result-item { padding: 0.75rem; border-radius: 0.375rem; margin-bottom: 0.5rem; }
+    .low { background-color: #FEF2F2; border-left: 4px solid #F56565; }
+    .high { background-color: #F5F3FF; border-left: 4px solid #A78BFA; }
+    .good { background-color: #ECFFFA; border-left: 4px solid #38B2AC; }
+    #log-table th, #log-table td { padding: 0.5rem; text-align: center; font-size: 0.875rem; }
+    #graph-modal { display: none; }
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); }
+    .modal-content { background: white; border-radius: 0.5rem; padding: 1rem; max-width: 90%; max-height: 80%; margin: auto; }
+  </style>
 </head>
-<body class="bg-gray-100">
-
-    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
-        <div class="text-center mb-8">
-            <h1 class="text-4xl font-bold text-gray-800">해수어항 관리 로그</h1>
-            <p class="text-gray-600 mt-2">수치를 입력하고 계산한 후, 기록을 저장하세요.</p>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- 입력 폼 -->
-            <div class="lg:col-span-1 bg-white p-6 rounded-lg shadow-lg">
-                <h2 class="text-2xl font-semibold mb-6 text-gray-700 border-b pb-2">어항 정보 입력</h2>
-                <div class="input-group"><label for="recordDate">날짜</label><input type="date" id="recordDate"></div>
-                <div class="input-group"><label for="tankVolume">어항 용량</label><input type="number" id="tankVolume" placeholder="160"><span class="unit">L</span></div>
-                <hr class="my-4">
-                <div class="input-group"><label for="temp">온도</label><input type="number" step="0.1" id="temp" placeholder="26.0"><span class="unit">°C</span></div>
-                <div class="input-group"><label for="salinity">염도 (ppt)</label><input type="number" step="0.1" id="salinity" placeholder="34.5"><span class="unit"></span></div>
-                <div class="input-group"><label for="ph">pH</label><input type="number" step="0.1" id="ph" placeholder="8.1"><span class="unit"></span></div>
-                <div class="input-group"><label for="ca">칼슘 (Ca)</label><input type="number" id="ca" placeholder="420"><span class="unit">ppm</span></div>
-                <div class="input-group"><label for="mg">마그네슘 (Mg)</label><input type="number" id="mg" placeholder="1350"><span class="unit">ppm</span></div>
-                <div class="input-group"><label for="kh">알칼리니티 (KH)</label><input type="number" step="0.1" id="kh" placeholder="8.0"><span class="unit">dKH</span></div>
-                <hr class="my-4">
-                <div class="input-group"><label for="no2">아질산염 (NO2)</label><input type="number" step="0.01" id="no2" placeholder="0.0"><span class="unit">ppm</span></div>
-                <div class="input-group"><label for="no3">질산염 (NO3)</label><input type="number" id="no3" placeholder="5"><span class="unit">ppm</span></div>
-                <div class="input-group"><label for="po4">인산염 (PO4)</label><input type="number" step="0.01" id="po4" placeholder="0.05"><span class="unit">ppm</span></div>
-                <button id="calculate-btn" class="w-full mt-4 bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition duration-300">계산하기</button>
-                <button id="save-btn" class="w-full mt-2 bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 transition duration-300 hidden">기록 저장</button>
-                <p id="status-message" class="text-center mt-2 h-5"></p>
-            </div>
-
-            <!-- 결과 및 로그 표시 -->
-            <div class="lg:col-span-2 space-y-8">
-                <div id="results-container" class="bg-white p-6 rounded-lg shadow-lg hidden">
-                    <h2 class="text-2xl font-semibold mb-6 text-gray-700 border-b pb-2">계산 결과</h2>
-                    <div id="results-output" class="space-y-3"></div>
-                </div>
-                <div class="bg-white p-6 rounded-lg shadow-lg">
-                    <div class="flex justify-between items-center mb-4 border-b pb-2">
-                        <h2 class="text-2xl font-semibold text-gray-700">저장된 기록</h2>
-                        <button id="show-graph-btn" class="bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-600 transition duration-300 text-sm hidden">변동 그래프 보기</button>
-                    </div>
-                    <div class="overflow-y-auto max-h-96">
-                        <table id="log-table" class="w-full">
-                            <thead class="bg-gray-100 sticky top-0">
-                                <tr><th>날짜</th><th>온도</th><th>염도</th><th>pH</th><th>Ca</th><th>Mg</th><th>KH</th><th>NO2</th><th>NO3</th><th>PO4</th><th>삭제</th></tr>
-                            </thead>
-                            <tbody id="log-table-body"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- 그래프 모달 -->
-    <div id="graph-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl h-full max-h-[80vh] p-6 flex flex-col">
-            <div class="flex justify-between items-center border-b pb-2 mb-4">
-                <h2 class="text-2xl font-semibold text-blue-700">기간별 변동 내역</h2>
-                <button id="close-graph-btn" class="text-gray-500 hover:text-gray-800 font-bold text-2xl">&times;</button>
-            </div>
-            <div class="flex-grow relative"><canvas id="history-chart"></canvas></div>
-        </div>
+<body>
+  <div class="container">
+    <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">해수어항 관리 도징 계산기</h1>
+    <div>
+      <div class="input-group"><label for="date">날짜</label><input type="date" id="date" class="border" /></div>
+      <div class="input-group"><label for="volume">어항 용량</label><input type="number" id="volume"><span class="input-unit">L</span></div>
+      <div class="input-group"><label for="temp">온도</label><input type="number" step="0.1" id="temp"><span class="input-unit">°C</span></div>
+      <div class="input-group"><label for="salinity">염도</label><input type="number" step="0.1" id="salinity"><span class="input-unit">ppt</span></div>
+      <div class="input-group"><label for="ph">pH</label><input type="number" step="0.1" id="ph"></div>
+      <div class="input-group"><label for="ca">칼슘 (Ca)</label><input type="number" id="ca"><span class="input-unit">ppm</span></div>
+      <div class="input-group"><label for="mg">마그네슘 (Mg)</label><input type="number" id="mg"><span class="input-unit">ppm</span></div>
+      <div class="input-group"><label for="kh">알칼리니티 (KH)</label><input type="number" step="0.1" id="kh"><span class="input-unit">dKH</span></div>
+      <div class="input-group"><label for="no2">아질산염 (NO₂)</label><input type="number" step="0.01" id="no2"><span class="input-unit">ppm</span></div>
+      <div class="input-group"><label for="no3">질산염 (NO₃)</label><input type="number" step="0.01" id="no3"><span class="input-unit">ppm</span></div>
+      <div class="input-group"><label for="po4">인산염 (PO₄)</label><input type="number" step="0.01" id="po4"><span class="input-unit">ppm</span></div>
+      <button id="calc-btn" class="button bg-blue-600 text-white mb-2">계산하기</button>
+      <button id="save-btn" class="button bg-green-500 text-white">기록 저장</button>
+      <p id="status" class="text-center mt-2"></p>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    <div id="results"></div>
 
-        const firebaseConfig = {
-  apiKey: "AIzaSyA5__GOcjGtGdCivk1mVH5Vt_Z_C_uo80M",
-  authDomain: "reef-e23b5.firebaseapp.com",
-  projectId: "reef-e23b5",
-  storageBucket: "reef-e23b5.firebasestorage.app",
-  messagingSenderId: "747921036469",
-  appId: "1:747921036469:web:bb96a9ee15a7dfd5c55afc",
-  measurementId: "G-6X45DZVK1G"
-};
-        const calculateBtn = document.getElementById('calculate-btn');
-        const saveBtn = document.getElementById('save-btn');
-        const statusMessage = document.getElementById('status-message');
-        const logTableBody = document.getElementById('log-table-body');
-        const recordDateInput = document.getElementById('recordDate');
-        const resultsContainer = document.getElementById('results-container');
-        const resultsOutput = document.getElementById('results-output');
-        const showGraphBtn = document.getElementById('show-graph-btn');
-        const graphModal = document.getElementById('graph-modal');
-        const closeGraphBtn = document.getElementById('close-graph-btn');
-        
-        const inputIds = ['tankVolume', 'temp', 'salinity', 'ph', 'ca', 'mg', 'kh', 'no2', 'no3', 'po4'];
-        let currentInputs = {}, allRecords = [], myChart = null;
-        
-        const targets = {
-            temp: { min: 25.5, max: 26.5 }, salinity: { min: 34, max: 35 }, ph: { min: 8.0, max: 8.3 },
-            ca: { min: 400, max: 440, target: 420 }, mg: { min: 1250, max: 1440, target: 1350 },
-            kh: { min: 7.5, max: 8.5, target: 8.0 }, no2: { max: 0 },
-            no3: { min: 0.5, max: 2.0, target: 1.0 }, po4: { min: 0.03, max: 0.08, target: 0.05 }
-        };
+    <h2 class="text-xl font-semibold mt-6 mb-2">저장된 기록</h2>
+    <table id="log-table" class="w-full bg-white shadow rounded-lg">
+      <thead><tr><th>날짜</th><th>온도</th><th>염도</th><th>pH</th><th>Ca</th><th>Mg</th><th>KH</th><th>NO₂</th><th>NO₃</th><th>PO₄</th><th>삭제</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
 
-        const dosingFormulas = {
-            ca: (rise, volume) => (rise / 2) * (volume / 100),
-            mg: (rise, volume) => rise * (volume / 100),
-            kh: (rise, volume) => (rise / 0.1) * (volume / 100),
-        };
+  <!-- 그래프 모달 -->
+  <div id="graph-modal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <canvas id="chart"></canvas>
+      <button id="close-graph">닫기</button>
+    </div>
+  </div>
 
-        const today = new Date();
-        recordDateInput.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-        
-        let db;
-        try {
-            const app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-        } catch(e) {
-            console.error("Firebase 초기화 오류:", e);
-            statusMessage.textContent = "Firebase 초기화 실패. Config 정보를 확인하세요.";
-            statusMessage.classList.add('text-red-500');
-        }
+  <script>
+    // 초기 데이터와 기준 설정
+    const targets = { temp:[25.5,26.5], salinity:[34,35], ph:[8.0,8.3], ca:[400,440,420], mg:[1250,1440,1350], kh:[7.5,8.5,8.0], no2:[0], no3:[0.5,2.0,1.0], po4:[0.03,0.08,0.05] };
+    const logs = JSON.parse(localStorage.getItem('reefLogs')||'[]');
+    const elems = ['date','volume','temp','salinity','ph','ca','mg','kh','no2','no3','po4'].reduce((o,id)=>{o[id]=document.getElementById(id);return o;},{});
+    const resDiv = document.getElementById('results'), logTbody = document.querySelector('#log-table tbody'), statusP=document.getElementById('status');
+    document.getElementById('date').valueAsDate=new Date();
 
-        if (db) {
-            const logsCollectionRef = collection(db, 'reef-logs-v2');
+    function calcDose(key,val){
+      const vol=+elems.volume.value; if(!vol)return null;
+      let rise, dose;
+      switch(key){case'ca': rise=targets.ca[2]-val; dose=(rise/2)*(vol/100);break;case'mg': rise=targets.mg[2]-val; dose=(rise)*(vol/100);break;case'kh': rise=targets.kh[2]-val; dose=(rise/0.1)*(vol/100);break;case'no3': rise=targets.no3[2]-val; dose=rise<=0.2?0:(rise<=0.4?0.3:(rise<=0.7?0.6:0.9));break;case'po4': rise=targets.po4[2]-val; dose=rise<=0.009?0:(rise<=0.02?0.3:(rise<=0.035?0.6:0.6));break;default: return null;}return dose.toFixed(1);
+    }
 
-            const q = query(logsCollectionRef, orderBy('date', 'asc'));
-            onSnapshot(q, (snapshot) => {
-                allRecords = [];
-                logTableBody.innerHTML = '';
-                if (snapshot.empty) {
-                    logTableBody.innerHTML = `<tr><td colspan="11" class="text-gray-500 py-4">저장된 기록이 없습니다.</td></tr>`;
-                    showGraphBtn.classList.add('hidden');
-                } else {
-                    snapshot.forEach(doc => {
-                        const record = doc.data();
-                        record.id = doc.id;
-                        allRecords.push(record);
-                    });
-                    [...allRecords].reverse().forEach(record => {
-                        const tr = document.createElement('tr');
-                        tr.className = "border-b";
-                        tr.innerHTML = `
-                            <td>${record.date}</td>
-                            <td>${record.temp || '-'}</td>
-                            <td>${record.salinity || '-'}</td>
-                            <td>${record.ph || '-'}</td>
-                            <td>${record.ca || '-'}</td>
-                            <td>${record.mg || '-'}</td>
-                            <td>${record.kh || '-'}</td>
-                            <td>${record.no2 || '-'}</td>
-                            <td>${record.no3 || '-'}</td>
-                            <td>${record.po4 || '-'}</td>
-                            <td><button data-id="${doc.id}" class="delete-btn text-red-500 hover:text-red-700">X</button></td>`;
-                        logTableBody.appendChild(tr);
-                    });
-                    if (allRecords.length > 1) { showGraphBtn.classList.remove('hidden'); } 
-                    else { showGraphBtn.classList.add('hidden'); }
-                }
-            }, (error) => {
-                console.error("로그 불러오기 오류: ", error);
-                statusMessage.textContent = "로그를 불러오지 못했습니다. 보안 규칙을 확인하세요.";
-                statusMessage.classList.add('text-red-500');
-            });
+    function renderResults(){resDiv.innerHTML='';for(const k of['temp','salinity','ph','ca','mg','kh','no2','no3','po4']){const v=+elems[k].value; if(isNaN(v))continue;let cls='good',txt='';const t=targets[k];if(k==='no2'){if(v>t[0]){cls='high';txt=`NO₂: 검출(${v})! 즉시 교체/환수 권장.`;}else txt=`NO₂: 안정적.`;}else if(k==='ca'||k==='mg'||k==='kh'||k==='no3'||k==='po4'){if(v<t[0]){cls='low';const d=calcDose(k,v);txt=`${k.toUpperCase()}: 낮음(${v}). 도징 필요량 ${d}ml.`;}else if(v>t[1]){cls='high';txt=`${k.toUpperCase()}: 높음(${v}). 환수 권장.`;}else txt=`${k.toUpperCase()}: 안정적(${v}).`; }else{ if(v<t[0]){cls='low';txt=`${k.toUpperCase()}: 낮음(${v}). 범위 ${t[0]}~${t[1]}`;}else if(v>t[1]){cls='high';txt=`${k.toUpperCase()}: 높음(${v}). 범위 ${t[0]}~${t[1]}`;}else txt=`${k.toUpperCase()}: 안정적(${v}).`; }const p=document.createElement('div');p.className=`result-item ${cls}`;p.textContent=txt;resDiv.append(p);}resDiv.style.display=resDiv.innerHTML?'block':'none';}
+    document.getElementById('calc-btn').onclick=renderResults;
 
-            const saveBtn = document.getElementById('save-btn');
-        const statusMessage = document.getElementById('status-message');
-        const recordDateInput = document.getElementById('recordDate');
-        const inputIds = ['tankVolume','temp','salinity','ph','ca','mg','kh','no2','no3','po4'];
-        
-        saveBtn.addEventListener('click', async () => {
-            const logData = { date: recordDateInput.value };
-            inputIds.forEach(id => {
-                const value = parseFloat(document.getElementById(id).value);
-                if (!isNaN(value)) logData[id] = value;
-            });
-            if (!logData.date) {
-                statusMessage.textContent = "날짜를 선택해주세요.";
-                statusMessage.classList.add('text-red-500');
-                return;
-            }
-            // 버튼 텍스트와 상태 변경
-            saveBtn.disabled = true;
-            saveBtn.textContent = '저장 중...';
-            statusMessage.textContent = '';
-            
-            try {
-                await addDoc(logsCollectionRef, logData);
-                statusMessage.textContent = "저장 완료!";
-                statusMessage.classList.remove('text-red-500');
-                statusMessage.classList.add('text-green-500');
-            } catch (error) {
-                console.error("저장 오류: ", error);
-                statusMessage.textContent = "저장 실패! 보안 규칙을 확인하세요.";
-                statusMessage.classList.remove('text-green-500');
-                statusMessage.classList.add('text-red-500');
-            } finally {
-                // 버튼 복원
-                saveBtn.disabled = false;
-                saveBtn.textContent = '기록 저장';
-                // 상태 메시지 자동 제거
-                setTimeout(() => statusMessage.textContent = '', 3000);
-            }
-        });
-        }
+    function saveLog(){const entry={date:elems.date.value,temp:+elems.temp.value,sal:+elems.salinity.value,ph:+elems.ph.value,ca:+elems.ca.value,mg:+elems.mg.value,kh:+elems.kh.value,no2:+elems.no2.value,no3:+elems.no3.value,po4:+elems.po4.value};logs.push(entry);localStorage.setItem('reefLogs',JSON.stringify(logs));statusP.textContent='저장 완료!';setTimeout(()=>statusP.textContent='',2000);renderTable();}
+    document.getElementById('save-btn').onclick=saveLog;
 
-        calculateBtn.addEventListener('click', () => {
-            currentInputs = {};
-            inputIds.forEach(id => {
-                const inputElement = document.getElementById(id);
-                currentInputs[id] = parseFloat(inputElement.value);
-            });
-            if (isNaN(currentInputs.tankVolume) || currentInputs.tankVolume <= 0) { alert('어항 용량을 올바르게 입력해주세요.'); return; }
-            resultsOutput.innerHTML = '';
-            for (const key in targets) {
-                if (isNaN(currentInputs[key])) continue;
-                const currentVal = currentInputs[key]; const target = targets[key];
-                let message = ''; let type = 'result-good';
-                if (key === 'ca' || key === 'mg' || key === 'kh') {
-                    if (currentVal < target.min) {
-                        const riseAmount = target.target - currentVal;
-                        const dose = dosingFormulas[key](riseAmount, currentInputs.tankVolume);
-                        const dailyDose = (dose / 7).toFixed(1);
-                        message = `${key.toUpperCase()}: 낮음. 목표치(${target.target})까지 약 ${dose.toFixed(1)}ml 도징 필요. (매일 약 ${dailyDose}ml 씩 7일간)`;
-                        type = 'result-low';
-                    } else if (currentVal > target.max) {
-                        message = `${key.toUpperCase()}: 높음. 환수 또는 도징 중단으로 조절 필요.`; type = 'result-high';
-                    } else { message = `${key.toUpperCase()}: 안정적인 수치입니다.`; }
-                } else if (key === 'no2' && currentVal > target.max) {
-                    message = `${key.toUpperCase()}: 검출됨! 즉시 20% 환수를 권장합니다.`;
-                    type = 'result-action';
-                }
-                if(message) {
-                    const p = document.createElement('p');
-                    p.className = `result-item ${type}`;
-                    p.textContent = message;
-                    resultsOutput.appendChild(p);
-                }
-            }
-            resultsContainer.classList.remove('hidden');
-            saveBtn.classList.remove('hidden');
-        });
+    function renderTable(){logTbody.innerHTML='';logs.forEach((l,i)=>{const tr=document.createElement('tr');tr.innerHTML=`<td>${l.date}</td><td>${l.temp}</td><td>${l.sal}</td><td>${l.ph}</td><td>${l.ca}</td><td>${l.mg}</td><td>${l.kh}</td><td>${l.no2}</td><td>${l.no3}</td><td>${l.po4}</td><td><button data-index="${i}">X</button></td>`;logTbody.append(tr);});}
+    logTbody.onclick=e=>{if(e.target.dataset.index!==undefined){logs.splice(e.target.dataset.index,1);localStorage.setItem('reefLogs',JSON.stringify(logs));renderTable();}};
 
-        function renderGraph() {
-            if (myChart) { myChart.destroy(); }
-            const ctx = document.getElementById('history-chart').getContext('2d');
-            const labels = allRecords.map(r => new Date(r.date).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }));
-            const datasets = [
-                { label: 'Ca (ppm)', data: allRecords.map(r => r.ca), borderColor: '#36A2EB', tension: 0.1, yAxisID: 'y' },
-                { label: 'Mg (ppm)', data: allRecords.map(r => r.mg), borderColor: '#FF6384', tension: 0.1, yAxisID: 'y' },
-                { label: 'KH (dKH)', data: allRecords.map(r => r.kh), borderColor: '#4BC0C0', tension: 0.1, yAxisID: 'y2' },
-                { label: 'NO3 (ppm)', data: allRecords.map(r => r.no3), borderColor: '#FF9F40', tension: 0.1, yAxisID: 'y2' },
-                { label: 'PO4 (ppm)', data: allRecords.map(r => r.po4), borderColor: '#9966FF', tension: 0.1, yAxisID: 'y2' },
-            ];
-            myChart = new Chart(ctx, {
-                type: 'line', data: { labels, datasets },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    scales: {
-                        y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Ca / Mg (ppm)' } },
-                        y2: { type: 'linear', display: true, position: 'right', title: { display: true, text: 'KH / NO3 / PO4' }, grid: { drawOnChartArea: false } }
-                    }
-                }
-            });
-        }
-
-        showGraphBtn.addEventListener('click', () => {
-            graphModal.classList.remove('hidden');
-            graphModal.classList.add('flex');
-            renderGraph();
-        });
-        closeGraphBtn.addEventListener('click', () => {
-            graphModal.classList.add('hidden');
-            graphModal.classList.remove('flex');
-        });
-    </script>
+    renderTable();
+  </script>
 </body>
 </html>
