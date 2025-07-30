@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>해수어항 도징 계산기 (최종 완성 버전)</title>
+    <title>펭구 수질일보</title>
     <!-- Tailwind CSS CDN for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts for Noto Sans KR -->
@@ -99,7 +99,7 @@
     <div id="mainAppContainer" class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Left Column: Input Form and Buttons -->
         <div class="bg-white rounded-2xl shadow p-6">
-            <h1 class="text-2xl font-bold mb-4 text-gray-800">해수어항 도징 계산기</h1>
+            <h1 class="text-2xl font-bold mb-4 text-gray-800">PENG_GU</h1>
             <!-- Input Form Section -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div class="flex flex-col">
@@ -170,8 +170,7 @@
                 </div>
             </div>
             <div class="flex flex-wrap gap-4">
-                <button id="saveRecordOnlyBtn" class="px-6 py-3 bg-blue-500 text-white font-semibold rounded-2xl shadow-md hover:bg-blue-600 transition-colors duration-200">기록 저장</button>
-                <button id="viewResultsBtn" class="px-6 py-3 bg-indigo-500 text-white font-semibold rounded-2xl shadow-md hover:bg-indigo-600 transition-colors duration-200">결과 보기</button>
+                <button id="saveRecordAndShowResultsBtn" class="px-6 py-3 bg-blue-500 text-white font-semibold rounded-2xl shadow-md hover:bg-blue-600 transition-colors duration-200">기록 저장 및 결과 보기</button>
             </div>
         </div>
 
@@ -675,8 +674,8 @@
         // Event listener for the custom message box button
         document.getElementById('customMessageBoxButton').addEventListener('click', hideMessageBox);
 
-        // Event listener for the "Save Record" button
-        document.getElementById('saveRecordOnlyBtn').addEventListener('click', () => {
+        // Event listener for the "Save Record and Show Results" button (combined)
+        document.getElementById('saveRecordAndShowResultsBtn').addEventListener('click', () => {
             const date = document.getElementById('dateInput').value;
             const volume = parseFloat(document.getElementById('volumeInput').value);
 
@@ -701,12 +700,7 @@
             updateConsolidatedStatuses(record); // Update consolidated statuses based on the newly saved record
             renderTrendChart(); // Re-render the chart after saving a new record
             localStorage.removeItem('completedDosingDate'); // Reset completion status for new record
-            renderDosingPlanForRecord(record); // Re-render dosing plan to reflect new record and reset status
-        });
-
-        // Event listener for the "View Results" button
-        document.getElementById('viewResultsBtn').addEventListener('click', () => {
-            displayRecordsTable(); // Call the function to display records table
+            displayRecordsTable(); // Show records table and dosing plan for the newly saved record
         });
 
         // Initialize the date input with today's date and update statuses on load if records exist
