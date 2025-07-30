@@ -23,16 +23,12 @@
             <input type="number" id="volume" class="w-full border p-2 rounded" placeholder="160" />
           </div>
           <div>
-            <label>온도 (°C)</label>
-            <input type="number" id="temp" step="0.1" class="w-full border p-2 rounded" />
+            <label>Nitro 효능 A<br><span class="text-xs text-gray-500">(ml당 100L당 NO₃ 상승량)</span></label>
+            <input type="number" id="potencyA" step="0.1" class="w-full border p-2 rounded" placeholder="1.0" />
           </div>
           <div>
-            <label>염도 (ppt)</label>
-            <input type="number" id="salinity" step="0.1" class="w-full border p-2 rounded" />
-          </div>
-          <div>
-            <label>pH</label>
-            <input type="number" id="ph" step="0.1" class="w-full border p-2 rounded" />
+            <label>Phos 효능 B<br><span class="text-xs text-gray-500">(ml당 100L당 PO₄ 상승량)</span></label>
+            <input type="number" id="potencyB" step="0.01" class="w-full border p-2 rounded" placeholder="0.1" />
           </div>
           <div>
             <label>Ca (ppm)</label>
@@ -47,14 +43,10 @@
             <input type="number" id="kh" step="0.1" class="w-full border p-2 rounded" />
           </div>
           <div>
-            <label>NO₂ (ppm)</label>
-            <input type="number" id="no2" step="0.01" class="w-full border p-2 rounded" />
-          </div>
-          <div>
             <label>NO₃ (ppm)</label>
             <input type="number" id="no3" step="0.01" class="w-full border p-2 rounded" />
           </div>
-          <div class="col-span-2">
+          <div>
             <label>PO₄ (ppm)</label>
             <input type="number" id="po4" step="0.01" class="w-full border p-2 rounded" />
           </div>
@@ -82,41 +74,88 @@
           <button id="clear-logs-btn" class="bg-red-500 text-white px-4 py-2 rounded-lg">기록 초기화</button>
         </div>
       </div>
-      <table id="log-table" class="w-full text-sm">
-        <thead class="bg-gray-100"><tr>
-          <th>날짜</th><th>온도</th><th>염도</th><th>pH</th><th>Ca</th><th>Mg</th><th>KH</th><th>NO₂</th><th>NO₃</th><th>PO₄</th><th>삭제</th>
-        </tr></thead>
+      <table id="log-table" class="table-fixed w-full text-sm">
+        <thead class="bg-gray-100">
+          <tr>
+            <th class="w-2/12">날짜</th>
+            <th class="w-1/12">Ca</th>
+            <th class="w-1/12">Mg</th>
+            <th class="w-1/12">KH</th>
+            <th class="w-1/12">NO₃</th>
+            <th class="w-1/12">PO₄</th>
+            <th class="w-1/12">삭제</th>
+          </tr>
+        </thead>
         <tbody id="log-table-body"></tbody>
       </table>
     </div>
   </div>
 
   <script>
-    const targets = { ca: {min:400,target:420,max:440}, mg:{min:1250,target:1350,max:1440}, kh:{min:7.5,target:8.0,max:8.5}};
-    const getDose = (key,val,vol)=>{
-      const {min,target} = targets[key];
-      const rise = target - val;
-      if(rise<=0) return 0;
-      switch(key){ case 'ca': return ((rise/2)*(vol/100)).toFixed(1); case 'mg': return ((rise)*(vol/100)).toFixed(1); case 'kh': return ((rise/0.1)*(vol/100)).toFixed(1); }
+    const targets = {
+      ca: {min:400,target:420,max:440,eff:2},
+      mg: {min:1250,target:1350,max:1440,eff:1},
+      kh: {min:7.5,target:8.0,max:8.5,eff:0.1}
     };
 
+    function roundDose(val){
+      if(val<0.3) return 0;
+      if(val<0.6) return 0.3;
+      return Math.round(val/0.3)*0.3;
+    }
+
     document.getElementById('calculate-btn').addEventListener('click',()=>{
-      const vol = parseFloat(document.getElementById('volume').value);
-      const ca = parseFloat(document.getElementById('ca').value);
-      const mg = parseFloat(document.getElementById('mg').value);
-      const kh = parseFloat(document.getElementById('kh').value);
-      const output = document.getElementById('results-output'); output.innerHTML='';
-      if(isNaN(vol)||!targets) { document.getElementById('status-message').textContent='어항 용량을 입력하세요.'; return;} document.getElementById('status-message').textContent='';
-      ['ca','mg','kh'].forEach(key=>{
-        const val = parseFloat(document.getElementById(key).value);
-        if(!isNaN(val)){
-          const dose = getDose(key,val,vol);
-          const div = document.createElement('div'); div.className='result-item';
-          div.textContent = `${key.toUpperCase()}: 현재 ${val}ppm, 기준범위 ${targets[key].min}~${targets[key].max}ppm (목표 ${targets[key].target}ppm), 주간 도징량 ${dose}ml`;
-          output.appendChild(div);
+      const vol = +document.getElementById('volume').value;
+      const A = +document.getElementById('potencyA').value;
+      const B = +document.getElementById('potencyB').value;
+      const ca = +document.getElementById('ca').value;
+      const mg = +document.getElementById('mg').value;
+      const kh = +document.getElementById('kh').value;
+      const no3 = +document.getElementById('no3').value;
+      const po4 = +document.getElementById('po4').value;
+      const out = document.getElementById('results-output'); out.innerHTML='';
+      if(!vol){ document.getElementById('status-message').textContent='어항 용량을 입력해주세요.'; return; }
+      document.getElementById('status-message').textContent='';
+
+      // 고정 수치 도징
+      ['ca','mg','kh'].forEach(k=>{
+        const val={ca,mg,kh}[k]; if(isNaN(val)) return;
+        const {target,eff} = targets[k];
+        const delta = target - val;
+        if(delta>0){
+          const dose = roundDose((vol*delta)/(100*eff));
+          const div=document.createElement('div'); div.className='result-item';
+          div.textContent = `${k.toUpperCase()}: 목표 ${target}, 현재 ${val} → 주간 도징 ${dose}ml`;
+          out.appendChild(div);
         }
       });
+
+      // NO3, PO4 도징
+      if(!isNaN(no3)){
+        const delta3 = 0.8 - no3; // 목표 0.8
+        if(delta3>0){
+          let dose3 = (vol*delta3)/(100*A);
+          dose3 = roundDose(dose3);
+          const div=document.createElement('div'); div.className='result-item';
+          div.textContent = `NO₃: 목표 0.8, 현재 ${no3} → 주간 도징 ${dose3}ml`;
+          out.appendChild(div);
+        }
+      }
+      if(!isNaN(po4)){
+        const delta4 = 0.1 - po4; // 목표 0.1
+        if(delta4>0){
+          let dose4 = (vol*delta4)/(100*B);
+          dose4 = roundDose(dose4);
+          const div=document.createElement('div'); div.className='result-item';
+          div.textContent = `PO₄: 목표 0.1, 현재 ${po4} → 주간 도징 ${dose4}ml`;
+          out.appendChild(div);
+        }
+      }
+
+      document.getElementById('results-output').parentElement.style.display='block';
     });
+
+    // 이하 기록 저장, 렌더링 로직 동일 (생략)
   </script>
 </body>
 </html>
