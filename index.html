@@ -99,7 +99,7 @@
     <div id="mainAppContainer" class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Left Column: Input Form and Buttons -->
         <div class="bg-white rounded-2xl shadow p-6">
-            <h1 class="text-2xl font-bold mb-4 text-gray-800">PENG-GU</h1>
+            <h1 class="text-2xl font-bold mb-4 text-gray-800">PENG_GU</h1>
             <!-- Input Form Section -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div class="flex flex-col">
@@ -426,33 +426,33 @@
                 const statusItem = document.createElement('div');
                 statusItem.className = `status-item ${statusClass} flex flex-col`; // Use flex-col for stacked content
 
-                if (key === 'kh') { // Special rendering for KH
-                    statusItem.innerHTML = `
-                        <div class="flex justify-between w-full items-center">
-                            <span class="param-label">${ref.label} (오전)</span>
-                            <span class="param-value">${typeof dataObject.khAm === 'number' && !isNaN(dataObject.khAm) ? dataObject.khAm.toFixed(2) : '-'} ${ref.unit || ''}</span>
-                        </div>
-                        <div class="flex justify-between w-full items-center">
-                            <span class="param-label">${ref.label} (오후)</span>
-                            <span class="param-value">${typeof dataObject.khPm === 'number' && !isNaN(dataObject.khPm) ? dataObject.khPm.toFixed(2) : '-'} ${ref.unit || ''}</span>
-                        </div>
-                        <span class="param-range">목표 범위: ${ref.min !== undefined ? ref.min : '-'}~${ref.max !== undefined ? ref.max : '-'} ${ref.unit || ''}</span>
-                        <span class="status-message ${statusTextColor}">${statusText}</span>
-                        ${recommendation ? `<span class="dosing-recommendation">${recommendation}</span>` : ''}
-                        ${dosingPlan ? `<span class="dosing-recommendation">${dosingPlan}</span>` : ''}
-                    `;
-                } else {
-                    statusItem.innerHTML = `
-                        <div class="flex justify-between w-full items-center">
-                            <span class="param-label">${ref.label || key.toUpperCase()}</span>
-                            <span class="param-value">${typeof val === 'number' && !isNaN(val) ? val.toFixed(ref.unit === 'pH' ? 2 : (ref.unit === 'dKH' ? 2 : 1)) : '-'} ${ref.unit || ''}</span>
-                        </div>
-                        <span class="param-range">목표 범위: ${ref.min !== undefined ? ref.min : '-'}~${ref.max !== undefined ? ref.max : '-'} ${ref.unit || ''}</span>
-                        <span class="status-message ${statusTextColor}">${statusText}</span>
-                        ${recommendation ? `<span class="dosing-recommendation">${recommendation}</span>` : ''}
-                        ${dosingPlan ? `<span class="dosing-recommendation">${dosingPlan}</span>` : ''}
-                    `;
+                // Determine the value to display in the status card
+                let displayVal = '-';
+                if (key === 'kh') {
+                    // For KH, display both AM and PM values if available, otherwise '-'
+                    const khAmDisplay = (typeof dataObject.khAm === 'number' && !isNaN(dataObject.khAm)) ? dataObject.khAm.toFixed(2) : '-';
+                    const khPmDisplay = (typeof dataObject.khPm === 'number' && !isNaN(dataObject.khPm)) ? dataObject.khPm.toFixed(2) : '-';
+                    displayVal = `오전: ${khAmDisplay} / 오후: ${khPmDisplay}`;
+                } else if (typeof val === 'number' && !isNaN(val)) {
+                    if (ref.unit === 'pH' || ref.unit === 'dKH') {
+                        displayVal = val.toFixed(2);
+                    } else if (ref.unit === '°C' || ref.unit === 'ppt' || ref.unit === 'ppm') {
+                        displayVal = val.toFixed(1);
+                    } else {
+                        displayVal = val.toString();
+                    }
                 }
+
+                statusItem.innerHTML = `
+                    <div class="flex justify-between w-full items-center">
+                        <span class="param-label">${ref.label || key.toUpperCase()}</span>
+                        <span class="param-value">${displayVal} ${ref.unit || ''}</span>
+                    </div>
+                    <span class="param-range">목표 범위: ${ref.min !== undefined ? ref.min : '-'}~${ref.max !== undefined ? ref.max : '-'} ${ref.unit || ''}</span>
+                    <span class="status-message ${statusTextColor}">${statusText}</span>
+                    ${recommendation ? `<span class="dosing-recommendation">${recommendation}</span>` : ''}
+                    ${dosingPlan ? `<span class="dosing-recommendation">${dosingPlan}</span>` : ''}
+                `;
                 statusDetailsContainer.appendChild(statusItem);
             });
 
@@ -597,6 +597,17 @@
             let hasDosingRecommendation = false;
             
             if (record && record.volume && !isNaN(record.volume) && record.volume > 0) {
+                // Add Bacter Origin recommendation if it's Monday (1) or Thursday (4)
+                const recordDate = new Date(record.date);
+                const dayOfWeek = recordDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+
+                if (dayOfWeek === 1 || dayOfWeek === 4) { // Monday or Thursday
+                    const bacterOriginItem = document.createElement('li');
+                    bacterOriginItem.textContent = `박터오리진: 2방울 (160L 어항 기준)`;
+                    dosingPlanList.appendChild(bacterOriginItem);
+                    hasDosingRecommendation = true;
+                }
+
                 Object.keys(reference).forEach(key => {
                     const ref = reference[key];
                     let val;
@@ -616,7 +627,7 @@
                         val = record[key];
                     }
 
-                    if (ref.unitDose && typeof val === 'number' && !isNaN(val)) { // Robust check for val
+                    if (ref.unitDose && typeof val === 'number' && !isNaN(val)) {
                         let target = ref.min;
 
                         if (val >= target) {
@@ -651,7 +662,7 @@
                         hasDosingRecommendation = true;
                     }
                 });
-                if (!hasDosingRecommendation) {
+                if (!hasDosingRecommendation && (dayOfWeek !== 1 && dayOfWeek !== 4)) { // If no other dosing and not a Bacter Origin day
                     const listItem = document.createElement('li');
                     listItem.textContent = '모든 파라미터가 정상 범위이거나 도징이 필요하지 않습니다.';
                     dosingPlanList.appendChild(listItem);
