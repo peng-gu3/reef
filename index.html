@@ -16,12 +16,11 @@
 <body class="bg-gray-100 font-sans">
   <div class="container mx-auto p-4 max-w-5xl">
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- 입력 영역 -->
       <div class="bg-white p-6 rounded shadow">
         <h2 class="text-xl font-bold mb-4">어항 정보 입력</h2>
         <div class="grid grid-cols-2 gap-3">
           <input id="date" type="date" class="border p-2 rounded" />
-          <input id="vol" placeholder="용량(L)" class="border p-2 rounded" />
+          <input id="vol" placeholder="용량(L)" class="border p-2 rounded" value="160" />
           <input id="temp" placeholder="온도(°C)" class="border p-2 rounded" />
           <input id="salinity" placeholder="염도(ppt)" class="border p-2 rounded" />
           <input id="ph" placeholder="pH" class="border p-2 rounded" />
@@ -38,19 +37,16 @@
         </div>
       </div>
 
-      <!-- 결과 영역 -->
       <div class="bg-white p-6 rounded shadow">
         <h2 class="text-xl font-bold mb-4">계산 결과 및 권장 사항</h2>
         <div id="results-output" class="space-y-2"></div>
       </div>
     </div>
 
-    <!-- 저장된 기록 영역 -->
     <div class="mt-8 bg-white p-6 rounded shadow">
       <div class="flex justify-between mb-4">
         <h2 class="text-xl font-bold">저장된 기록</h2>
         <div class="space-x-2">
-          <button id="show-graph-btn" class="bg-indigo-500 text-white px-4 py-2 rounded">그래프 보기</button>
           <button id="clear-logs-btn" class="bg-red-500 text-white px-4 py-2 rounded">기록 초기화</button>
         </div>
       </div>
@@ -66,8 +62,8 @@
       temp: {min: 25.5, max: 26.5},
       salinity: {min: 34, max: 35},
       ph: {min: 8.0, max: 8.3},
-      ca: {min: 400, target: 420},
-      mg: {min: 1300, target: 1350},
+      ca: {min: 400, target: 439},
+      mg: {min: 1300, target: 1440},
       kh: {min: 7.3, target: 8.0},
       no2: {max: 0.01},
       no3: {min: 0.5, max: 2.0, target: 1.0},
@@ -77,8 +73,6 @@
     const roundDose = x => Math.round(x * 10) / 10;
 
     document.getElementById('calculate-btn').addEventListener('click', () => {
-      console.clear();
-      console.log('계산 시작');
       const vol = parseFloat(document.getElementById('vol').value || '160');
       const inputs = {};
       ['temp','salinity','ph','ca','mg','kh','no2','no3','po4'].forEach(id => {
@@ -101,9 +95,6 @@
             const dose = roundDose(vol * delta / (key === 'no3' ? 100 * 0.03 : 100 * 0.001));
             cls = 'result-low';
             msg = `${key.toUpperCase()}: 낮음. 목표치(${t.target})까지 ${delta.toFixed(2)}ppm 올리려면 약 ${dose}ml 도징 필요.`;
-          } else if (val > t.max) {
-            cls = 'result-high';
-            msg = `${key.toUpperCase()}: 높음. 20% 환수 또는 리무버 사용 권장합니다.`;
           } else {
             msg = `${key.toUpperCase()}: 안정적 수치입니다.`;
           }
@@ -130,6 +121,56 @@
         console.log(msg);
       }
     });
+
+    document.getElementById('save-btn').addEventListener('click', () => {
+      const date = document.getElementById('date').value;
+      if (!date) return;
+      const entry = {
+        date,
+        temp: document.getElementById('temp').value,
+        salinity: document.getElementById('salinity').value,
+        ph: document.getElementById('ph').value,
+        ca: document.getElementById('ca').value,
+        mg: document.getElementById('mg').value,
+        kh: document.getElementById('kh').value,
+        no2: document.getElementById('no2').value,
+        no3: document.getElementById('no3').value,
+        po4: document.getElementById('po4').value
+      };
+      const logs = JSON.parse(localStorage.getItem('logs') || '[]');
+      logs.push(entry);
+      localStorage.setItem('logs', JSON.stringify(logs));
+      renderLogs();
+    });
+
+    function renderLogs() {
+      const logs = JSON.parse(localStorage.getItem('logs') || '[]');
+      const tbody = document.getElementById('log-table-body');
+      tbody.innerHTML = '';
+      logs.forEach((log, i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${log.date}</td><td>${log.temp}</td><td>${log.salinity}</td><td>${log.ph}</td><td>${log.ca}</td><td>${log.mg}</td><td>${log.kh}</td><td>${log.no2}</td><td>${log.no3}</td><td>${log.po4}</td><td><button onclick="deleteLog(${i})" class="text-red-500">삭제</button></td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function deleteLog(index) {
+      const logs = JSON.parse(localStorage.getItem('logs') || '[]');
+      logs.splice(index, 1);
+      localStorage.setItem('logs', JSON.stringify(logs));
+      renderLogs();
+    }
+
+    document.getElementById('clear-logs-btn').addEventListener('click', () => {
+      if (confirm('정말로 모든 기록을 삭제하시겠습니까?')) {
+        localStorage.removeItem('logs');
+        renderLogs();
+      }
+    });
+
+    window.onload = () => {
+      renderLogs();
+    };
   </script>
 </body>
 </html>
