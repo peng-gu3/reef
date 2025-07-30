@@ -49,6 +49,10 @@
         .message-box-button:hover {
             background-color: #2563EB; /* Blue-600 */
         }
+        /* Custom styles for status indicators */
+        .status-normal { color: #16A34A; /* Green-600 */ }
+        .status-low { color: #DC2626; /* Red-600 */ }
+        .status-high { color: #EA580C; /* Orange-600 */ }
     </style>
 </head>
 <body class="bg-gray-100 p-6">
@@ -56,51 +60,81 @@
         <h1 class="text-2xl font-bold mb-4 text-gray-800">해수어항 도징 계산기</h1>
         <!-- Input Form Section -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-            <div>
+            <div class="flex flex-col">
                 <label for="dateInput" class="block font-medium text-gray-700 mb-1">날짜</label>
                 <input id="dateInput" type="date" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
             </div>
-            <div>
+            <div class="flex flex-col">
+                <label for="volumeInput" class="block font-medium text-gray-700 mb-1">수조 부피 (L)</label>
+                <input id="volumeInput" type="number" step="1" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" value="160" />
+            </div>
+            <div class="flex flex-col">
                 <label for="tempInput" class="block font-medium text-gray-700 mb-1">온도 (°C)</label>
-                <input id="tempInput" type="number" step="0.1" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
+                <div class="flex items-center gap-2">
+                    <input id="tempInput" type="number" step="0.1" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
+                    <span id="tempStatus" class="text-sm font-semibold min-w-[60px] text-right"></span>
+                </div>
             </div>
-            <div>
+            <div class="flex flex-col">
                 <label for="salinityInput" class="block font-medium text-gray-700 mb-1">염도 (ppt)</label>
-                <input id="salinityInput" type="number" step="0.1" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
+                <div class="flex items-center gap-2">
+                    <input id="salinityInput" type="number" step="0.1" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
+                    <span id="salinityStatus" class="text-sm font-semibold min-w-[60px] text-right"></span>
+                </div>
             </div>
-            <div>
+            <div class="flex flex-col">
                 <label for="phInput" class="block font-medium text-gray-700 mb-1">pH</label>
-                <input id="phInput" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
+                <div class="flex items-center gap-2">
+                    <input id="phInput" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
+                    <span id="phStatus" class="text-sm font-semibold min-w-[60px] text-right"></span>
+                </div>
             </div>
-            <div>
+            <div class="flex flex-col">
                 <label for="caInput" class="block font-medium text-gray-700 mb-1">Ca (ppm)</label>
-                <input id="caInput" type="number" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
+                <div class="flex items-center gap-2">
+                    <input id="caInput" type="number" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
+                    <span id="caStatus" class="text-sm font-semibold min-w-[60px] text-right"></span>
+                </div>
             </div>
-            <div>
+            <div class="flex flex-col">
                 <label for="mgInput" class="block font-medium text-gray-700 mb-1">Mg (ppm)</label>
-                <input id="mgInput" type="number" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
+                <div class="flex items-center gap-2">
+                    <input id="mgInput" type="number" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
+                    <span id="mgStatus" class="text-sm font-semibold min-w-[60px] text-right"></span>
+                </div>
             </div>
-            <div>
+            <div class="flex flex-col">
                 <label for="khInput" class="block font-medium text-gray-700 mb-1">KH (dKH)</label>
-                <input id="khInput" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
+                <div class="flex items-center gap-2">
+                    <input id="khInput" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
+                    <span id="khStatus" class="text-sm font-semibold min-w-[60px] text-right"></span>
+                </div>
             </div>
-            <div>
+            <div class="flex flex-col">
                 <label for="no2Input" class="block font-medium text-gray-700 mb-1">NO₂ (ppm)</label>
-                <input id="no2Input" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
+                <div class="flex items-center gap-2">
+                    <input id="no2Input" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
+                    <span id="no2Status" class="text-sm font-semibold min-w-[60px] text-right"></span>
+                </div>
             </div>
-            <div>
+            <div class="flex flex-col">
                 <label for="no3Input" class="block font-medium text-gray-700 mb-1">NO₃ (ppm)</label>
-                <input id="no3Input" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
+                <div class="flex items-center gap-2">
+                    <input id="no3Input" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
+                    <span id="no3Status" class="text-sm font-semibold min-w-[60px] text-right"></span>
+                </div>
             </div>
-            <div>
+            <div class="flex flex-col">
                 <label for="po4Input" class="block font-medium text-gray-700 mb-1">PO₄ (ppm)</label>
-                <input id="po4Input" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
+                <div class="flex items-center gap-2">
+                    <input id="po4Input" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
+                    <span id="po4Status" class="text-sm font-semibold min-w-[60px] text-right"></span>
+                </div>
             </div>
         </div>
         <div class="flex flex-wrap gap-4">
-            <button id="saveRecordBtn" class="px-6 py-3 bg-blue-500 text-white font-semibold rounded-2xl shadow-md hover:bg-blue-600 transition-colors duration-200">기록 저장</button>
+            <button id="saveRecordBtn" class="px-6 py-3 bg-blue-500 text-white font-semibold rounded-2xl shadow-md hover:bg-blue-600 transition-colors duration-200">기록 저장 및 결과 보기</button>
             <button id="viewGraphsBtn" class="px-6 py-3 bg-green-500 text-white font-semibold rounded-2xl shadow-md hover:bg-green-600 transition-colors duration-200">그래프 보기</button>
-            <button id="viewRecordsBtn" class="px-6 py-3 bg-yellow-500 text-white font-semibold rounded-2xl shadow-md hover:bg-yellow-600 transition-colors duration-200">기록 보기</button>
         </div>
     </div>
 
@@ -118,6 +152,7 @@
                 <thead>
                     <tr class="bg-gray-100">
                         <th class="border border-gray-300 px-3 py-2 text-gray-700">날짜</th>
+                        <th class="border border-gray-300 px-3 py-2 text-gray-700">부피 (L)</th>
                         <th class="border border-gray-300 px-3 py-2 text-gray-700">온도</th>
                         <th class="border border-gray-300 px-3 py-2 text-gray-700">염도</th>
                         <th class="border border-gray-300 px-3 py-2 text-gray-700">pH</th>
@@ -149,20 +184,17 @@
     </div>
 
     <script>
-        // Aquarium volume in liters
-        const volume = 160;
-
         // Reference ranges for various water parameters
         // 'unitDose' function calculates the amount needed to increase the parameter by a certain value per liter
         const reference = {
             temp: { min: 25, max: 26 },
             salinity: { min: 34, max: 35 },
             ph: { min: 8.0, max: 8.3 },
-            ca: { min: 420, max: 430, unitDose: (diff) => diff / 100 }, // Example: 100ppm increase per unit dose
-            mg: { min: 1400, max: 1440, unitDose: (diff) => diff / 100 }, // Example: 100ppm increase per unit dose
-            kh: { min: 7.0, max: 8.0, unitDose: (diff) => diff / 10 },   // Example: 10dKH increase per unit dose
+            ca: { min: 420, max: 430, unitDose: (diff, volume) => (diff * volume) / 100 }, // Example: 100ppm increase per 1 unit dose for 1L
+            mg: { min: 1400, max: 1440, unitDose: (diff, volume) => (diff * volume) / 100 }, // Example: 100ppm increase per 1 unit dose for 1L
+            kh: { min: 7.0, max: 8.0, unitDose: (diff, volume) => (diff * volume) / 10 },   // Example: 10dKH increase per 1 unit dose for 1L
             no2: { min: 0, max: 0.02 },
-            no3: { min: 0.5, max: 2.0, unitDose: (diff) => diff / 100 }, // Example: 100ppm increase per unit dose
+            no3: { min: 0.5, max: 2.0, unitDose: (diff, volume) => (diff * volume) / 100 }, // Example: 100ppm increase per 1 unit dose for 1L
             po4: { min: 0.03, max: 0.1 }
         };
 
@@ -212,23 +244,150 @@
             overlay.classList.add('hidden');
         }
 
+        /**
+         * Updates the status display next to each input field.
+         * @param {Object} latestRecord - The most recent record to base statuses on.
+         */
+        function updateInputStatuses(latestRecord) {
+            const paramsToMonitor = ['temp', 'salinity', 'ph', 'ca', 'mg', 'kh', 'no2', 'no3', 'po4'];
+            paramsToMonitor.forEach(key => {
+                const statusSpan = document.getElementById(`${key}Status`);
+                if (!statusSpan) return; // Skip if status span doesn't exist
+
+                const ref = reference[key];
+                const val = latestRecord[key];
+
+                statusSpan.textContent = ''; // Clear previous status
+                statusSpan.className = 'text-sm font-semibold min-w-[60px] text-right'; // Reset classes
+
+                if (val !== null && ref.min !== undefined) {
+                    if (val < ref.min) {
+                        statusSpan.textContent = '낮음';
+                        statusSpan.classList.add('status-low');
+                    } else if (val > ref.max) {
+                        statusSpan.textContent = '높음';
+                        statusSpan.classList.add('status-high');
+                    } else {
+                        statusSpan.textContent = '정상';
+                        statusSpan.classList.add('status-normal');
+                    }
+                }
+            });
+        }
+
+        /**
+         * Displays records in the table and calculates the 7-day dosing plan.
+         */
+        function displayRecordsAndDosingPlan() {
+            const records = getRecords().sort((a, b) => a.date.localeCompare(b.date)); // Sort records by date
+
+            if (!records.length) {
+                showMessageBox('저장된 기록이 없습니다.');
+                document.getElementById('viewRecordsContainer').classList.add('hidden');
+                document.getElementById('chartContainer').classList.add('hidden');
+                return;
+            }
+
+            const tbody = document.querySelector('#recordsTable tbody');
+            tbody.innerHTML = ''; // Clear existing table rows
+
+            // Populate the table with records
+            records.forEach(r => {
+                const state = []; // Array to store status messages for each parameter
+                // Compare each parameter against its reference range
+                Object.keys(reference).forEach(key => {
+                    const ref = reference[key];
+                    const val = r[key];
+                    if (val !== null && ref.min !== undefined) { // Check if value exists and reference min is defined
+                        if (val < ref.min) {
+                            state.push(`${key.toUpperCase()}: 낮음`);
+                        } else if (val > ref.max) {
+                            state.push(`${key.toUpperCase()}: 높음`);
+                        } else {
+                            state.push(`${key.toUpperCase()}: 정상`);
+                        }
+                    }
+                });
+
+                // Create a new table row
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-50'; // Add hover effect to rows
+
+                // Add data cells for each parameter, including volume
+                ['date', 'volume', 'temp', 'salinity', 'ph', 'ca', 'mg', 'kh', 'no2', 'no3', 'po4'].forEach(key => {
+                    const td = document.createElement('td');
+                    td.className = 'border border-gray-300 px-3 py-2 text-center text-gray-700';
+                    td.textContent = r[key] !== null ? r[key] : '-'; // Display '-' for null values
+                    tr.appendChild(td);
+                });
+
+                // Add the status cell
+                const tdState = document.createElement('td');
+                tdState.className = 'border border-gray-300 px-3 py-2 text-left text-gray-700';
+                tdState.textContent = state.join(', '); // Join status messages with a comma
+                tr.appendChild(tdState);
+                tbody.appendChild(tr); // Add the row to the table body
+            });
+
+            // Show the records container
+            document.getElementById('viewRecordsContainer').classList.remove('hidden');
+            document.getElementById('chartContainer').classList.add('hidden'); // Hide graphs if records are viewed
+
+            // --- Dosing Plan Calculation (based on the latest record) ---
+            const latest = records[records.length - 1]; // Get the most recent record
+            let planHTML = '<h3 class="font-semibold mb-2 text-blue-900">7일간 도징 계획</h3><ul class="list-disc list-inside text-blue-800">';
+
+            if (latest && latest.volume) { // Ensure latest record and volume exist
+                Object.keys(reference).forEach(key => {
+                    const ref = reference[key];
+                    const val = latest[key];
+
+                    // Only calculate dosing if unitDose is defined and the value is not null
+                    if (ref.unitDose && val !== null) {
+                        let target = ref.min; // Target is the minimum recommended value
+
+                        if (val >= target) { // If current value is at or above target, no dosing needed
+                            return;
+                        }
+
+                        const diff = target - val; // Calculate the difference needed
+                        // Calculate total dose needed for the entire tank volume
+                        const totalDose = ref.unitDose(diff, latest.volume);
+                        const dailyDose = totalDose / 7; // Divide by 7 for daily dosing over 7 days
+
+                        planHTML += `<li>${key.toUpperCase()}: 일일 ${dailyDose.toFixed(2)}ml</li>`;
+                    }
+                });
+            } else {
+                planHTML += '<li>최신 기록 또는 수조 부피 정보가 없어 도징 계획을 계산할 수 없습니다.</li>';
+            }
+            planHTML += '</ul>';
+            document.getElementById('dosagePlan').innerHTML = planHTML; // Display the dosing plan
+        }
+
         // --- Event Listeners ---
 
         // Event listener for the custom message box button
         document.getElementById('customMessageBoxButton').addEventListener('click', hideMessageBox);
 
-        // Event listener for the "Save Record" button
+        // Event listener for the "Save Record and View Results" button
         document.getElementById('saveRecordBtn').addEventListener('click', () => {
             const date = document.getElementById('dateInput').value;
+            const volume = parseFloat(document.getElementById('volumeInput').value);
 
             if (!date) {
                 showMessageBox('날짜를 입력해주세요.');
+                return;
+            }
+            if (isNaN(volume) || volume <= 0) {
+                showMessageBox('유효한 수조 부피를 입력해주세요.');
                 return;
             }
 
             // Create a record object from input values
             const record = {
                 date,
+                volume, // Include volume in the record
                 temp: parseFloat(document.getElementById('tempInput').value) || null,
                 salinity: parseFloat(document.getElementById('salinityInput').value) || null,
                 ph: parseFloat(document.getElementById('phInput').value) || null,
@@ -246,6 +405,8 @@
             saveRecords(records); // Save the updated list of records
 
             showMessageBox('기록이 저장되었습니다.');
+            updateInputStatuses(record); // Update statuses next to inputs
+            displayRecordsAndDosingPlan(); // Immediately display records and dosing plan
         });
 
         // Event listener for the "View Graphs" button
@@ -330,95 +491,24 @@
             document.getElementById('viewRecordsContainer').classList.add('hidden'); // Hide records if graphs are viewed
         });
 
-        // Event listener for the "View Records" button
-        document.getElementById('viewRecordsBtn').addEventListener('click', () => {
-            const records = getRecords().sort((a, b) => a.date.localeCompare(b.date)); // Sort records by date
-
-            if (!records.length) {
-                showMessageBox('저장된 기록이 없습니다.');
-                return;
-            }
-
-            const tbody = document.querySelector('#recordsTable tbody');
-            tbody.innerHTML = ''; // Clear existing table rows
-
-            // Populate the table with records
-            records.forEach(r => {
-                const state = []; // Array to store status messages for each parameter
-                // Compare each parameter against its reference range
-                Object.keys(reference).forEach(key => {
-                    const ref = reference[key];
-                    const val = r[key];
-                    if (val !== null && ref.min !== undefined) { // Check if value exists and reference min is defined
-                        if (val < ref.min) {
-                            state.push(`${key.toUpperCase()}: 낮음`); // Below minimum
-                        } else if (val > ref.max) {
-                            state.push(`${key.toUpperCase()}: 높음`); // Above maximum
-                        } else {
-                            state.push(`${key.toUpperCase()}: 정상`); // Within range
-                        }
-                    }
-                });
-
-                // Create a new table row
-                const tr = document.createElement('tr');
-                tr.className = 'hover:bg-gray-50'; // Add hover effect to rows
-
-                // Add data cells for each parameter
-                ['date', 'temp', 'salinity', 'ph', 'ca', 'mg', 'kh', 'no2', 'no3', 'po4'].forEach(key => {
-                    const td = document.createElement('td');
-                    td.className = 'border border-gray-300 px-3 py-2 text-center text-gray-700';
-                    td.textContent = r[key] !== null ? r[key] : '-'; // Display '-' for null values
-                    tr.appendChild(td);
-                });
-
-                // Add the status cell
-                const tdState = document.createElement('td');
-                tdState.className = 'border border-gray-300 px-3 py-2 text-left text-gray-700';
-                tdState.textContent = state.join(', '); // Join status messages with a comma
-                tr.appendChild(tdState);
-                tbody.appendChild(tr); // Add the row to the table body
-            });
-
-            // Show the records container
-            document.getElementById('viewRecordsContainer').classList.remove('hidden');
-            document.getElementById('chartContainer').classList.add('hidden'); // Hide graphs if records are viewed
-
-            // --- Dosing Plan Calculation (based on the latest record) ---
-            const latest = records[records.length - 1]; // Get the most recent record
-            let planHTML = '<h3 class="font-semibold mb-2 text-blue-900">7주간 도징 계획</h3><ul class="list-disc list-inside text-blue-800">';
-
-            Object.keys(reference).forEach(key => {
-                const ref = reference[key];
-                const val = latest[key];
-
-                // Only calculate dosing if unitDose is defined and the value is not null
-                if (ref.unitDose && val !== null) {
-                    let target = ref.min; // Target is the minimum recommended value
-
-                    if (val >= target) { // If current value is at or above target, no dosing needed
-                        return;
-                    }
-
-                    const diff = target - val; // Calculate the difference needed
-                    // Calculate total dose needed for the entire tank volume
-                    const totalDose = ref.unitDose(diff * volume);
-                    const weeklyDose = totalDose / 7; // Divide by 7 for weekly dosing
-
-                    planHTML += `<li>${key.toUpperCase()}: 주당 ${weeklyDose.toFixed(2)}ml</li>`;
-                }
-            });
-            planHTML += '</ul>';
-            document.getElementById('dosagePlan').innerHTML = planHTML; // Display the dosing plan
-        });
-
-        // Initialize the date input with today's date
+        // Initialize the date input with today's date and update statuses on load if records exist
         document.addEventListener('DOMContentLoaded', () => {
             const today = new Date();
             const year = today.getFullYear();
             const month = (today.getMonth() + 1).toString().padStart(2, '0');
             const day = today.getDate().toString().padStart(2, '0');
             document.getElementById('dateInput').value = `${year}-${month}-${day}`;
+
+            // Load and display statuses for the latest record on page load
+            const records = getRecords();
+            if (records.length > 0) {
+                const latest = records.sort((a,b)=>a.date.localeCompare(b.date))[records.length - 1];
+                updateInputStatuses(latest);
+                // Pre-fill volume input with the latest saved volume if available
+                if (latest.volume) {
+                    document.getElementById('volumeInput').value = latest.volume;
+                }
+            }
         });
     </script>
 </body>
