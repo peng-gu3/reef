@@ -167,7 +167,6 @@
                                 <th class="border border-gray-300 px-3 py-2 text-gray-700">NO₂</th>
                                 <th class="border border-gray-300 px-3 py-2 text-gray-700">NO₃</th>
                                 <th class="border border-gray-300 px-3 py-2 text-gray-700">PO₄</th>
-                                <th class="border border-gray-300 px-3 py-2 text-gray-700">상태</th>
                                 <th class="border border-gray-300 px-3 py-2 text-gray-700">삭제</th>
                             </tr>
                         </thead>
@@ -440,21 +439,9 @@
 
             // Populate the table with records
             records.forEach(r => {
-                const state = []; // Array to store status messages for each parameter
-                // Compare each parameter against its reference range
-                Object.keys(reference).forEach(key => {
-                    const ref = reference[key];
-                    const val = r[key];
-                    if (val !== null && ref.min !== undefined) { // Check if value exists and reference min is defined
-                        if (val < ref.min) {
-                            state.push(`${ref.label || key.toUpperCase()}: 낮음`);
-                        } else if (val > ref.max) {
-                            state.push(`${ref.label || key.toUpperCase()}: 높음`);
-                        } else {
-                            state.push(`${ref.label || key.toUpperCase()}: 정상`);
-                        }
-                    }
-                });
+                // Removed state calculation here as it's now consolidated at the bottom
+                // const state = [];
+                // Object.keys(reference).forEach(key => { ... });
 
                 // Create a new table row
                 const tr = document.createElement('tr');
@@ -468,11 +455,11 @@
                     tr.appendChild(td);
                 });
 
-                // Add the status cell
-                const tdState = document.createElement('td');
-                tdState.className = 'border border-gray-300 px-3 py-2 text-left text-gray-700';
-                tdState.textContent = state.join(', '); // Join status messages with a comma
-                tr.appendChild(tdState);
+                // Removed the status cell (tdState) here
+                // const tdState = document.createElement('td');
+                // tdState.className = 'border border-gray-300 px-3 py-2 text-left text-gray-700';
+                // tdState.textContent = state.join(', ');
+                // tr.appendChild(tdState);
 
                 // Add delete button cell
                 const tdDelete = document.createElement('td');
