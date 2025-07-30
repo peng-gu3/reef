@@ -31,10 +31,11 @@
           <input id="no3" placeholder="NO₃(ppm)" class="border p-2 rounded" />
           <input id="po4" placeholder="PO₄(ppm)" class="border p-2 rounded" />
         </div>
-        <div class="flex space-x-2 mt-4">
+        <div class="flex flex-wrap space-x-2 mt-4">
           <button id="calculate-btn" class="flex-1 bg-blue-600 text-white py-2 rounded">계산하기</button>
           <button id="save-btn" class="flex-1 bg-green-600 text-white py-2 rounded">기록 저장</button>
           <button id="graph-btn" class="flex-1 bg-purple-600 text-white py-2 rounded">그래프 보기</button>
+          <button id="ai-btn" class="flex-1 bg-indigo-600 text-white py-2 rounded">AI 어드바이스</button>
         </div>
       </div>
 
@@ -59,121 +60,50 @@
   </div>
 
   <script>
-    const targets = {
-      temp: {min: 25.5, max: 26.5},
-      salinity: {min: 34, max: 35},
-      ph: {min: 8.0, max: 8.3},
-      ca: {min: 415, target: 430},
-      mg: {min: 1400, target: 1440},
-      kh: {min: 7.7, target: 8.0},
-      no2: {max: 0.00},
-      no3: {min: 0.5, max: 2.0, target: 1.0},
-      po4: {min: 0.03, max: 0.08, target: 0.04}
+    const graphWindowFeatures = 'width=900,height=600,resizable,scrollbars';
+    const aiWindowFeatures = 'width=600,height=400,resizable,scrollbars';
+
+    document.getElementById('graph-btn').onclick = () => {
+      const graphWin = window.open('', '그래프보기', graphWindowFeatures);
+      graphWin.document.write('<h1>그래프 기능은 곧 구현될 예정입니다.</h1>');
     };
 
-    const roundDose = x => Math.round(x * 10) / 10;
+    document.getElementById('ai-btn').onclick = () => {
+      const aiWin = window.open('', 'AI어드바이스', aiWindowFeatures);
+      aiWin.document.write('<h1>AI 어드바이스 기능은 곧 구현될 예정입니다.</h1>');
+    };
 
-    document.getElementById('calculate-btn').addEventListener('click', () => {
-      const vol = parseFloat(document.getElementById('vol').value || '160');
-      const inputs = {};
-      ['temp','salinity','ph','ca','mg','kh','no2','no3','po4'].forEach(id => {
-        inputs[id] = parseFloat(document.getElementById(id).value);
-      });
-      const output = document.getElementById('results-output');
-      output.innerHTML = '';
+    document.getElementById('calculate-btn').onclick = () => {
+      const vol = parseFloat(document.getElementById('vol').value);
+      const ca = parseFloat(document.getElementById('ca').value);
+      const mg = parseFloat(document.getElementById('mg').value);
+      const kh = parseFloat(document.getElementById('kh').value);
+      const no3 = parseFloat(document.getElementById('no3').value);
+      const po4 = parseFloat(document.getElementById('po4').value);
+      const no2 = parseFloat(document.getElementById('no2').value);
+      const temp = parseFloat(document.getElementById('temp').value);
+      const salinity = parseFloat(document.getElementById('salinity').value);
+      const ph = parseFloat(document.getElementById('ph').value);
 
-      for (let [key, val] of Object.entries(inputs)) {
-        const t = targets[key];
-        if (val === undefined || isNaN(val)) continue;
-        let div = document.createElement('div');
-        let cls = 'result-good', msg = '';
-        if (key === 'no2' && val > t.max) {
-          cls = 'result-action';
-          msg = 'NO₂: 검출됨! 즉시 20% 환수를 권장합니다.';
-        } else if (key === 'no3' || key === 'po4') {
-          if (val < t.min) {
-            const delta = t.target - val;
-            const dose = roundDose(vol * delta / (key === 'no3' ? 100 * 0.03 : 100 * 0.001));
-            cls = 'result-low';
-            msg = `${key.toUpperCase()}: 낮음. 목표치(${t.target})까지 ${delta.toFixed(2)}ppm 올리려면 약 ${dose}ml 도징 필요.`;
-          } else if (val > t.max) {
-            cls = 'result-high';
-            msg = `${key.toUpperCase()}: 높음. 목표 범위(${t.min}~${t.max})로 조절해주세요.`;
-          } else {
-            msg = `${key.toUpperCase()}: 안정적 수치입니다.`;
-          }
-        } else if (t.min !== undefined && val < t.min) {
-          if (key === 'ca' || key === 'mg' || key === 'kh') {
-            const delta = t.target - val;
-            const factor = key === 'ca' ? 2 : (key === 'mg' ? 1 : 0.1);
-            const dose = roundDose((vol * delta) / (100 * factor));
-            msg = `${key.toUpperCase()}: 낮음. 목표치(${t.target})까지 ${delta.toFixed(1)}ppm 올리려면 약 ${dose}ml 도징 필요. (매일 약 ${(dose/7).toFixed(1)}ml × 7일 권장)`;
-            cls = 'result-low';
-          } else {
-            msg = `${key.toUpperCase()}: 낮음. 목표 범위(${t.min}~${t.max})로 조절해주세요.`;
-            cls = 'result-low';
-          }
-        } else if (t.max !== undefined && val > t.max) {
-          msg = `${key.toUpperCase()}: 높음. 목표 범위(${t.min}~${t.max})로 조절해주세요.`;
-          cls = 'result-high';
-        } else {
-          msg = `${key.toUpperCase()}: 안정적 수치입니다.`;
-        }
-        div.className = `result-item ${cls}`;
-        div.textContent = msg;
-        output.appendChild(div);
-        console.log(msg);
+      const resultDiv = document.getElementById('results-output');
+      resultDiv.innerHTML = '';
+
+      function addResult(label, value, range, status) {
+        const div = document.createElement('div');
+        div.className = `result-item result-${status}`;
+        div.textContent = `${label}: ${value} → ${range}`;
+        resultDiv.appendChild(div);
       }
-    });
 
-    document.getElementById('save-btn').addEventListener('click', () => {
-      const date = document.getElementById('date').value;
-      if (!date) return;
-      const entry = {
-        date,
-        temp: document.getElementById('temp').value,
-        salinity: document.getElementById('salinity').value,
-        ph: document.getElementById('ph').value,
-        ca: document.getElementById('ca').value,
-        mg: document.getElementById('mg').value,
-        kh: document.getElementById('kh').value,
-        no2: document.getElementById('no2').value,
-        no3: document.getElementById('no3').value,
-        po4: document.getElementById('po4').value
-      };
-      const logs = JSON.parse(localStorage.getItem('logs') || '[]');
-      logs.push(entry);
-      localStorage.setItem('logs', JSON.stringify(logs));
-      renderLogs();
-    });
-
-    function renderLogs() {
-      const logs = JSON.parse(localStorage.getItem('logs') || '[]');
-      const tbody = document.getElementById('log-table-body');
-      tbody.innerHTML = '';
-      logs.forEach((log, i) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${log.date}</td><td>${log.temp}</td><td>${log.salinity}</td><td>${log.ph}</td><td>${log.ca}</td><td>${log.mg}</td><td>${log.kh}</td><td>${log.no2}</td><td>${log.no3}</td><td>${log.po4}</td><td><button onclick="deleteLog(${i})" class="text-red-500">삭제</button></td>`;
-        tbody.appendChild(tr);
-      });
-    }
-
-    function deleteLog(index) {
-      const logs = JSON.parse(localStorage.getItem('logs') || '[]');
-      logs.splice(index, 1);
-      localStorage.setItem('logs', JSON.stringify(logs));
-      renderLogs();
-    }
-
-    document.getElementById('clear-logs-btn').addEventListener('click', () => {
-      if (confirm('정말로 모든 기록을 삭제하시겠습니까?')) {
-        localStorage.removeItem('logs');
-        renderLogs();
-      }
-    });
-
-    window.onload = () => {
-      renderLogs();
+      if (!isNaN(temp)) addResult('온도', temp + '°C', '26.0±0.5°C', (temp < 25.5 || temp > 26.5) ? 'action' : 'good');
+      if (!isNaN(salinity)) addResult('염도', salinity + 'ppt', '34~35ppt', (salinity < 34 || salinity > 35) ? 'action' : 'good');
+      if (!isNaN(ph)) addResult('pH', ph, '8.0~8.3', (ph < 8.0 || ph > 8.3) ? 'action' : 'good');
+      if (!isNaN(ca)) addResult('칼슘(Ca)', ca + 'ppm', '목표 430ppm', (ca < 415) ? 'low' : (ca > 445 ? 'high' : 'good'));
+      if (!isNaN(mg)) addResult('마그네슘(Mg)', mg + 'ppm', '목표 1440ppm', (mg < 1400) ? 'low' : (mg > 1480 ? 'high' : 'good'));
+      if (!isNaN(kh)) addResult('KH', kh + 'dKH', '목표 8.0', (kh < 7.7) ? 'low' : (kh > 8.3 ? 'high' : 'good'));
+      if (!isNaN(no2)) addResult('NO₂', no2 + 'ppm', '0.00ppm 권장', (no2 > 0.00) ? 'action' : 'good');
+      if (!isNaN(no3)) addResult('NO₃', no3 + 'ppm', '0.5~2.0ppm', (no3 < 0.5) ? 'low' : (no3 > 2.0 ? 'high' : 'good'));
+      if (!isNaN(po4)) addResult('PO₄', po4 + 'ppm', '0.03~0.08ppm', (po4 < 0.03) ? 'low' : (po4 > 0.08 ? 'high' : 'good'));
     };
   </script>
 </body>
