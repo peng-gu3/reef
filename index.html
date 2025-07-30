@@ -4,119 +4,229 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>해수어항 도징 계산기 (최종 완성 버전)</title>
+    <!-- Tailwind CSS CDN for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts for Noto Sans KR -->
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Chart.js CDN for creating graphs -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Custom font family application */
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+        /* Basic styling for the custom message box */
+        .message-box-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .message-box {
+            background-color: white;
+            padding: 24px;
+            border-radius: 16px; /* Rounded corners for the message box */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+        .message-box-button {
+            background-color: #3B82F6; /* Blue-500 */
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px; /* Rounded corners for the button */
+            margin-top: 16px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .message-box-button:hover {
+            background-color: #2563EB; /* Blue-600 */
+        }
+    </style>
 </head>
-<body class="bg-gray-100 font-noto-sans-kr p-6">
+<body class="bg-gray-100 p-6">
     <div class="max-w-3xl mx-auto bg-white rounded-2xl shadow p-6">
-        <h1 class="text-2xl font-bold mb-4">해수어항 도징 계산기</h1>
-        <!-- 입력 폼 -->
-        <div class="grid grid-cols-2 gap-4 mb-4">
+        <h1 class="text-2xl font-bold mb-4 text-gray-800">해수어항 도징 계산기</h1>
+        <!-- Input Form Section -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>
-                <label class="block font-medium">날짜</label>
-                <input id="dateInput" type="date" class="w-full border rounded p-2" />
+                <label for="dateInput" class="block font-medium text-gray-700 mb-1">날짜</label>
+                <input id="dateInput" type="date" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
             </div>
             <div>
-                <label class="block font-medium">온도 (°C)</label>
-                <input id="tempInput" type="number" step="0.1" class="w-full border rounded p-2" />
+                <label for="tempInput" class="block font-medium text-gray-700 mb-1">온도 (°C)</label>
+                <input id="tempInput" type="number" step="0.1" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
             </div>
             <div>
-                <label class="block font-medium">염도 (ppt)</label>
-                <input id="salinityInput" type="number" step="0.1" class="w-full border rounded p-2" />
+                <label for="salinityInput" class="block font-medium text-gray-700 mb-1">염도 (ppt)</label>
+                <input id="salinityInput" type="number" step="0.1" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
             </div>
             <div>
-                <label class="block font-medium">pH</label>
-                <input id="phInput" type="number" step="0.01" class="w-full border rounded p-2" />
+                <label for="phInput" class="block font-medium text-gray-700 mb-1">pH</label>
+                <input id="phInput" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
             </div>
             <div>
-                <label class="block font-medium">Ca (ppm)</label>
-                <input id="caInput" type="number" class="w-full border rounded p-2" />
+                <label for="caInput" class="block font-medium text-gray-700 mb-1">Ca (ppm)</label>
+                <input id="caInput" type="number" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
             </div>
             <div>
-                <label class="block font-medium">Mg (ppm)</label>
-                <input id="mgInput" type="number" class="w-full border rounded p-2" />
+                <label for="mgInput" class="block font-medium text-gray-700 mb-1">Mg (ppm)</label>
+                <input id="mgInput" type="number" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
             </div>
             <div>
-                <label class="block font-medium">KH (dKH)</label>
-                <input id="khInput" type="number" step="0.01" class="w-full border rounded p-2" />
+                <label for="khInput" class="block font-medium text-gray-700 mb-1">KH (dKH)</label>
+                <input id="khInput" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
             </div>
             <div>
-                <label class="block font-medium">NO₂ (ppm)</label>
-                <input id="no2Input" type="number" step="0.01" class="w-full border rounded p-2" />
+                <label for="no2Input" class="block font-medium text-gray-700 mb-1">NO₂ (ppm)</label>
+                <input id="no2Input" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
             </div>
             <div>
-                <label class="block font-medium">NO₃ (ppm)</label>
-                <input id="no3Input" type="number" step="0.01" class="w-full border rounded p-2" />
+                <label for="no3Input" class="block font-medium text-gray-700 mb-1">NO₃ (ppm)</label>
+                <input id="no3Input" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
             </div>
             <div>
-                <label class="block font-medium">PO₄ (ppm)</label>
-                <input id="po4Input" type="number" step="0.01" class="w-full border rounded p-2" />
+                <label for="po4Input" class="block font-medium text-gray-700 mb-1">PO₄ (ppm)</label>
+                <input id="po4Input" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
             </div>
         </div>
-        <div class="flex space-x-4">
-            <button id="saveRecordBtn" class="px-4 py-2 bg-blue-500 text-white rounded-2xl shadow hover:bg-blue-600">기록 저장</button>
-            <button id="viewGraphsBtn" class="px-4 py-2 bg-green-500 text-white rounded-2xl shadow hover:bg-green-600">그래프 보기</button>
-            <button id="viewRecordsBtn" class="px-4 py-2 bg-yellow-500 text-white rounded-2xl shadow hover:bg-yellow-600">기록 보기</button>
+        <div class="flex flex-wrap gap-4">
+            <button id="saveRecordBtn" class="px-6 py-3 bg-blue-500 text-white font-semibold rounded-2xl shadow-md hover:bg-blue-600 transition-colors duration-200">기록 저장</button>
+            <button id="viewGraphsBtn" class="px-6 py-3 bg-green-500 text-white font-semibold rounded-2xl shadow-md hover:bg-green-600 transition-colors duration-200">그래프 보기</button>
+            <button id="viewRecordsBtn" class="px-6 py-3 bg-yellow-500 text-white font-semibold rounded-2xl shadow-md hover:bg-yellow-600 transition-colors duration-200">기록 보기</button>
         </div>
     </div>
 
-    <!-- 그래프 섹션 -->
+    <!-- Graph Section -->
     <div id="chartContainer" class="max-w-3xl mx-auto bg-white rounded-2xl shadow p-6 mt-6 hidden">
-        <h2 class="text-xl font-bold mb-4">수질 파라미터 추이</h2>
+        <h2 class="text-xl font-bold mb-4 text-gray-800">수질 파라미터 추이</h2>
         <canvas id="trendChart" height="200"></canvas>
     </div>
 
-    <!-- 기록 및 비교 결과 섹션 -->
+    <!-- Records and Comparison Results Section -->
     <div id="viewRecordsContainer" class="max-w-3xl mx-auto bg-white rounded-2xl shadow p-6 mt-6 hidden">
-        <h2 class="text-xl font-bold mb-4">저장된 기록 및 비교 결과</h2>
+        <h2 class="text-xl font-bold mb-4 text-gray-800">저장된 기록 및 비교 결과</h2>
         <div class="overflow-x-auto mb-4">
             <table id="recordsTable" class="w-full table-auto border-collapse text-sm">
                 <thead>
-                    <tr>
-                        <th class="border px-2 py-1">날짜</th>
-                        <th class="border px-2 py-1">온도</th>
-                        <th class="border px-2 py-1">염도</th>
-                        <th class="border px-2 py-1">pH</th>
-                        <th class="border px-2 py-1">Ca</th>
-                        <th class="border px-2 py-1">Mg</th>
-                        <th class="border px-2 py-1">KH</th>
-                        <th class="border px-2 py-1">NO₂</th>
-                        <th class="border px-2 py-1">NO₃</th>
-                        <th class="border px-2 py-1">PO₄</th>
-                        <th class="border px-2 py-1">상태</th>
+                    <tr class="bg-gray-100">
+                        <th class="border border-gray-300 px-3 py-2 text-gray-700">날짜</th>
+                        <th class="border border-gray-300 px-3 py-2 text-gray-700">온도</th>
+                        <th class="border border-gray-300 px-3 py-2 text-gray-700">염도</th>
+                        <th class="border border-gray-300 px-3 py-2 text-gray-700">pH</th>
+                        <th class="border border-gray-300 px-3 py-2 text-gray-700">Ca</th>
+                        <th class="border border-gray-300 px-3 py-2 text-gray-700">Mg</th>
+                        <th class="border border-gray-300 px-3 py-2 text-gray-700">KH</th>
+                        <th class="border border-gray-300 px-3 py-2 text-gray-700">NO₂</th>
+                        <th class="border border-gray-300 px-3 py-2 text-gray-700">NO₃</th>
+                        <th class="border border-gray-300 px-3 py-2 text-gray-700">PO₄</th>
+                        <th class="border border-gray-300 px-3 py-2 text-gray-700">상태</th>
                     </tr>
                 </thead>
-                <tbody></tbody>
+                <tbody>
+                    <!-- Records will be inserted here by JavaScript -->
+                </tbody>
             </table>
         </div>
-        <div id="dosagePlan" class="bg-gray-50 p-4 rounded"></div>
+        <div id="dosagePlan" class="bg-blue-50 p-4 rounded-lg border border-blue-200 text-blue-800">
+            <!-- Dosing plan will be inserted here by JavaScript -->
+        </div>
+    </div>
+
+    <!-- Custom Message Box HTML -->
+    <div id="customMessageBoxOverlay" class="message-box-overlay hidden">
+        <div class="message-box">
+            <p id="customMessageBoxContent" class="text-gray-800 text-lg mb-4"></p>
+            <button id="customMessageBoxButton" class="message-box-button">확인</button>
+        </div>
     </div>
 
     <script>
-        const volume = 160; // 수조 부피 (L)
+        // Aquarium volume in liters
+        const volume = 160;
+
+        // Reference ranges for various water parameters
+        // 'unitDose' function calculates the amount needed to increase the parameter by a certain value per liter
         const reference = {
-            temp: {min: 25, max: 26},
-            salinity: {min: 34, max: 35},
-            ph: {min: 8.0, max: 8.3},
-            ca: {min: 420, max: 430, unitDose: v=>v/100},
-            mg: {min: 1400, max: 1440, unitDose: v=>v/100},
-            kh: {min: 7.0, max: 8.0, unitDose: v=>v/10},
-            no2: {min: 0, max: 0.02},
-            no3: {min: 0.5, max: 2.0, unitDose: v=>v/100},
-            po4: {min: 0.03, max: 0.1}
+            temp: { min: 25, max: 26 },
+            salinity: { min: 34, max: 35 },
+            ph: { min: 8.0, max: 8.3 },
+            ca: { min: 420, max: 430, unitDose: (diff) => diff / 100 }, // Example: 100ppm increase per unit dose
+            mg: { min: 1400, max: 1440, unitDose: (diff) => diff / 100 }, // Example: 100ppm increase per unit dose
+            kh: { min: 7.0, max: 8.0, unitDose: (diff) => diff / 10 },   // Example: 10dKH increase per unit dose
+            no2: { min: 0, max: 0.02 },
+            no3: { min: 0.5, max: 2.0, unitDose: (diff) => diff / 100 }, // Example: 100ppm increase per unit dose
+            po4: { min: 0.03, max: 0.1 }
         };
 
+        // --- Utility Functions for Local Storage and Message Box ---
+
+        /**
+         * Retrieves records from local storage.
+         * @returns {Array} An array of stored records.
+         */
         function getRecords() {
-            return JSON.parse(localStorage.getItem('records') || '[]');
-        }
-        function saveRecords(records) {
-            localStorage.setItem('records', JSON.stringify(records));
+            try {
+                return JSON.parse(localStorage.getItem('records') || '[]');
+            } catch (e) {
+                console.error("Failed to parse records from local storage:", e);
+                return [];
+            }
         }
 
+        /**
+         * Saves records to local storage.
+         * @param {Array} records - The array of records to save.
+         */
+        function saveRecords(records) {
+            try {
+                localStorage.setItem('records', JSON.stringify(records));
+            } catch (e) {
+                console.error("Failed to save records to local storage:", e);
+            }
+        }
+
+        /**
+         * Displays a custom message box.
+         * @param {string} message - The message to display.
+         */
+        function showMessageBox(message) {
+            const overlay = document.getElementById('customMessageBoxOverlay');
+            const content = document.getElementById('customMessageBoxContent');
+            content.textContent = message;
+            overlay.classList.remove('hidden');
+        }
+
+        /**
+         * Hides the custom message box.
+         */
+        function hideMessageBox() {
+            const overlay = document.getElementById('customMessageBoxOverlay');
+            overlay.classList.add('hidden');
+        }
+
+        // --- Event Listeners ---
+
+        // Event listener for the custom message box button
+        document.getElementById('customMessageBoxButton').addEventListener('click', hideMessageBox);
+
+        // Event listener for the "Save Record" button
         document.getElementById('saveRecordBtn').addEventListener('click', () => {
             const date = document.getElementById('dateInput').value;
-            if (!date) { alert('날짜를 입력해주세요.'); return; }
+
+            if (!date) {
+                showMessageBox('날짜를 입력해주세요.');
+                return;
+            }
+
+            // Create a record object from input values
             const record = {
                 date,
                 temp: parseFloat(document.getElementById('tempInput').value) || null,
@@ -129,68 +239,186 @@
                 no3: parseFloat(document.getElementById('no3Input').value) || null,
                 po4: parseFloat(document.getElementById('po4Input').value) || null
             };
-            const records = getRecords().filter(r => r.date !== date);
+
+            // Get existing records, filter out any existing record for the same date, then add the new one
+            let records = getRecords().filter(r => r.date !== date);
             records.push(record);
-            saveRecords(records);
-            alert('기록이 저장되었습니다.');
+            saveRecords(records); // Save the updated list of records
+
+            showMessageBox('기록이 저장되었습니다.');
         });
 
+        // Event listener for the "View Graphs" button
         document.getElementById('viewGraphsBtn').addEventListener('click', () => {
-            const records = getRecords().sort((a,b)=>a.date.localeCompare(b.date));
-            if (!records.length) { alert('저장된 기록이 없습니다.'); return; }
-            const labels = records.map(r=>r.date);
-            const params = ['temp','salinity','ph','ca','mg','kh','no2','no3','po4'];
-            const colors = ['red','orange','yellow','green','blue','indigo','violet','gray','black'];
-            const datasets = params.map((key,i)=>({ label:key, data:records.map(r=>r[key]), borderColor:colors[i], fill:false, spanGaps:true }));
-            if(window.trendChart) window.trendChart.destroy();
-            const ctx=document.getElementById('trendChart').getContext('2d');
-            window.trendChart=new Chart(ctx,{type:'line',data:{labels,datasets},options:{responsive:true,interaction:{mode:'index',intersect:false},scales:{x:{title:{display:true,text:'날짜'}},y:{title:{display:true,text:'값'}}}}});
+            const records = getRecords().sort((a, b) => a.date.localeCompare(b.date)); // Sort records by date
+
+            if (!records.length) {
+                showMessageBox('저장된 기록이 없습니다.');
+                return;
+            }
+
+            // Define parameters to be charted and their respective colors
+            const params = ['temp', 'salinity', 'ph', 'ca', 'mg', 'kh', 'no2', 'no3', 'po4'];
+            const colors = [
+                'rgb(255, 99, 132)',  // Red
+                'rgb(255, 159, 64)',  // Orange
+                'rgb(255, 205, 86)',  // Yellow
+                'rgb(75, 192, 192)',  // Green
+                'rgb(54, 162, 235)',  // Blue
+                'rgb(153, 102, 255)', // Purple
+                'rgb(201, 203, 207)', // Grey
+                'rgb(255, 0, 255)',   // Magenta (for NO3)
+                'rgb(0, 255, 255)'    // Cyan (for PO4)
+            ];
+
+            // Prepare datasets for Chart.js
+            const datasets = params.map((key, i) => ({
+                label: key.toUpperCase(), // Label for the legend
+                data: records.map(r => r[key]), // Data points for the parameter
+                borderColor: colors[i % colors.length], // Assign a color, cycle through colors if more params than colors
+                backgroundColor: colors[i % colors.length], // Same color for background (if fill is true)
+                fill: false, // Do not fill the area under the line
+                spanGaps: true, // Connect data points even if there are nulls
+                tension: 0.1 // Smooth out the lines
+            }));
+
+            // Destroy existing chart instance to prevent memory leaks and redraw issues
+            if (window.trendChart) {
+                window.trendChart.destroy();
+            }
+
+            // Get the canvas context and create a new Chart.js instance
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            window.trendChart = new Chart(ctx, {
+                type: 'line', // Line chart type
+                data: {
+                    labels: records.map(r => r.date), // Dates for the X-axis
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true, // Chart resizes with the container
+                    maintainAspectRatio: false, // Allows height to be controlled by CSS
+                    plugins: {
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        title: {
+                            display: true,
+                            text: '수질 파라미터 추이' // Chart title
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: '날짜' // X-axis label
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: '값' // Y-axis label
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Show the chart container
             document.getElementById('chartContainer').classList.remove('hidden');
+            document.getElementById('viewRecordsContainer').classList.add('hidden'); // Hide records if graphs are viewed
         });
 
+        // Event listener for the "View Records" button
         document.getElementById('viewRecordsBtn').addEventListener('click', () => {
-            const records = getRecords().sort((a,b)=>a.date.localeCompare(b.date));
-            if (!records.length) { alert('저장된 기록이 없습니다.'); return; }
+            const records = getRecords().sort((a, b) => a.date.localeCompare(b.date)); // Sort records by date
+
+            if (!records.length) {
+                showMessageBox('저장된 기록이 없습니다.');
+                return;
+            }
+
             const tbody = document.querySelector('#recordsTable tbody');
-            tbody.innerHTML='';
-            records.forEach(r=>{
-n                const state = []; // 상태 요약
-                // 비교
-                Object.keys(reference).forEach(key=>{
-                    if(r[key]!=null && reference[key].min!=null){
-                        if(r[key]<reference[key].min) state.push(`${key}: 낮음`);
-                        else if(r[key]>reference[key].max) state.push(`${key}: 높음`);
-                        else state.push(`${key}: 정상`);
+            tbody.innerHTML = ''; // Clear existing table rows
+
+            // Populate the table with records
+            records.forEach(r => {
+                const state = []; // Array to store status messages for each parameter
+                // Compare each parameter against its reference range
+                Object.keys(reference).forEach(key => {
+                    const ref = reference[key];
+                    const val = r[key];
+                    if (val !== null && ref.min !== undefined) { // Check if value exists and reference min is defined
+                        if (val < ref.min) {
+                            state.push(`${key.toUpperCase()}: 낮음`); // Below minimum
+                        } else if (val > ref.max) {
+                            state.push(`${key.toUpperCase()}: 높음`); // Above maximum
+                        } else {
+                            state.push(`${key.toUpperCase()}: 정상`); // Within range
+                        }
                     }
                 });
-                const tr=document.createElement('tr');
-                ['date','temp','salinity','ph','ca','mg','kh','no2','no3','po4'].forEach(key=>{
-                    const td=document.createElement('td'); td.className='border px-2 py-1 text-center'; td.textContent=r[key]!=null? r[key] : '-'; tr.appendChild(td);
-                });
-                const tdState=document.createElement('td'); tdState.className='border px-2 py-1 text-left'; tdState.textContent=state.join(', ');
-                tr.appendChild(tdState);
-                tbody.appendChild(tr);
-            });
-            document.getElementById('viewRecordsContainer').classList.remove('hidden');
 
-            // 도징 계획 (최신 레코드 기준)
-            const latest = records[records.length-1];
-            let planHTML = '<h3 class="font-semibold mb-2">7주간 도징 계획</h3><ul class="list-disc list-inside">';
-            Object.keys(reference).forEach(key=>{
+                // Create a new table row
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-50'; // Add hover effect to rows
+
+                // Add data cells for each parameter
+                ['date', 'temp', 'salinity', 'ph', 'ca', 'mg', 'kh', 'no2', 'no3', 'po4'].forEach(key => {
+                    const td = document.createElement('td');
+                    td.className = 'border border-gray-300 px-3 py-2 text-center text-gray-700';
+                    td.textContent = r[key] !== null ? r[key] : '-'; // Display '-' for null values
+                    tr.appendChild(td);
+                });
+
+                // Add the status cell
+                const tdState = document.createElement('td');
+                tdState.className = 'border border-gray-300 px-3 py-2 text-left text-gray-700';
+                tdState.textContent = state.join(', '); // Join status messages with a comma
+                tr.appendChild(tdState);
+                tbody.appendChild(tr); // Add the row to the table body
+            });
+
+            // Show the records container
+            document.getElementById('viewRecordsContainer').classList.remove('hidden');
+            document.getElementById('chartContainer').classList.add('hidden'); // Hide graphs if records are viewed
+
+            // --- Dosing Plan Calculation (based on the latest record) ---
+            const latest = records[records.length - 1]; // Get the most recent record
+            let planHTML = '<h3 class="font-semibold mb-2 text-blue-900">7주간 도징 계획</h3><ul class="list-disc list-inside text-blue-800">';
+
+            Object.keys(reference).forEach(key => {
                 const ref = reference[key];
                 const val = latest[key];
-                if(ref.unitDose && val!=null){
-                    let target = ref.min;
-                    if(val > ref.max) return; // 과잉이면 스킵
-                    const diff = target - val;
-                    if(diff<=0) return;
+
+                // Only calculate dosing if unitDose is defined and the value is not null
+                if (ref.unitDose && val !== null) {
+                    let target = ref.min; // Target is the minimum recommended value
+
+                    if (val >= target) { // If current value is at or above target, no dosing needed
+                        return;
+                    }
+
+                    const diff = target - val; // Calculate the difference needed
+                    // Calculate total dose needed for the entire tank volume
                     const totalDose = ref.unitDose(diff * volume);
-                    const weekly = totalDose/7;
-                    planHTML += `<li>${key.toUpperCase()}: 주당 ${weekly.toFixed(2)}ml</li>`;
+                    const weeklyDose = totalDose / 7; // Divide by 7 for weekly dosing
+
+                    planHTML += `<li>${key.toUpperCase()}: 주당 ${weeklyDose.toFixed(2)}ml</li>`;
                 }
             });
             planHTML += '</ul>';
-            document.getElementById('dosagePlan').innerHTML = planHTML;
+            document.getElementById('dosagePlan').innerHTML = planHTML; // Display the dosing plan
+        });
+
+        // Initialize the date input with today's date
+        document.addEventListener('DOMContentLoaded', () => {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = (today.getMonth() + 1).toString().padStart(2, '0');
+            const day = today.getDate().toString().padStart(2, '0');
+            document.getElementById('dateInput').value = `${year}-${month}-${day}`;
         });
     </script>
 </body>
