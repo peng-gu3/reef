@@ -1,211 +1,149 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>해수어항 계산기 (모든 기능 복원)</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body { font-family: 'Noto Sans KR', sans-serif; }
-        .input-group { display: flex; align-items: center; margin-bottom: 1rem; }
-        .input-group label { flex: 1; font-weight: 600; color: #4A5568; }
-        .input-group input { flex: 2; padding: 0.5rem; border: 1px solid #CBD5E0; border-radius: 0.375rem; text-align: right; }
-        .input-group .unit { margin-left: 0.5rem; min-width: 40px; color: #718096; }
-        .result-item { padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 0.5rem; font-weight: 500; }
-        .result-good { background-color: #E6FFFA; color: #234E52; border-left: 4px solid #38B2AC; }
-        .result-low { background-color: #FFF5F5; color: #C53030; border-left: 4px solid #FC8181; }
-        .result-high { background-color: #FAF5FF; color: #6B46C1; border-left: 4px solid #B794F4; }
-        .result-action { background-color: #FEFCBF; color: #744210; border-left: 4px solid #F6E05E; }
-        #log-table th, #log-table td { padding: 0.5rem; text-align: center; font-size: 0.8rem; }
-        button:disabled { opacity: 0.7; cursor: not-allowed; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>해수어항 관리 도징 계산기</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: 'Noto Sans KR', sans-serif; background-color: #F0F4F8; }
+    .container { max-width: 1200px; margin: auto; padding: 1rem; }
+    .input-container, .output-container { background: white; padding: 1.5rem; border-radius: 0.75rem; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .grid-cols-2 { display: grid; grid-template-columns: repeat(2,1fr); gap: 1rem; }
+    .flex-col { display: flex; flex-direction: column; }
+    .mb-2 { margin-bottom: 0.5rem; }
+    .rounded { border-radius: 0.375rem; }
+    .border { border: 1px solid #CBD5E0; }
+    .p-2 { padding: 0.5rem; }
+    .button { padding: 0.75rem; font-weight: 600; border-radius: 0.375rem; cursor: pointer; }
+    .bg-blue { background: #3B82F6; color: white; }
+    .bg-green { background: #10B981; color: white; }
+    .flex { display: flex; }
+    .space-x-4 > * + * { margin-left: 1rem; }
+    #graph-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+    .modal-content { background: white; padding: 1rem; border-radius: 0.5rem; max-width: 600px; width: 90%; }
+  </style>
 </head>
-<body class="bg-gray-100">
-
-    <div class=<div class="container mx-auto p-4 md:p-8 max-w-7xl">
-        <div class="text-center mb-8">
-            <h1 class="text-4xl font-bold text-gray-800">해수어항 관리 로그</h1>
-            <p class="text-gray-600 mt-2">수치를 입력하고 계산한 후, 기록을 저장하세요.</p>
+<body>
+  <div class="container">
+    <h1 class="text-3xl font-bold text-center mb-6">해수어항 관리 도징 계산기</h1>
+    <div class="grid grid-cols-2 gap-6">
+      <!-- 입력 영역 -->
+      <div class="input-container">
+        <h2 class="text-xl font-semibold mb-4">어항 정보 입력</h2>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="flex-col mb-2"><label>날짜</label><input type="date" id="date" class="border p-2 rounded w-full"></div>
+          <div class="flex-col mb-2"><label>용량 (L)</label><input type="number" id="volume" class="border p-2 rounded w-full"></div>
+          <div class="flex-col mb-2"><label>온도 (°C)</label><input type="number" step="0.1" id="temp" class="border p-2 rounded w-full"></div>
+          <div class="flex-col mb-2"><label>염도 (ppt)</label><input type="number" step="0.1" id="salinity" class="border p-2 rounded w-full"></div>
+          <div class="flex-col mb-2"><label>pH</label><input type="number" step="0.1" id="ph" class="border p-2 rounded w-full"></div>
+          <div class="flex-col mb-2"><label>Ca (ppm)</label><input type="number" id="ca" class="border p-2 rounded w-full"></div>
+          <div class="flex-col mb-2"><label>Mg (ppm)</label><input type="number" id="mg" class="border p-2 rounded w-full"></div>
+          <div class="flex-col mb-2"><label>KH (dKH)</label><input type="number" step="0.1" id="kh" class="border p-2 rounded w-full"></div>
+          <div class="flex-col mb-2"><label>NO₂ (ppm)</label><input type="number" step="0.01" id="no2" class="border p-2 rounded w-full"></div>
+          <div class="flex-col mb-2"><label>NO₃ (ppm)</label><input type="number" step="0.01" id="no3" class="border p-2 rounded w-full"></div>
+          <div class="flex-col col-span-2 mb-2"><label>PO₄ (ppm)</label><input type="number" step="0.01" id="po4" class="border p-2 rounded w-full"></div>
         </div>
+        <div class="flex space-x-4 mt-4">
+          <button id="calc-btn" class="button bg-blue flex-1">계산하기</button>
+          <button id="save-btn" class="button bg-green flex-1">기록 저장</button>
+        </div>
+        <p id="status" class="text-center mt-2"></p>
+      </div>
+      <!-- 결과 영역 -->
+      <div class="output-container" id="results" style="display:none;">
+        <h2 class="text-xl font-semibold mb-4">계산 결과</h2>
+        <div id="results-list"></div>
+      </div>
+    </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- 입력 폼 (폭 절반) -->
-            <div class="lg:col-span-1 bg-white p-6 rounded-lg shadow-lg">
-                <h2 class="text-2xl font-semibold mb-6 text-gray-700 border-b pb-2">어항 정보 입력</h2>
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="flex flex-col"><label for="recordDate" class="mb-1">날짜</label><input type="date" id="recordDate" class="border p-2 rounded"></div>
-                    <div class="flex flex-col"><label for="tankVolume" class="mb-1">용량(L)</label><input type="number" id="tankVolume" class="border p-2 rounded" placeholder="160"></div>
-                    <div class="flex flex-col"><label for="temp" class="mb-1">온도(°C)</label><input type="number" step="0.1" id="temp" class="border p-2 rounded"></div>
-                    <div class="flex flex-col"><label for="salinity" class="mb-1">염도(ppt)</label><input type="number" step="0.1" id="salinity" class="border p-2 rounded"></div>
-                    <div class="flex flex-col"><label for="ph" class="mb-1">pH</label><input type="number" step="0.1" id="ph" class="border p-2 rounded"></div>
-                    <div class="flex flex-col"><label for="ca" class="mb-1">Ca(ppm)</label><input type="number" id="ca" class="border p-2 rounded"></div>
-                    <div class="flex flex-col"><label for="mg" class="mb-1">Mg(ppm)</label><input type="number" id="mg" class="border p-2 rounded"></div>
-                    <div class="flex flex-col"><label for="kh" class="mb-1">KH(dKH)</label><input type="number" step="0.1" id="kh" class="border p-2 rounded"></div>
-                    <div class="flex flex-col"><label for="no2" class="mb-1">NO₂(ppm)</label><input type="number" step="0.01" id="no2" class="border p-2 rounded"></div>
-                    <div class="flex flex-col"><label for="no3" class="mb-1">NO₃(ppm)</label><input type="number" step="0.01" id="no3" class="border p-2 rounded"></div>
-                    <div class="flex flex-col col-span-2"><label for="po4" class="mb-1">PO₄(ppm)</label><input type="number" step="0.01" id="po4" class="border p-2 rounded"></div>
-                </div>
-                <div class="mt-4 flex space-x-4">
-                    <button id="calculate-btn" class="flex-1 bg-blue-600 text-white py-2 rounded-lg">계산하기</button>
-                    <button id="save-btn" class="flex-1 bg-green-600 text-white py-2 rounded-lg">기록 저장</button>
-                </div>
-                <p id="status-message" class="text-center mt-2 h-5"></p>
-            </div>
+    <!-- 기록 및 조작 -->
+    <div class="input-container mt-8">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-semibold">저장된 기록</h2>
+        <div class="space-x-2">
+          <button id="show-chart" class="button bg-blue">그래프 보기</button>
+          <button id="reset-logs" class="button bg-green">기록 초기화</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto;"><table id="log-table" class="w-full text-sm"><thead><tr><th>날짜</th><th>온도</th><th>염도</th><th>pH</th><th>Ca</th><th>Mg</th><th>KH</th><th>NO₂</th><th>NO₃</th><th>PO₄</th><th>삭제</th></tr></thead><tbody></tbody></table></div>
+    </div>
+  </div>
 
-            <!-- 결과 및 로그 표시 (폭 절반) -->
-            <div class="lg:col-span-2 flex flex-col space-y-6">
-                <!-- 계산 결과 영역 -->
-                <div id="results-container" class="bg-white p-6 rounded-lg shadow-lg hidden">
-                    <h2 class="text-2xl font-semibold mb-4">계산 결과</h2>
-                    <div id="results-output" class="space-y-2"></div>
-                </div>
+  <!-- 차트 모달 -->
+  <div id="graph-modal" class="flex hidden" style="display:none;">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <h2 class="text-xl font-semibold mb-4">기록 그래프</h2>
+      <canvas id="chart"></canvas>
+      <button id="close-modal" class="button bg-blue mt-4">닫기</button>
+    </div>
+  </div>
 
-                <!-- 저장된 기록 및 조작 버튼 -->
-                <div class="bg-white p-6 rounded-lg shadow-lg">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-2xl font-semibold">저장된 기록</h2>
-                        <div class="space-x-2">
-                            <button id="show-graph-btn" class="bg-indigo-500 text-white px-4 py-2 rounded-lg">그래프 보기</button>
-                            <button id="clear-logs-btn" class="bg-red-500 text-white px-4 py-2 rounded-lg">기록 초기화</button>
-                        </div>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table id="log-table" class="w-full text-sm">
-                            <thead class="bg-gray-100">
-                                <tr>
-                                    <th>날짜</th><th>온도</th><th>염도</th><th>pH</th><th>Ca</th>
-                                    <th>Mg</th><th>KH</th><th>NO2</th><th>NO3</th><th>PO4</th><th>삭제</th>
-                                </tr>
-                            </thead>
-                            <tbody id="log-table-body"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div> <!-- grid -->
+  <script>
+    // 기준값
+    const targets = { temp:[25.5,26.5], sal:[34,35], ph:[8.0,8.3], ca:[400,440,420], mg:[1250,1440,1350], kh:[7.5,8.5,8.0], no2:[0], no3:[0.5,2.0,1.0], po4:[0.03,0.08,0.05] };
+    let logs = JSON.parse(localStorage.getItem('logs')||'[]');
+    const elems = ['date','volume','temp','salinity','ph','ca','mg','kh','no2','no3','po4'].reduce((o,id)=>{o[id]=document.getElementById(id);return o;},{});
+    const statusP = document.getElementById('status');
+    const resultsDiv = document.getElementById('results');
+    const resultsList = document.getElementById('results-list');
+    const logTableBody = document.querySelector('#log-table tbody');
 
-    <!-- 그래프 모달 및 스크립트 동일 ... --> 및 스크립트 동일 ... -->
-    <script type="module">
-        // Firebase 초기화 및 변수 설정 (생략)
-        
-        // 요소 조회를 추가합니다.
-        const saveBtn = document.getElementById('save-btn');
-        const statusMessage = document.getElementById('status-message');
-        const recordDateInput = document.getElementById('recordDate');
-        const inputIds = ['tankVolume','temp','salinity','ph','ca','mg','kh','no2','no3','po4'];
-        
-        saveBtn.addEventListener('click', async () => {
-            const logData = { date: recordDateInput.value };
-            inputIds.forEach(id => {
-                const value = parseFloat(document.getElementById(id).value);
-                if (!isNaN(value)) logData[id] = value;
-            });
-            if (!logData.date) {
-                statusMessage.textContent = "날짜를 선택해주세요.";
-                statusMessage.classList.add('text-red-500');
-                return;
-            }
-            saveBtn.disabled = true;
-            saveBtn.textContent = '저장 중...';
-            statusMessage.textContent = '';
-            try {
-                await addDoc(logsCollectionRef, logData);
-                statusMessage.textContent = "저장 완료!";
-                statusMessage.classList.remove('text-red-500');
-                statusMessage.classList.add('text-green-500');
-            } catch (error) {
-                console.error("저장 오류: ", error);
-                statusMessage.textContent = "저장 실패! 보안 규칙을 확인하세요.";
-                statusMessage.classList.remove('text-green-500');
-                statusMessage.classList.add('text-red-500');
-            } finally {
-                saveBtn.disabled = false;
-                saveBtn.textContent = '기록 저장';
-                setTimeout(() => statusMessage.textContent = '', 3000);
-            }
-        });
-        
-        // 그래프 및 기록 초기화 버튼 로직 추가
-        const showGraphBtn = document.getElementById('show-graph-btn');
-        const clearLogsBtn = document.getElementById('clear-logs-btn');
-        const graphModal = document.createElement('div');
-        graphModal.id = 'graph-modal';
-        graphModal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden';
-        graphModal.innerHTML = `
-            <div class="bg-white rounded-lg shadow-xl p-6 max-w-3xl w-full">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-semibold">기록 그래프</h2>
-                    <button id="close-graph" class="text-gray-500 text-2xl">&times;</button>
-                </div>
-                <canvas id="records-chart"></canvas>
-            </div>
-        `;
-        document.body.appendChild(graphModal);
-        const recordsChartCtx = document.getElementById('records-chart').getContext('2d');
-        let recordsChart;
-        showGraphBtn.addEventListener('click', () => {
-            graphModal.classList.remove('hidden');
-            // 그래프 데이터 준비
-            const labels = allRecords.map(r => new Date(r.recordDate).toLocaleDateString());
-            const dataCa = allRecords.map(r => r.ca);
-            const dataMg = allRecords.map(r => r.mg);
-            if (recordsChart) recordsChart.destroy();
-            recordsChart = new Chart(recordsChartCtx, {
-                type: 'line',
-                data: {
-                    labels,
-                    datasets: [
-                        { label: 'Ca (ppm)', data: dataCa, borderColor: '#38B2AC', tension: 0.1 },
-                        { label: 'Mg (ppm)', data: dataMg, borderColor: '#4C51BF', tension: 0.1 }
-                    ]
-                }
-            });
-        });
-        graphModal.addEventListener('click', (e) => {
-            if (e.target.id === 'close-graph') graphModal.classList.add('hidden');
-        });
-        
-        clearLogsBtn.addEventListener('click', async () => {
-            if (!confirm('모든 기록을 초기화하시겠습니까?')) return;
-            try {
-                // 모든 문서 삭제
-                const snapshot = await getDocs(logsCollectionRef);
-                const promises = snapshot.docs.map(doc => deleteDoc(doc.ref));
-                await Promise.all(promises);
-            } catch (error) {
-                console.error('기록 초기화 오류:', error);
-            }
-        });
-            if (!logData.date) {
-                statusMessage.textContent = "날짜를 선택해주세요.";
-                statusMessage.classList.add('text-red-500');
-                return;
-            }
-            // 버튼 텍스트와 상태 변경
-            saveBtn.disabled = true;
-            saveBtn.textContent = '저장 중...';
-            statusMessage.textContent = '';
-            
-            try {
-                await addDoc(logsCollectionRef, logData);
-                statusMessage.textContent = "저장 완료!";
-                statusMessage.classList.remove('text-red-500');
-                statusMessage.classList.add('text-green-500');
-            } catch (error) {
-                console.error("저장 오류: ", error);
-                statusMessage.textContent = "저장 실패! 보안 규칙을 확인하세요.";
-                statusMessage.classList.remove('text-green-500');
-                statusMessage.classList.add('text-red-500');
-            } finally {
-                // 버튼 복원
-                saveBtn.disabled = false;
-                saveBtn.textContent = '기록 저장';
-                // 상태 메시지 자동 제거
-                setTimeout(() => statusMessage.textContent = '', 3000);
-            }
-        });
-    </script>
+    // 계산
+    document.getElementById('calc-btn').addEventListener('click',()=>{
+      resultsList.innerHTML='';
+      let has=false;
+      Object.keys(targets).forEach(key=>{
+        const val=parseFloat(elems[key].value);
+        const t=targets[key];
+        if(isNaN(val))return;
+        has=true;
+        let txt,cls='';
+        if(key==='ca'||key==='mg'||key==='kh'||key==='no3'||key==='po4'){
+          if(val<t[0]){txt=`${key} 낮음: ${t[2]-val}ml 도징 필요.`;cls='low';}
+          else if(val>t[1]){txt=`${key} 높음: 환수 권장.`;cls='high';}
+          else{txt=`${key} 안정적.`;cls='good';}
+        } else if(key==='no2'){txt=val>0?`NO₂ 검출: 교체 필요.`:`NO₂ 안정.`;cls=val>0?'high':'good';}
+        else{if(val<t[0]){txt=`${key} 낮음.`;cls='low';}else if(val>t[1]){txt=`${key} 높음.`;cls='high';}else{txt=`${key} 안정.`;cls='good';}}
+        const div=document.createElement('div');div.className=`result-item ${'result-'+cls}`;div.textContent=txt;
+        resultsList.appendChild(div);
+      });
+      resultsDiv.style.display=has?'block':'none';
+    });
+
+    // 기록 저장
+    document.getElementById('save-btn').addEventListener('click',()=>{
+      const entry={date:elems.date.value, temp:elems.temp.value, sal:elems.salinity.value, ph:elems.ph.value, ca:elems.ca.value, mg:elems.mg.value, kh:elems.kh.value, no2:elems.no2.value, no3:elems.no3.value, po4:elems.po4.value};
+      logs.push(entry);
+      localStorage.setItem('logs',JSON.stringify(logs));
+      statusP.textContent='저장 완료!';setTimeout(()=>statusP.textContent='',2000);
+      renderLogs();
+    });
+
+    // 테이블 렌더
+    function renderLogs(){logTableBody.innerHTML='';
+      logs.forEach((l,i)=>{const tr=document.createElement('tr');tr.innerHTML=`<td>${l.date}</td><td>${l.temp}</td><td>${l.sal}</td><td>${l.ph}</td><td>${l.ca}</td><td>${l.mg}</td><td>${l.kh}</td><td>${l.no2}</td><td>${l.no3}</td><td>${l.po4}</td><td><button data-i="${i}">X</button></td>`;logTableBody.append(tr);});}
+    logTableBody.addEventListener('click',e=>{if(e.target.dataset.i){logs.splice(e.target.dataset.i,1);localStorage.setItem('logs',JSON.stringify(logs));renderLogs();}});
+
+    // 그래프 모달
+    const modal=document.getElementById('graph-modal');
+    document.getElementById('show-chart').addEventListener('click',()=>{
+      modal.style.display='flex';
+      const ctx=document.getElementById('chart').getContext('2d');
+      const labels=logs.map(l=>l.date);
+      const dataCa=logs.map(l=>l.ca), dataMg=logs.map(l=>l.mg);
+      new Chart(ctx,{type:'line',data:{labels,datasets:[{label:'Ca',data:dataCa},{label:'Mg',data:dataMg}]}});
+    });
+    document.getElementById('close-modal').addEventListener('click',()=>modal.style.display='none');
+
+    // 초기화
+    document.getElementById('reset-logs').addEventListener('click',()=>{if(confirm('초기화?')){logs=[];localStorage.removeItem('logs');renderLogs();}});
+
+    // 초기 로드
+    elems.date.valueAsDate=new Date();renderLogs();
+  </script>
 </body>
 </html>
