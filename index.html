@@ -67,10 +67,10 @@
         <canvas id="trendChart" height="200"></canvas>
     </div>
 
-    <!-- 기록 테이블 섹션 -->
+    <!-- 기록 및 비교 결과 섹션 -->
     <div id="viewRecordsContainer" class="max-w-3xl mx-auto bg-white rounded-2xl shadow p-6 mt-6 hidden">
-        <h2 class="text-xl font-bold mb-4">저장된 기록</h2>
-        <div class="overflow-x-auto">
+        <h2 class="text-xl font-bold mb-4">저장된 기록 및 비교 결과</h2>
+        <div class="overflow-x-auto mb-4">
             <table id="recordsTable" class="w-full table-auto border-collapse text-sm">
                 <thead>
                     <tr>
@@ -84,14 +84,29 @@
                         <th class="border px-2 py-1">NO₂</th>
                         <th class="border px-2 py-1">NO₃</th>
                         <th class="border px-2 py-1">PO₄</th>
+                        <th class="border px-2 py-1">상태</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
             </table>
         </div>
+        <div id="dosagePlan" class="bg-gray-50 p-4 rounded"></div>
     </div>
 
     <script>
+        const volume = 160; // 수조 부피 (L)
+        const reference = {
+            temp: {min: 25, max: 26},
+            salinity: {min: 34, max: 35},
+            ph: {min: 8.0, max: 8.3},
+            ca: {min: 420, max: 430, unitDose: v=>v/100},
+            mg: {min: 1400, max: 1440, unitDose: v=>v/100},
+            kh: {min: 7.0, max: 8.0, unitDose: v=>v/10},
+            no2: {min: 0, max: 0.02},
+            no3: {min: 0.5, max: 2.0, unitDose: v=>v/100},
+            po4: {min: 0.03, max: 0.1}
+        };
+
         function getRecords() {
             return JSON.parse(localStorage.getItem('records') || '[]');
         }
@@ -121,44 +136,61 @@
         });
 
         document.getElementById('viewGraphsBtn').addEventListener('click', () => {
-            const records = getRecords().sort((a, b) => a.date.localeCompare(b.date));
-            if (records.length === 0) { alert('저장된 기록이 없습니다.'); return; }
-            const labels = records.map(r => r.date);
+            const records = getRecords().sort((a,b)=>a.date.localeCompare(b.date));
+            if (!records.length) { alert('저장된 기록이 없습니다.'); return; }
+            const labels = records.map(r=>r.date);
             const params = ['temp','salinity','ph','ca','mg','kh','no2','no3','po4'];
             const colors = ['red','orange','yellow','green','blue','indigo','violet','gray','black'];
-            const datasets = params.map((key, i) => ({
-                label: key,
-                data: records.map(r => r[key]),
-                borderColor: colors[i], fill: false, spanGaps: true
-            }));
-
-            if (window.trendChart) window.trendChart.destroy();
-            const ctx = document.getElementById('trendChart').getContext('2d');
-            window.trendChart = new Chart(ctx, {
-                type: 'line', data: { labels, datasets },
-                options: { responsive: true, interaction: { mode: 'index', intersect: false }, stacked: false,
-                    scales: { x: { display: true, title: { display: true, text: '날짜' } }, y: { display: true, title: { display: true, text: '값' } } }
-                }
-            });
+            const datasets = params.map((key,i)=>({ label:key, data:records.map(r=>r[key]), borderColor:colors[i], fill:false, spanGaps:true }));
+            if(window.trendChart) window.trendChart.destroy();
+            const ctx=document.getElementById('trendChart').getContext('2d');
+            window.trendChart=new Chart(ctx,{type:'line',data:{labels,datasets},options:{responsive:true,interaction:{mode:'index',intersect:false},scales:{x:{title:{display:true,text:'날짜'}},y:{title:{display:true,text:'값'}}}}});
             document.getElementById('chartContainer').classList.remove('hidden');
         });
 
         document.getElementById('viewRecordsBtn').addEventListener('click', () => {
-            const records = getRecords().sort((a, b) => a.date.localeCompare(b.date));
-            if (records.length === 0) { alert('저장된 기록이 없습니다.'); return; }
+            const records = getRecords().sort((a,b)=>a.date.localeCompare(b.date));
+            if (!records.length) { alert('저장된 기록이 없습니다.'); return; }
             const tbody = document.querySelector('#recordsTable tbody');
-            tbody.innerHTML = '';
-            records.forEach(r => {
-                const tr = document.createElement('tr');
-                ['date','temp','salinity','ph','ca','mg','kh','no2','no3','po4'].forEach(key => {
-                    const td = document.createElement('td');
-                    td.className = 'border px-2 py-1 text-center';
-                    td.textContent = r[key] !== null ? r[key] : '-';
-                    tr.appendChild(td);
+            tbody.innerHTML='';
+            records.forEach(r=>{
+n                const state = []; // 상태 요약
+                // 비교
+                Object.keys(reference).forEach(key=>{
+                    if(r[key]!=null && reference[key].min!=null){
+                        if(r[key]<reference[key].min) state.push(`${key}: 낮음`);
+                        else if(r[key]>reference[key].max) state.push(`${key}: 높음`);
+                        else state.push(`${key}: 정상`);
+                    }
                 });
+                const tr=document.createElement('tr');
+                ['date','temp','salinity','ph','ca','mg','kh','no2','no3','po4'].forEach(key=>{
+                    const td=document.createElement('td'); td.className='border px-2 py-1 text-center'; td.textContent=r[key]!=null? r[key] : '-'; tr.appendChild(td);
+                });
+                const tdState=document.createElement('td'); tdState.className='border px-2 py-1 text-left'; tdState.textContent=state.join(', ');
+                tr.appendChild(tdState);
                 tbody.appendChild(tr);
             });
             document.getElementById('viewRecordsContainer').classList.remove('hidden');
+
+            // 도징 계획 (최신 레코드 기준)
+            const latest = records[records.length-1];
+            let planHTML = '<h3 class="font-semibold mb-2">7주간 도징 계획</h3><ul class="list-disc list-inside">';
+            Object.keys(reference).forEach(key=>{
+                const ref = reference[key];
+                const val = latest[key];
+                if(ref.unitDose && val!=null){
+                    let target = ref.min;
+                    if(val > ref.max) return; // 과잉이면 스킵
+                    const diff = target - val;
+                    if(diff<=0) return;
+                    const totalDose = ref.unitDose(diff * volume);
+                    const weekly = totalDose/7;
+                    planHTML += `<li>${key.toUpperCase()}: 주당 ${weekly.toFixed(2)}ml</li>`;
+                }
+            });
+            planHTML += '</ul>';
+            document.getElementById('dosagePlan').innerHTML = planHTML;
         });
     </script>
 </body>
