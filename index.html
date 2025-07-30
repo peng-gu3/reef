@@ -333,7 +333,8 @@
                 no2: parseFloat(document.getElementById('no2Input').value) || null,
                 no3: parseFloat(document.getElementById('no3Input').value) || null,
                 po4: parseFloat(document.getElementById('po4Input').value) || null,
-                creature: document.getElementById('creatureInput').value || null // Added creature input
+                creature: document.getElementById('creatureInput').value || null,
+                isDosingCompleted: false // Default for new records
             };
         }
 
@@ -550,7 +551,7 @@
                         if (key === 'no3' || key === 'po4') {
                             if (dailyDose < MIN_DAILY_DOSE) {
                                 dosingMessage = `권장 도징: 해당 일 도징 건너뛰고 다음 날 수치 확인`;
-                            } else if (totalDose < SINGLE_DOSE_THRESHOLD) {
+                            } else if (totalDosing < SINGLE_DOSE_THRESHOLD) { // Use totalDose here
                                 dosingMessage = `권장 도징: ${totalDose.toFixed(2)}${ref.doseUnit} (하루에 모두 도징 권장)`;
                             } else {
                                 dosingMessage = `권장 도징: ${totalDose.toFixed(2)}${ref.doseUnit} (일일 ${dailyDose.toFixed(2)}${ref.doseUnit}씩 7일간 분할 권장)`;
@@ -581,30 +582,43 @@
             }
 
             // --- Dosing Completion Button Logic for the currently displayed plan ---
-            const completedDosingDate = localStorage.getItem('completedDosingDate');
-            if (record && record.date === completedDosingDate) {
+            if (record && record.isDosingCompleted) { // Directly check the record's status
                 completeDosingBtn.classList.add('hidden');
                 dosingCompletionStatus.classList.remove('hidden');
             } else {
                 completeDosingBtn.classList.remove('hidden');
                 dosingCompletionStatus.classList.add('hidden');
-                // Remove existing listener to prevent multiple bindings
-                const oldListener = completeDosingBtn.dataset.currentListener;
-                if (oldListener) {
-                    completeDosingBtn.removeEventListener('click', window[oldListener]);
-                }
-
-                // Add new listener for the current record
-                const newListenerName = `completeDosingHandler_${record.date.replace(/-/g, '')}`;
-                window[newListenerName] = () => {
-                    if (record && record.date) {
-                        localStorage.setItem('completedDosingDate', record.date);
-                        showMessageBox('도징 계획이 완료 처리되었습니다!');
-                        renderDosingPlanForRecord(record); // Re-render this specific plan to update status
+                
+                // Ensure the event listener is only added once per record or removed/re-added for different records
+                // Use a unique ID based on the record's date to manage listeners
+                const currentRecordDateForBtn = completeDosingBtn.dataset.recordDate;
+                if (currentRecordDateForBtn !== record.date) { // If the button is linked to a different date's listener
+                    // Remove old listener if it exists
+                    const oldListenerName = `completeDosingHandler_${currentRecordDateForBtn ? currentRecordDateForBtn.replace(/-/g, '') : ''}`;
+                    if (window[oldListenerName]) {
+                        completeDosingBtn.removeEventListener('click', window[oldListenerName]);
+                        delete window[oldListenerName]; // Clean up global function reference
                     }
-                };
-                completeDosingBtn.addEventListener('click', window[newListenerName]);
-                completeDosingBtn.dataset.currentListener = newListenerName;
+
+                    // Add new listener for the current record
+                    const newListenerName = `completeDosingHandler_${record.date.replace(/-/g, '')}`;
+                    window[newListenerName] = () => {
+                        if (record) { // Ensure record is still valid
+                            record.isDosingCompleted = true; // Mark this specific record as completed
+                            const allRecords = getRecords();
+                            const recordIndex = allRecords.findIndex(r => r.date === record.date);
+                            if (recordIndex !== -1) {
+                                allRecords[recordIndex] = record; // Update the record in the main array
+                                saveRecords(allRecords); // Save the updated array
+                                showMessageBox('도징 계획이 완료 처리되었습니다!');
+                                renderDosingPlanForRecord(record); // Re-render this specific plan to update status
+                                displayRecordsTable(); // Also update the table to reflect any changes if needed (though not directly visible here)
+                            }
+                        }
+                    };
+                    completeDosingBtn.addEventListener('click', window[newListenerName]);
+                    completeDosingBtn.dataset.recordDate = record.date; // Store the date this listener is for
+                }
             }
         }
 
@@ -754,8 +768,17 @@
 
             if (isEditMode) {
                 // Update existing record
-                records = records.filter(r => r.date !== currentEditingDate); // Remove old record
-                records.push(record); // Add updated record
+                const recordIndex = records.findIndex(r => r.date === currentEditingDate);
+                if (recordIndex !== -1) {
+                    // Preserve original isDosingCompleted status when updating
+                    const oldRecord = records[recordIndex];
+                    const updatedRecord = { ...record, isDosingCompleted: oldRecord.isDosingCompleted || false };
+                    records[recordIndex] = updatedRecord;
+                } else {
+                    // This case should ideally not happen if currentEditingDate is valid
+                    // but as a fallback, add as new if not found
+                    records.push({ ...record, isDosingCompleted: false });
+                }
                 saveRecords(records);
                 showMessageBox('기록이 수정되었습니다.');
 
@@ -772,10 +795,9 @@
                     showMessageBox('해당 날짜의 기록이 이미 존재합니다. 수정하려면 \'수정\' 버튼을 사용하세요.');
                     return;
                 }
-                records.push(record);
+                records.push({ ...record, isDosingCompleted: false }); // New record starts as not completed
                 saveRecords(records);
                 showMessageBox('기록이 저장되었습니다.');
-                localStorage.removeItem('completedDosingDate'); // Reset completion status for new record
             }
             
             updateConsolidatedStatuses(record); // Update consolidated statuses
@@ -878,6 +900,8 @@
 
             // Render the graph on initial load
             renderTrendChart();
+            // Display records table and dosing plan on initial load
+            displayRecordsTable();
         });
     </script>
 </body>
