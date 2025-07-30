@@ -3,18 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>해수어항 관리 로그</title>
+  <title>해수어항 도징 계산기</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body class="bg-gray-100">
   <div class="container mx-auto p-4 max-w-5xl">
-    <!-- 입력 및 결과 영역 -->
-    <div class="grid lg:grid-cols-2 gap-8">
+    <div class="grid gap-8 grid-cols-1 lg:grid-cols-2">
       <!-- 입력 영역 -->
-      <div class="bg-white p-6 rounded-lg shadow">
+      <div class="bg-white p-6 rounded-lg shadow-lg">
         <h2 class="text-xl font-semibold mb-4">어항 정보 입력</h2>
         <div class="space-y-4">
           <div><label>날짜</label><input type="date" id="date" class="w-full border p-2 rounded"></div>
+          <div><label>용량 (L)</label><input type="number" id="volume" class="w-full border p-2 rounded" placeholder="160"></div>
           <div><label>온도 (°C)</label><input type="number" id="temp" step="0.1" class="w-full border p-2 rounded"></div>
           <div><label>염도 (ppt)</label><input type="number" id="salinity" step="0.1" class="w-full border p-2 rounded"></div>
           <div><label>pH</label><input type="number" id="ph" step="0.1" class="w-full border p-2 rounded"></div>
@@ -26,20 +27,20 @@
           <div><label>PO₄ (ppm)</label><input type="number" id="po4" step="0.01" class="w-full border p-2 rounded"></div>
         </div>
         <div class="flex space-x-4 mt-6">
-          <button id="calc-btn" class="flex-1 bg-blue-600 text-white py-2 rounded">계산하기</button>
+          <button id="calculate-btn" class="flex-1 bg-blue-600 text-white py-2 rounded">계산하기</button>
           <button id="save-btn" class="flex-1 bg-green-600 text-white py-2 rounded">기록 저장</button>
         </div>
         <p id="status" class="text-center mt-2 text-sm text-red-600"></p>
       </div>
       <!-- 결과 영역 -->
-      <div class="bg-white p-6 rounded-lg shadow" id="results" style="display:none;">
+      <div class="bg-white p-6 rounded-lg shadow-lg" id="results" style="display:none;">
         <h2 class="text-xl font-semibold mb-4">계산 결과</h2>
         <div id="result-list" class="space-y-2"></div>
       </div>
     </div>
 
-    <!-- 저장된 기록 및 조작 -->
-    <div class="mt-8 bg-white p-6 rounded-lg shadow">
+    <!-- 기록 및 조작 -->
+    <div class="mt-8 bg-white p-6 rounded-lg shadow-lg">
       <div class="flex justify-between items-center mb-4">
         <h2 class="text-xl font-semibold">저장된 기록</h2>
         <div class="space-x-2">
@@ -71,85 +72,79 @@
   </div>
 
   <script>
-    // 기록 저장 배열
+    // 로컬스토리지 기반 로그
     let logs = JSON.parse(localStorage.getItem('logs')||'[]');
 
-    // 계산 로직 (Ca/Mg/KH 기본, NO3/PO4 공식)
+    // 반올림
     function roundDose(val){ if(val<0.3) return 0; if(val<0.6) return 0.3; return Math.round(val/0.3)*0.3; }
 
-    document.getElementById('calc-btn').addEventListener('click', ()=>{
-      const vol = +document.getElementById('volume')?.value || +document.getElementById('vol')?.value;
+    // 계산
+    document.getElementById('calculate-btn').addEventListener('click',()=>{
+      const vol = +document.getElementById('volume')?.value || +document.getElementById('volume')?.value;
       const params = ['ca','mg','kh','no3','po4'].reduce((o,id)=>({ ...o, [id]: +document.getElementById(id).value }),{});
-      const resultEl = document.getElementById('result-list'); resultEl.innerHTML='';
+      const out = document.getElementById('result-list'); out.innerHTML='';
       if(!vol){ document.getElementById('status').textContent='용량을 입력하세요.'; return; }
       document.getElementById('status').textContent='';
       // Ca/Mg/KH
       [['ca',2,420],['mg',1,1350],['kh',0.1,8.0]].forEach(([id,eff,target])=>{
-        const val = params[id];
-        if(!isNaN(val)){
-          const delta = target - val;
-          if(delta>0){
-            const dose = roundDose((vol*delta)/(100*eff));
-            const div = document.createElement('div'); div.textContent=`${id.toUpperCase()}: 현재 ${val}, 목표 ${target}, 주간 도징 ${dose}ml`;
-            resultEl.appendChild(div);
-          }
+        const val = params[id]; if(isNaN(val)) return;
+        const delta = target - val;
+        if(delta>0){ const dose = roundDose((vol*delta)/(100*eff));
+          const div=document.createElement('div'); div.textContent=`${id.toUpperCase()}: 현재 ${val}, 목표 ${target}, 주간 도징 ${dose}ml`;
+          out.appendChild(div);
         }
       });
       // NO3
       const no3 = params.no3;
       if(!isNaN(no3)){
         const delta3 = 0.8 - no3;
-        if(delta3>0){ const dose3 = roundDose((vol*delta3)/100); const d=document.createElement('div'); d.textContent=`NO₃: 현재 ${no3}, 목표 0.8, 주간 도징 ${dose3}ml`; resultEl.appendChild(d);}  
+        if(delta3>0){ const dose3 = roundDose((vol*delta3)/100);
+          const d=document.createElement('div'); d.textContent=`NO₃: 현재 ${no3}, 목표 0.8, 주간 도징 ${dose3}ml`;
+          out.appendChild(d);
+        }
       }
       // PO4
       const po4 = params.po4;
       if(!isNaN(po4)){
         const delta4 = 0.10 - po4;
-        if(delta4>0){ const dose4 = roundDose((vol*delta4)/100); const d=document.createElement('div'); d.textContent=`PO₄: 현재 ${po4}, 목표 0.10, 주간 도징 ${dose4}ml`; resultEl.appendChild(d);}  
+        if(delta4>0){ const dose4 = roundDose((vol*delta4)/100);
+          const d2=document.createElement('div'); d2.textContent=`PO₄: 현재 ${po4}, 목표 0.10, 주간 도징 ${dose4}ml`;
+          out.appendChild(d2);
+        }
       }
       document.getElementById('results').style.display='block';
     });
 
-    // 기록 저장
-    document.getElementById('save-btn').addEventListener('click', ()=>{
+    // 저장
+    document.getElementById('save-btn').addEventListener('click',()=>{
       const entry = {
-        date: document.getElementById('date').value,
-        temp: document.getElementById('temp').value,
-        salinity: document.getElementById('salinity').value,
-        ph: document.getElementById('ph').value,
-        ca: document.getElementById('ca').value,
-        mg: document.getElementById('mg').value,
-        kh: document.getElementById('kh').value,
-        no2: document.getElementById('no2').value,
-        no3: document.getElementById('no3').value,
-        po4: document.getElementById('po4').value
+        date:document.getElementById('date').value,
+        temp:document.getElementById('temp').value,
+        salinity:document.getElementById('salinity').value,
+        ph:document.getElementById('ph').value,
+        ca:document.getElementById('ca').value,
+        mg:document.getElementById('mg').value,
+        kh:document.getElementById('kh').value,
+        no2:document.getElementById('no2').value,
+        no3:document.getElementById('no3').value,
+        po4:document.getElementById('po4').value
       };
-      logs.push(entry);
-      localStorage.setItem('logs', JSON.stringify(logs));
-      renderLogs();
+      logs.push(entry); localStorage.setItem('logs',JSON.stringify(logs)); renderLogs();
     });
 
-    function renderLogs(){
-      const tbody = document.getElementById('log-table'); tbody.innerHTML='';
-      logs.forEach((l,i)=>{
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${l.date}</td><td>${l.temp}</td><td>${l.salinity}</td><td>${l.ph}</td><td>${l.ca}</td><td>${l.mg}</td><td>${l.kh}</td><td>${l.no2}</td><td>${l.no3}</td><td>${l.po4}</td><td><button data-i="${i}">X</button></td>`;
+    // 렌더
+    function renderLogs(){ const tbody=document.getElementById('log-table'); tbody.innerHTML=''; logs.forEach((l,i)=>{
+        const tr=document.createElement('tr'); tr.innerHTML=`<td>${l.date}</td><td>${l.temp}</td><td>${l.salinity}</td><td>${l.ph}</td><td>${l.ca}</td><td>${l.mg}</td><td>${l.kh}</td><td>${l.no2}</td><td>${l.no3}</td><td>${l.po4}</td><td><button data-i="${i}">X</button></td>`;
         tbody.appendChild(tr);
       });
     }
-    document.getElementById('log-table').addEventListener('click', e=>{
-      const i = e.target.dataset.i;
-      if(i!==undefined){ logs.splice(i,1); localStorage.setItem('logs',JSON.stringify(logs)); renderLogs(); }
-    });
+    document.getElementById('log-table').addEventListener('click',e=>{ const i=e.target.dataset.i; if(i!==undefined){ logs.splice(i,1); localStorage.setItem('logs',JSON.stringify(logs)); renderLogs(); }});
 
     // 초기화
-    document.getElementById('reset-logs').addEventListener('click', ()=>{ if(confirm('모두 초기화?')){ logs=[]; localStorage.removeItem('logs'); renderLogs(); }});
-
-    // 그래프 생략
+    document.getElementById('reset-logs').addEventListener('click',()=>{ if(confirm('초기화하시겠습니까?')){ logs=[]; localStorage.removeItem('logs'); renderLogs(); }});
 
     // 초기 실행
-    document.getElementById('date').valueAsDate = new Date();
-    renderLogs();
+    document.getElementById('date').valueAsDate=new Date(); renderLogs();
   </script>
 </body>
 </html>
