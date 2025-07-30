@@ -34,6 +34,7 @@
         <div class="flex space-x-2 mt-4">
           <button id="calculate-btn" class="flex-1 bg-blue-600 text-white py-2 rounded">계산하기</button>
           <button id="save-btn" class="flex-1 bg-green-600 text-white py-2 rounded">기록 저장</button>
+          <button id="graph-btn" class="flex-1 bg-purple-600 text-white py-2 rounded">그래프 보기</button>
         </div>
       </div>
 
@@ -95,6 +96,9 @@
             const dose = roundDose(vol * delta / (key === 'no3' ? 100 * 0.03 : 100 * 0.001));
             cls = 'result-low';
             msg = `${key.toUpperCase()}: 낮음. 목표치(${t.target})까지 ${delta.toFixed(2)}ppm 올리려면 약 ${dose}ml 도징 필요.`;
+          } else if (val > t.max) {
+            cls = 'result-high';
+            msg = `${key.toUpperCase()}: 높음. 목표 범위(${t.min}~${t.max})로 조절해주세요.`;
           } else {
             msg = `${key.toUpperCase()}: 안정적 수치입니다.`;
           }
@@ -103,7 +107,7 @@
             const delta = t.target - val;
             const factor = key === 'ca' ? 2 : (key === 'mg' ? 1 : 0.1);
             const dose = roundDose((vol * delta) / (100 * factor));
-            msg = `${key.toUpperCase()}: 낮음. 목표치(${t.target})까지 ${val}ppm 올리려면 약 ${dose}ml 도징 필요. (매일 약 ${(dose/7).toFixed(1)}ml × 7일 권장)`;
+            msg = `${key.toUpperCase()}: 낮음. 목표치(${t.target})까지 ${delta.toFixed(1)}ppm 올리려면 약 ${dose}ml 도징 필요. (매일 약 ${(dose/7).toFixed(1)}ml × 7일 권장)`;
             cls = 'result-low';
           } else {
             msg = `${key.toUpperCase()}: 낮음. 목표 범위(${t.min}~${t.max})로 조절해주세요.`;
