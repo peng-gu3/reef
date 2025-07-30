@@ -69,75 +69,77 @@
       po4: [0.03, 0.08]
     };
 
-    document.getElementById('calculate-btn').addEventListener('click', () => {
-      const fields = ['temp','salinity','ph','ca','mg','kh','no2','no3','po4'];
-      const resultBox = document.getElementById('results-output');
-      resultBox.innerHTML = '';
-      fields.forEach(id => {
-        const val = parseFloat(document.getElementById(id).value);
-        if (!isNaN(val)) {
-          const [min, max] = 기준[id];
-          let msg = '', cls = '';
-          if (val < min) {
-            cls = 'result-low'; msg = `${id.toUpperCase()}: ${val} → 기준 미달. 보충 권장.`;
-          } else if (val > max) {
-            cls = 'result-high'; msg = `${id.toUpperCase()}: ${val} → 기준 초과. 감량 권장.`;
-          } else {
-            cls = 'result-good'; msg = `${id.toUpperCase()}: ${val} → 안정적 수치입니다.`;
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('calculate-btn').addEventListener('click', () => {
+        const fields = ['temp','salinity','ph','ca','mg','kh','no2','no3','po4'];
+        const resultBox = document.getElementById('results-output');
+        resultBox.innerHTML = '';
+        fields.forEach(id => {
+          const val = parseFloat(document.getElementById(id).value);
+          if (!isNaN(val)) {
+            const [min, max] = 기준[id];
+            let msg = '', cls = '';
+            if (val < min) {
+              cls = 'result-low'; msg = `${id.toUpperCase()}: ${val} → 기준 미달. 보충 권장.`;
+            } else if (val > max) {
+              cls = 'result-high'; msg = `${id.toUpperCase()}: ${val} → 기준 초과. 감량 권장.`;
+            } else {
+              cls = 'result-good'; msg = `${id.toUpperCase()}: ${val} → 안정적 수치입니다.`;
+            }
+            resultBox.innerHTML += `<div class='result-item ${cls}'>${msg}</div>`;
           }
-          resultBox.innerHTML += `<div class='result-item ${cls}'>${msg}</div>`;
-        }
+        });
       });
-    });
 
-    document.getElementById('save-btn').addEventListener('click', () => {
-      const row = document.createElement('tr');
-      const fields = ['date','temp','salinity','ph','ca','mg','kh','no2','no3','po4'];
-      fields.forEach(id => {
-        const td = document.createElement('td');
-        td.textContent = document.getElementById(id).value;
-        row.appendChild(td);
+      document.getElementById('save-btn').addEventListener('click', () => {
+        const row = document.createElement('tr');
+        const fields = ['date','temp','salinity','ph','ca','mg','kh','no2','no3','po4'];
+        fields.forEach(id => {
+          const td = document.createElement('td');
+          td.textContent = document.getElementById(id).value;
+          row.appendChild(td);
+        });
+        const del = document.createElement('td');
+        const btn = document.createElement('button');
+        btn.textContent = '삭제';
+        btn.className = 'text-red-500';
+        btn.onclick = () => row.remove();
+        del.appendChild(btn);
+        row.appendChild(del);
+        document.getElementById('log-table-body').appendChild(row);
       });
-      const del = document.createElement('td');
-      const btn = document.createElement('button');
-      btn.textContent = '삭제';
-      btn.className = 'text-red-500';
-      btn.onclick = () => row.remove();
-      del.appendChild(btn);
-      row.appendChild(del);
-      document.getElementById('log-table-body').appendChild(row);
-    });
 
-    document.getElementById('clear-logs-btn').addEventListener('click', () => {
-      document.getElementById('log-table-body').innerHTML = '';
-    });
-
-    document.getElementById('graph-btn').addEventListener('click', () => {
-      const labels = [], caArr = [], mgArr = [], khArr = [];
-      const rows = document.querySelectorAll('#log-table-body tr');
-      rows.forEach(row => {
-        const cells = row.querySelectorAll('td');
-        labels.push(cells[0]?.textContent || '');
-        caArr.push(Number(cells[4]?.textContent) || 0);
-        mgArr.push(Number(cells[5]?.textContent) || 0);
-        khArr.push(Number(cells[6]?.textContent) || 0);
+      document.getElementById('clear-logs-btn').addEventListener('click', () => {
+        document.getElementById('log-table-body').innerHTML = '';
       });
-      const win = window.open('', 'Graph', 'width=1000,height=600');
-      win.document.write('<h2>그래프 보기</h2><canvas id="chart"></canvas><script src="https://cdn.jsdelivr.net/npm/chart.js"></script><script>new Chart(document.getElementById("chart"), {type: "line", data: {labels: ' + JSON.stringify(labels) + ', datasets: [{label: "Ca", data: ' + JSON.stringify(caArr) + ', borderColor: "#60A5FA", fill: false}, {label: "Mg", data: ' + JSON.stringify(mgArr) + ', borderColor: "#34D399", fill: false}, {label: "KH", data: ' + JSON.stringify(khArr) + ', borderColor: "#FBBF24", fill: false}]}, options: {responsive: true}});<\/script>');
-    });
 
-    document.getElementById('ai-btn').addEventListener('click', () => {
-      const ca = parseFloat(document.getElementById('ca').value);
-      const mg = parseFloat(document.getElementById('mg').value);
-      const kh = parseFloat(document.getElementById('kh').value);
-      let tips = '<h2>AI 어드바이스</h2><ul>';
-      if (ca < 415) tips += '<li>칼슘(Ca) 수치가 낮습니다. 도징을 시작하세요.</li>';
-      if (mg < 1400) tips += '<li>마그네슘(Mg)이 기준 미달입니다. 보충 필요.</li>';
-      if (kh < 7.7) tips += '<li>KH 수치가 낮습니다. 알카리니티 도징 권장.</li>';
-      if (tips === '<h2>AI 어드바이스</h2><ul>') tips += '<li>모든 수치가 안정적입니다. 유지하세요.</li>';
-      tips += '</ul>';
-      const win = window.open('', 'AI', 'width=600,height=400');
-      win.document.write(tips);
+      document.getElementById('graph-btn').addEventListener('click', () => {
+        const labels = [], caArr = [], mgArr = [], khArr = [];
+        const rows = document.querySelectorAll('#log-table-body tr');
+        rows.forEach(row => {
+          const cells = row.querySelectorAll('td');
+          labels.push(cells[0]?.textContent || '');
+          caArr.push(Number(cells[4]?.textContent) || 0);
+          mgArr.push(Number(cells[5]?.textContent) || 0);
+          khArr.push(Number(cells[6]?.textContent) || 0);
+        });
+        const win = window.open('', 'Graph', 'width=1000,height=600');
+        win.document.write('<h2>그래프 보기</h2><canvas id="chart"></canvas><script src="https://cdn.jsdelivr.net/npm/chart.js"></script><script>new Chart(document.getElementById("chart"), {type: "line", data: {labels: ' + JSON.stringify(labels) + ', datasets: [{label: "Ca", data: ' + JSON.stringify(caArr) + ', borderColor: "#60A5FA", fill: false}, {label: "Mg", data: ' + JSON.stringify(mgArr) + ', borderColor: "#34D399", fill: false}, {label: "KH", data: ' + JSON.stringify(khArr) + ', borderColor: "#FBBF24", fill: false}]}, options: {responsive: true}});<\/script>');
+      });
+
+      document.getElementById('ai-btn').addEventListener('click', () => {
+        const ca = parseFloat(document.getElementById('ca').value);
+        const mg = parseFloat(document.getElementById('mg').value);
+        const kh = parseFloat(document.getElementById('kh').value);
+        let tips = '<h2>AI 어드바이스</h2><ul>';
+        if (ca < 415) tips += '<li>칼슘(Ca) 수치가 낮습니다. 도징을 시작하세요.</li>';
+        if (mg < 1400) tips += '<li>마그네슘(Mg)이 기준 미달입니다. 보충 필요.</li>';
+        if (kh < 7.7) tips += '<li>KH 수치가 낮습니다. 알카리니티 도징 권장.</li>';
+        if (tips === '<h2>AI 어드바이스</h2><ul>') tips += '<li>모든 수치가 안정적입니다. 유지하세요.</li>';
+        tips += '</ul>';
+        const win = window.open('', 'AI', 'width=600,height=400');
+        win.document.write(tips);
+      });
     });
   </script>
 </body>
