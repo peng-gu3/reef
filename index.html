@@ -164,6 +164,10 @@
                         <input id="po4Input" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
                     </div>
                 </div>
+                <div class="flex flex-col">
+                    <label for="creatureInput" class="block font-medium text-gray-700 mb-1">생물 투입</label>
+                    <input id="creatureInput" type="text" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" placeholder="예: 물고기 2마리, 산호 1개" />
+                </div>
             </div>
             <div class="flex flex-wrap gap-4">
                 <button id="saveRecordOnlyBtn" class="px-6 py-3 bg-blue-500 text-white font-semibold rounded-2xl shadow-md hover:bg-blue-600 transition-colors duration-200">기록 저장</button>
@@ -197,6 +201,7 @@
                                 <th class="border border-gray-300 px-3 py-2 text-gray-700">NO₂</th>
                                 <th class="border border-gray-300 px-3 py-2 text-gray-700">NO₃</th>
                                 <th class="border border-gray-300 px-3 py-2 text-gray-700">PO₄</th>
+                                <th class="border border-gray-300 px-3 py-2 text-gray-700">생물 투입</th>
                                 <th class="border border-gray-300 px-3 py-2 text-gray-700">삭제</th>
                             </tr>
                         </thead>
@@ -322,7 +327,8 @@
                 kh: parseFloat(document.getElementById('khInput').value) || null,
                 no2: parseFloat(document.getElementById('no2Input').value) || null,
                 no3: parseFloat(document.getElementById('no3Input').value) || null,
-                po4: parseFloat(document.getElementById('po4Input').value) || null
+                po4: parseFloat(document.getElementById('po4Input').value) || null,
+                creature: document.getElementById('creatureInput').value || null // Added creature input
             };
         }
 
@@ -501,104 +507,39 @@
         }
 
         /**
-         * Displays records in the table and calculates the 7-day dosing plan.
+         * Renders the dosing plan based on a specific record.
+         * @param {Object} record - The record object for which to display the dosing plan.
          */
-        function displayRecordsAndDosingPlan() {
-            const records = getRecords().sort((a, b) => a.date.localeCompare(b.date)); // Sort records by date
-
+        function renderDosingPlanForRecord(record) {
             const dosingPlanList = document.getElementById('dosingPlanList');
             dosingPlanList.innerHTML = ''; // Clear previous dosing plan items
 
             const completeDosingBtn = document.getElementById('completeDosingBtn');
             const dosingCompletionStatus = document.getElementById('dosingCompletionStatus');
 
-            if (!records.length) {
-                showMessageBox('저장된 기록이 없습니다.');
-                document.getElementById('viewRecordsContainer').classList.add('hidden');
-                completeDosingBtn.classList.add('hidden');
-                dosingCompletionStatus.classList.add('hidden');
-                return;
-            }
-
-            const tbody = document.querySelector('#recordsTable tbody');
-            tbody.innerHTML = ''; // Clear existing table rows
-
-            // Populate the table with records
-            records.forEach(r => {
-                // Create a new table row
-                const tr = document.createElement('tr');
-                tr.className = 'hover:bg-gray-50'; // Add hover effect to rows
-
-                // Add data cells for each parameter, including volume
-                ['date', 'volume', 'temp', 'salinity', 'ph', 'ca', 'mg', 'kh', 'no2', 'no3', 'po4'].forEach(key => {
-                    const td = document.createElement('td');
-                    td.className = 'border border-gray-300 px-3 py-2 text-center text-gray-700';
-                    td.textContent = r[key] !== null ? r[key] : '-'; // Display '-' for null values
-                    tr.appendChild(td);
-                });
-
-                // Add delete button cell
-                const tdDelete = document.createElement('td');
-                tdDelete.className = 'border border-gray-300 px-3 py-2 text-center';
-                const deleteBtn = document.createElement('button');
-                deleteBtn.textContent = '삭제';
-                deleteBtn.className = 'px-3 py-1 bg-red-500 text-white rounded-lg text-xs hover:bg-red-600 transition-colors duration-200';
-                deleteBtn.dataset.date = r.date; // Store date to identify record for deletion
-                deleteBtn.addEventListener('click', (event) => {
-                    const dateToDelete = event.target.dataset.date;
-                    let currentRecords = getRecords();
-                    const updatedRecords = currentRecords.filter(rec => rec.date !== dateToDelete);
-                    saveRecords(updatedRecords);
-                    showMessageBox(`날짜 ${dateToDelete}의 기록이 삭제되었습니다.`);
-                    displayRecordsAndDosingPlan(); // Re-render the table
-                    // If no records left, clear input statuses
-                    if (updatedRecords.length === 0) {
-                        updateConsolidatedStatuses({}); // Clear all statuses
-                    } else {
-                        // Otherwise, update statuses based on the new latest record
-                        const newLatest = updatedRecords.sort((a,b)=>a.date.localeCompare(b.date))[updatedRecords.length - 1];
-                        updateConsolidatedStatuses(newLatest);
-                    }
-                    renderTrendChart(); // Re-render chart after deletion
-                });
-                tdDelete.appendChild(deleteBtn);
-                tr.appendChild(tdDelete);
-
-                tbody.appendChild(tr); // Add the row to the table body
-            });
-
-            // Show the records container
-            document.getElementById('viewRecordsContainer').classList.remove('hidden');
-
-            // --- Dosing Plan Calculation (based on the latest record) ---
-            const latest = records[records.length - 1]; // Get the most recent record
             let hasDosingRecommendation = false;
             
-            if (latest && latest.volume && !isNaN(latest.volume) && latest.volume > 0) { // Ensure latest record and valid volume exist
+            if (record && record.volume && !isNaN(record.volume) && record.volume > 0) {
                 Object.keys(reference).forEach(key => {
                     const ref = reference[key];
-                    const val = latest[key];
+                    const val = record[key];
 
-                    // Only calculate dosing if unitDose is defined and the value is not null and not NaN
                     if (ref.unitDose && val !== null && !isNaN(val)) {
-                        let target = ref.min; // Target is the minimum recommended value
+                        let target = ref.min;
 
-                        if (val >= target) { // If current value is at or above target, no dosing needed
+                        if (val >= target) {
                             return;
                         }
 
-                        const diff = target - val; // Calculate the difference needed
-                        // Calculate total dose needed for the entire tank volume
-                        const totalDose = ref.unitDose(diff, latest.volume);
-                        let dailyDose = totalDose / 7; // Divide by 7 for daily dosing over 7 days
+                        const diff = target - val;
+                        const totalDose = ref.unitDose(diff, record.volume);
+                        let dailyDose = totalDose / 7;
 
-                        // Apply minimum daily dose for NO3 and PO4
                         if ((key === 'no3' || key === 'po4') && dailyDose < MIN_DAILY_DOSE) {
                             dailyDose = MIN_DAILY_DOSE;
                         }
 
                         let dosingMessage = '';
-                        // Recommend single-day dosing if total amount is very small
                         if (totalDose < SINGLE_DOSE_THRESHOLD) {
                             dosingMessage = `권장 도징: ${totalDose.toFixed(2)}${ref.doseUnit} (하루에 모두 도징 권장)`;
                         } else {
@@ -618,29 +559,114 @@
                 }
             } else {
                 const listItem = document.createElement('li');
-                listItem.textContent = '최신 기록 또는 유효한 수조 부피 정보가 없어 도징 계획을 계산할 수 없습니다.';
+                listItem.textContent = '선택된 기록 또는 유효한 수조 부피 정보가 없어 도징 계획을 계산할 수 없습니다.';
                 dosingPlanList.appendChild(listItem);
             }
 
-            // --- Dosing Completion Button Logic ---
+            // --- Dosing Completion Button Logic for the currently displayed plan ---
             const completedDosingDate = localStorage.getItem('completedDosingDate');
-            if (latest && latest.date === completedDosingDate) {
+            if (record && record.date === completedDosingDate) {
                 completeDosingBtn.classList.add('hidden');
                 dosingCompletionStatus.classList.remove('hidden');
             } else {
                 completeDosingBtn.classList.remove('hidden');
                 dosingCompletionStatus.classList.add('hidden');
-                // Ensure the event listener is only added once
-                if (!completeDosingBtn.dataset.listenerAdded) {
-                    completeDosingBtn.addEventListener('click', () => {
-                        if (latest && latest.date) {
-                            localStorage.setItem('completedDosingDate', latest.date);
-                            showMessageBox('도징 계획이 완료 처리되었습니다!');
-                            displayRecordsAndDosingPlan(); // Re-render to update status
-                        }
-                    });
-                    completeDosingBtn.dataset.listenerAdded = 'true';
+                // Remove existing listener to prevent multiple bindings
+                const oldListener = completeDosingBtn.dataset.currentListener;
+                if (oldListener) {
+                    completeDosingBtn.removeEventListener('click', window[oldListener]);
                 }
+
+                // Add new listener for the current record
+                const newListenerName = `completeDosingHandler_${record.date.replace(/-/g, '')}`;
+                window[newListenerName] = () => {
+                    if (record && record.date) {
+                        localStorage.setItem('completedDosingDate', record.date);
+                        showMessageBox('도징 계획이 완료 처리되었습니다!');
+                        renderDosingPlanForRecord(record); // Re-render this specific plan to update status
+                    }
+                };
+                completeDosingBtn.addEventListener('click', window[newListenerName]);
+                completeDosingBtn.dataset.currentListener = newListenerName;
+            }
+        }
+
+
+        /**
+         * Displays records in the table.
+         */
+        function displayRecordsTable() {
+            const records = getRecords().sort((a, b) => a.date.localeCompare(b.date)); // Sort records by date
+
+            if (!records.length) {
+                showMessageBox('저장된 기록이 없습니다.');
+                document.getElementById('viewRecordsContainer').classList.add('hidden');
+                return;
+            }
+
+            const tbody = document.querySelector('#recordsTable tbody');
+            tbody.innerHTML = ''; // Clear existing table rows
+
+            // Populate the table with records
+            records.forEach(r => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-50 cursor-pointer'; // Add cursor pointer for clickability
+
+                // Make the row clickable to show dosing plan for that record
+                tr.addEventListener('click', () => {
+                    renderDosingPlanForRecord(r);
+                });
+
+                // Add data cells for each parameter, including volume and creature
+                ['date', 'volume', 'temp', 'salinity', 'ph', 'ca', 'mg', 'kh', 'no2', 'no3', 'po4', 'creature'].forEach(key => {
+                    const td = document.createElement('td');
+                    td.className = 'border border-gray-300 px-3 py-2 text-center text-gray-700';
+                    td.textContent = r[key] !== null ? r[key] : '-'; // Display '-' for null values
+                    tr.appendChild(td);
+                });
+
+                // Add delete button cell
+                const tdDelete = document.createElement('td');
+                tdDelete.className = 'border border-gray-300 px-3 py-2 text-center';
+                const deleteBtn = document.createElement('button');
+                deleteBtn.textContent = '삭제';
+                deleteBtn.className = 'px-3 py-1 bg-red-500 text-white rounded-lg text-xs hover:bg-red-600 transition-colors duration-200';
+                deleteBtn.dataset.date = r.date; // Store date to identify record for deletion
+                deleteBtn.addEventListener('click', (event) => {
+                    event.stopPropagation(); // Prevent row click event from firing
+                    const dateToDelete = event.target.dataset.date;
+                    let currentRecords = getRecords();
+                    const updatedRecords = currentRecords.filter(rec => rec.date !== dateToDelete);
+                    saveRecords(updatedRecords);
+                    showMessageBox(`날짜 ${dateToDelete}의 기록이 삭제되었습니다.`);
+                    displayRecordsTable(); // Re-render the table
+                    // If no records left, clear input statuses and dosing plan
+                    if (updatedRecords.length === 0) {
+                        updateConsolidatedStatuses({}); // Clear all statuses
+                        document.getElementById('dosingPlanList').innerHTML = '';
+                        document.getElementById('completeDosingBtn').classList.add('hidden');
+                        document.getElementById('dosingCompletionStatus').classList.add('hidden');
+                    } else {
+                        // Otherwise, update statuses and dosing plan based on the new latest record
+                        const newLatest = updatedRecords.sort((a,b)=>a.date.localeCompare(b.date))[updatedRecords.length - 1];
+                        updateConsolidatedStatuses(newLatest);
+                        renderDosingPlanForRecord(newLatest);
+                    }
+                    renderTrendChart(); // Re-render chart after deletion
+                });
+                tdDelete.appendChild(deleteBtn);
+                tr.appendChild(tdDelete);
+
+                tbody.appendChild(tr); // Add the row to the table body
+            });
+
+            // Show the records container
+            document.getElementById('viewRecordsContainer').classList.remove('hidden');
+
+            // Initially render dosing plan for the latest record when table is displayed
+            if (records.length > 0) {
+                const latest = records[records.length - 1];
+                renderDosingPlanForRecord(latest);
             }
         }
 
@@ -649,7 +675,7 @@
         // Event listener for the custom message box button
         document.getElementById('customMessageBoxButton').addEventListener('click', hideMessageBox);
 
-        // Event listener for the "Save Record" button (now separated)
+        // Event listener for the "Save Record" button
         document.getElementById('saveRecordOnlyBtn').addEventListener('click', () => {
             const date = document.getElementById('dateInput').value;
             const volume = parseFloat(document.getElementById('volumeInput').value);
@@ -664,22 +690,10 @@
             }
 
             // Create a record object from input values
-            const record = {
-                date,
-                volume, // Include volume in the record
-                temp: parseFloat(document.getElementById('tempInput').value) || null,
-                salinity: parseFloat(document.getElementById('salinityInput').value) || null,
-                ph: parseFloat(document.getElementById('phInput').value) || null,
-                ca: parseFloat(document.getElementById('caInput').value) || null,
-                mg: parseFloat(document.getElementById('mgInput').value) || null,
-                kh: parseFloat(document.getElementById('khInput').value) || null,
-                no2: parseFloat(document.getElementById('no2Input').value) || null,
-                no3: parseFloat(document.getElementById('no3Input').value) || null,
-                po4: parseFloat(document.getElementById('po4Input').value) || null
-            };
+            const record = getCurrentFormValues(); // Get all current form values
 
             // Get existing records, filter out any existing record for the same date, then add the new one
-            let records = getRecords().filter(r => r.date !== date);
+            let records = getRecords().filter(r => r.date !== record.date);
             records.push(record);
             saveRecords(records); // Save the updated list of records
 
@@ -687,12 +701,12 @@
             updateConsolidatedStatuses(record); // Update consolidated statuses based on the newly saved record
             renderTrendChart(); // Re-render the chart after saving a new record
             localStorage.removeItem('completedDosingDate'); // Reset completion status for new record
-            displayRecordsAndDosingPlan(); // Re-render dosing plan to reflect new record and reset status
+            renderDosingPlanForRecord(record); // Re-render dosing plan to reflect new record and reset status
         });
 
-        // Event listener for the new "View Results" button
+        // Event listener for the "View Results" button
         document.getElementById('viewResultsBtn').addEventListener('click', () => {
-            displayRecordsAndDosingPlan(); // Call the function to display records and dosing plan
+            displayRecordsTable(); // Call the function to display records table
         });
 
         // Initialize the date input with today's date and update statuses on load if records exist
@@ -720,6 +734,7 @@
                 document.getElementById('no2Input').value = latest.no2 !== null ? latest.no2 : '';
                 document.getElementById('no3Input').value = latest.no3 !== null ? latest.no3 : '';
                 document.getElementById('po4Input').value = latest.po4 !== null ? latest.po4 : '';
+                document.getElementById('creatureInput').value = latest.creature || ''; // Pre-fill creature input
 
                 updateConsolidatedStatuses(latest); // Update consolidated statuses based on loaded data
             }
