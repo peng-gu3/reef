@@ -145,9 +145,9 @@
         <!-- Right Column: Graph and Records/Comparison Results -->
         <div class="flex flex-col gap-6">
             <!-- Graph Section (initially visible) -->
-            <div id="chartContainer" class="bg-white rounded-2xl shadow p-6">
+            <div id="chartContainer" class="bg-white rounded-2xl shadow p-6 h-[400px]"> <!-- Added fixed height -->
                 <h2 class="text-xl font-bold mb-4 text-gray-800">수질 파라미터 추이</h2>
-                <canvas id="trendChart" height="200"></canvas>
+                <canvas id="trendChart" class="w-full h-full"></canvas> <!-- Added w-full h-full -->
             </div>
 
             <!-- Records and Comparison Results Section (initially hidden, shown by "결과 보기" button) -->
@@ -318,7 +318,11 @@
             }
 
             const ctx = document.getElementById('trendChart').getContext('2d');
-            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); // Clear canvas regardless
+            // Clear canvas only if it's not the first render and there are no records to draw
+            if (!records.length && ctx) {
+                ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); // Clear canvas
+            }
+
 
             if (!records.length) {
                 // No records to display, so show a message and keep the chart container visible
