@@ -57,6 +57,7 @@
         <div class="flex space-x-4">
             <button id="saveRecordBtn" class="px-4 py-2 bg-blue-500 text-white rounded-2xl shadow hover:bg-blue-600">기록 저장</button>
             <button id="viewGraphsBtn" class="px-4 py-2 bg-green-500 text-white rounded-2xl shadow hover:bg-green-600">그래프 보기</button>
+            <button id="viewRecordsBtn" class="px-4 py-2 bg-yellow-500 text-white rounded-2xl shadow hover:bg-yellow-600">기록 보기</button>
         </div>
     </div>
 
@@ -66,8 +67,31 @@
         <canvas id="trendChart" height="200"></canvas>
     </div>
 
+    <!-- 기록 테이블 섹션 -->
+    <div id="viewRecordsContainer" class="max-w-3xl mx-auto bg-white rounded-2xl shadow p-6 mt-6 hidden">
+        <h2 class="text-xl font-bold mb-4">저장된 기록</h2>
+        <div class="overflow-x-auto">
+            <table id="recordsTable" class="w-full table-auto border-collapse text-sm">
+                <thead>
+                    <tr>
+                        <th class="border px-2 py-1">날짜</th>
+                        <th class="border px-2 py-1">온도</th>
+                        <th class="border px-2 py-1">염도</th>
+                        <th class="border px-2 py-1">pH</th>
+                        <th class="border px-2 py-1">Ca</th>
+                        <th class="border px-2 py-1">Mg</th>
+                        <th class="border px-2 py-1">KH</th>
+                        <th class="border px-2 py-1">NO₂</th>
+                        <th class="border px-2 py-1">NO₃</th>
+                        <th class="border px-2 py-1">PO₄</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
     <script>
-        // 저장된 레코드를 localStorage에 저장하고 불러오기
         function getRecords() {
             return JSON.parse(localStorage.getItem('records') || '[]');
         }
@@ -75,7 +99,6 @@
             localStorage.setItem('records', JSON.stringify(records));
         }
 
-        // 기록 저장 핸들러
         document.getElementById('saveRecordBtn').addEventListener('click', () => {
             const date = document.getElementById('dateInput').value;
             if (!date) { alert('날짜를 입력해주세요.'); return; }
@@ -91,56 +114,51 @@
                 no3: parseFloat(document.getElementById('no3Input').value) || null,
                 po4: parseFloat(document.getElementById('po4Input').value) || null
             };
-            const records = getRecords();
-            // 중복 날짜 레코드 제거
-            const filtered = records.filter(r => r.date !== date);
-            filtered.push(record);
-            saveRecords(filtered);
+            const records = getRecords().filter(r => r.date !== date);
+            records.push(record);
+            saveRecords(records);
             alert('기록이 저장되었습니다.');
         });
 
-        // 그래프 보기 핸들러
         document.getElementById('viewGraphsBtn').addEventListener('click', () => {
             const records = getRecords().sort((a, b) => a.date.localeCompare(b.date));
             if (records.length === 0) { alert('저장된 기록이 없습니다.'); return; }
-
-            // 차트 데이터 준비
             const labels = records.map(r => r.date);
-            const datasets = [];
             const params = ['temp','salinity','ph','ca','mg','kh','no2','no3','po4'];
             const colors = ['red','orange','yellow','green','blue','indigo','violet','gray','black'];
-            params.forEach((key, i) => {
-                datasets.push({
-                    label: key,
-                    data: records.map(r => r[key]),
-                    borderColor: colors[i],
-                    fill: false,
-                    spanGaps: true
-                });
-            });
+            const datasets = params.map((key, i) => ({
+                label: key,
+                data: records.map(r => r[key]),
+                borderColor: colors[i], fill: false, spanGaps: true
+            }));
 
-            // 기존 차트가 있으면 삭제
-            if (window.trendChart) {
-                window.trendChart.destroy();
-            }
-
+            if (window.trendChart) window.trendChart.destroy();
             const ctx = document.getElementById('trendChart').getContext('2d');
             window.trendChart = new Chart(ctx, {
-                type: 'line',
-                data: { labels, datasets },
-                options: {
-                    responsive: true,
-                    interaction: { mode: 'index', intersect: false },
-                    stacked: false,
-                    scales: {
-                        x: { display: true, title: { display: true, text: '날짜' } },
-                        y: { display: true, title: { display: true, text: '값' } }
-                    }
+                type: 'line', data: { labels, datasets },
+                options: { responsive: true, interaction: { mode: 'index', intersect: false }, stacked: false,
+                    scales: { x: { display: true, title: { display: true, text: '날짜' } }, y: { display: true, title: { display: true, text: '값' } } }
                 }
             });
-
-            // 차트 영역 표시
             document.getElementById('chartContainer').classList.remove('hidden');
+        });
+
+        document.getElementById('viewRecordsBtn').addEventListener('click', () => {
+            const records = getRecords().sort((a, b) => a.date.localeCompare(b.date));
+            if (records.length === 0) { alert('저장된 기록이 없습니다.'); return; }
+            const tbody = document.querySelector('#recordsTable tbody');
+            tbody.innerHTML = '';
+            records.forEach(r => {
+                const tr = document.createElement('tr');
+                ['date','temp','salinity','ph','ca','mg','kh','no2','no3','po4'].forEach(key => {
+                    const td = document.createElement('td');
+                    td.className = 'border px-2 py-1 text-center';
+                    td.textContent = r[key] !== null ? r[key] : '-';
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+            document.getElementById('viewRecordsContainer').classList.remove('hidden');
         });
     </script>
 </body>
