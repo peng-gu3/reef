@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>해수어항 도징 계산기 (최종 완성 버전)</title>
+    <title>펭구 수질기록부</title>
     <!-- Tailwind CSS CDN for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts for Noto Sans KR -->
@@ -237,9 +237,11 @@
             ca: { min: 420, max: 430, unitDose: (diff, volume) => (diff * volume) / 100, label: 'Ca', unit: 'ppm', doseUnit: 'ml' }, // Example: 100ppm increase per 1 unit dose for 1L
             mg: { min: 1400, max: 1440, unitDose: (diff, volume) => (diff * volume) / 100, label: 'Mg', unit: 'ppm', doseUnit: 'ml' }, // Example: 100ppm increase per 1 unit dose for 1L
             kh: { min: 7.0, max: 8.0, unitDose: (diff, volume) => (diff * volume) / 10, label: 'KH', unit: 'dKH', doseUnit: 'ml' },   // Example: 10dKH increase per 1 unit dose for 1L
-            no2: { min: 0, max: 0.02, label: 'NO₂', unit: 'ppm', recommendation: '검출됨! 즉시 환수를 권장합니다.' },
-            no3: { min: 0.5, max: 2.0, unit: 'ppm', label: 'NO₃', recommendation: '높음. 20% 환수 또는 리무버 사용을 권장합니다.' },
-            po4: { min: 0.03, max: 0.1, unit: 'ppm', label: 'PO₄', recommendation: '높음. 20% 환수 또는 리무버 사용을 권장합니다.' }
+            no2: { min: 0, max: 0.02, label: 'NO₂', unit: 'ppm', recommendationHigh: '검출됨! 즉시 환수를 권장합니다.' },
+            // Updated unitDose for NO3 based on provided image: 1ml per 100L increases NO3 by 1ppm
+            no3: { min: 0.5, max: 2.0, unit: 'ppm', label: 'NO₃', unitDose: (diff, volume) => (diff * volume) / 100, doseUnit: 'ml', recommendationHigh: '높음. 20% 환수 또는 리무버 사용을 권장합니다.' },
+            // unitDose for PO4 based on provided image: 1ml per 100L increases PO4 by 0.1ppm
+            po4: { min: 0.03, max: 0.1, unit: 'ppm', label: 'PO₄', unitDose: (diff, volume) => (diff * volume) / 10, doseUnit: 'ml', recommendationHigh: '높음. 20% 환수 또는 리무버 사용을 권장합니다.' }
         };
 
         // --- Utility Functions for Local Storage and Message Box ---
@@ -334,7 +336,7 @@
                         statusText = '낮음';
                         statusClass = 'status-low';
                         statusTextColor = 'status-text-low';
-                        if (ref.unitDose) {
+                        if (ref.unitDose && dataObject.volume > 0) { // Check if unitDose is defined and volume is valid for low values
                             const diff = ref.min - val;
                             const totalDose = ref.unitDose(diff, dataObject.volume);
                             const dailyDose = totalDose / 7;
@@ -344,8 +346,8 @@
                         statusText = '높음';
                         statusClass = 'status-high';
                         statusTextColor = 'status-text-high';
-                        if (ref.recommendation) {
-                            recommendation = ref.recommendation;
+                        if (ref.recommendationHigh) { // Use recommendationHigh for high values
+                            recommendation = ref.recommendationHigh;
                         }
                     } else {
                         statusText = '정상';
@@ -535,7 +537,8 @@
 
             // --- Dosing Plan Calculation (based on the latest record) ---
             const latest = records[records.length - 1]; // Get the most recent record
-            let planHTML = '<h3 class="font-semibold mb-2 text-blue-900">7일간 도징 계획</h3><ul class="list-disc list-inside text-blue-800">';
+            // Changed title from "7일간 도징 계획" to "도징 계획"
+            let planHTML = '<h3 class="font-semibold mb-2 text-blue-900">도징 계획</h3><ul class="list-disc list-inside text-blue-800">';
 
             let hasDosingRecommendation = false;
             if (latest && latest.volume && !isNaN(latest.volume) && latest.volume > 0) { // Ensure latest record and valid volume exist
