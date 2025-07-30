@@ -182,36 +182,45 @@
                 statusMessage.classList.add('text-red-500');
             });
 
-            saveBtn.addEventListener('click', async () => {
-                const logData = { date: recordDateInput.value };
-                inputIds.forEach(id => {
-                    const value = parseFloat(document.getElementById(id).value);
-                    if (!isNaN(value)) logData[id] = value;
-                });
-                if (!logData.date) { statusMessage.textContent = "날짜를 선택해주세요."; statusMessage.classList.add('text-red-500'); return; }
-                saveBtn.disabled = true;
-                statusMessage.textContent = "저장 중...";
-                statusMessage.classList.remove('text-red-500', 'text-green-500');
-                try {
-                    await addDoc(logsCollectionRef, logData);
-                    statusMessage.textContent = "저장 완료!";
-                    statusMessage.classList.add('text-green-500');
-                } catch (error) {
-                    console.error("저장 오류: ", error);
-                    statusMessage.textContent = "저장 실패! 보안 규칙을 확인하세요.";
-                    statusMessage.classList.add('text-red-500');
-                } finally {
-                    saveBtn.disabled = false;
-                    setTimeout(() => statusMessage.textContent = '', 3000);
-                }
+            const saveBtn = document.getElementById('save-btn');
+        const statusMessage = document.getElementById('status-message');
+        const recordDateInput = document.getElementById('recordDate');
+        const inputIds = ['tankVolume','temp','salinity','ph','ca','mg','kh','no2','no3','po4'];
+        
+        saveBtn.addEventListener('click', async () => {
+            const logData = { date: recordDateInput.value };
+            inputIds.forEach(id => {
+                const value = parseFloat(document.getElementById(id).value);
+                if (!isNaN(value)) logData[id] = value;
             });
-
-            logTableBody.addEventListener('click', async (e) => {
-                if (e.target.classList.contains('delete-btn')) {
-                    const docId = e.target.dataset.id;
-                    try { await deleteDoc(doc(db, 'reef-logs-v2', docId)); } catch (error) { console.error("삭제 오류: ", error); }
-                }
-            });
+            if (!logData.date) {
+                statusMessage.textContent = "날짜를 선택해주세요.";
+                statusMessage.classList.add('text-red-500');
+                return;
+            }
+            // 버튼 텍스트와 상태 변경
+            saveBtn.disabled = true;
+            saveBtn.textContent = '저장 중...';
+            statusMessage.textContent = '';
+            
+            try {
+                await addDoc(logsCollectionRef, logData);
+                statusMessage.textContent = "저장 완료!";
+                statusMessage.classList.remove('text-red-500');
+                statusMessage.classList.add('text-green-500');
+            } catch (error) {
+                console.error("저장 오류: ", error);
+                statusMessage.textContent = "저장 실패! 보안 규칙을 확인하세요.";
+                statusMessage.classList.remove('text-green-500');
+                statusMessage.classList.add('text-red-500');
+            } finally {
+                // 버튼 복원
+                saveBtn.disabled = false;
+                saveBtn.textContent = '기록 저장';
+                // 상태 메시지 자동 제거
+                setTimeout(() => statusMessage.textContent = '', 3000);
+            }
+        });
         }
 
         calculateBtn.addEventListener('click', () => {
