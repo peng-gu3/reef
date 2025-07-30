@@ -56,124 +56,131 @@
     </style>
 </head>
 <body class="bg-gray-100 p-6">
-    <div class="max-w-3xl mx-auto bg-white rounded-2xl shadow p-6">
-        <h1 class="text-2xl font-bold mb-4 text-gray-800">해수어항 도징 계산기</h1>
-        <!-- Input Form Section -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-            <div class="flex flex-col">
-                <label for="dateInput" class="block font-medium text-gray-700 mb-1">날짜</label>
-                <input id="dateInput" type="date" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
-            </div>
-            <div class="flex flex-col">
-                <label for="volumeInput" class="block font-medium text-gray-700 mb-1">수조 부피 (L)</label>
-                <input id="volumeInput" type="number" step="1" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" value="160" />
-            </div>
-            <div class="flex flex-col">
-                <label for="tempInput" class="block font-medium text-gray-700 mb-1">온도 (°C)</label>
-                <div class="flex items-center gap-2">
-                    <input id="tempInput" type="number" step="0.1" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
-                    <span id="tempStatus" class="text-sm font-semibold min-w-[60px] text-right"></span>
+    <!-- Main application container with two columns for larger screens -->
+    <div id="mainAppContainer" class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Left Column: Input Form and Buttons -->
+        <div class="bg-white rounded-2xl shadow p-6">
+            <h1 class="text-2xl font-bold mb-4 text-gray-800">해수어항 도징 계산기</h1>
+            <!-- Input Form Section -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <div class="flex flex-col">
+                    <label for="dateInput" class="block font-medium text-gray-700 mb-1">날짜</label>
+                    <input id="dateInput" type="date" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
+                </div>
+                <div class="flex flex-col">
+                    <label for="volumeInput" class="block font-medium text-gray-700 mb-1">수조 부피 (L)</label>
+                    <input id="volumeInput" type="number" step="1" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" value="160" />
+                </div>
+                <div class="flex flex-col">
+                    <label for="tempInput" class="block font-medium text-gray-700 mb-1">온도 (°C)</label>
+                    <div class="flex items-center gap-2">
+                        <input id="tempInput" type="number" step="0.1" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
+                        <span id="tempStatus" class="text-sm font-semibold min-w-[60px] text-right"></span>
+                    </div>
+                </div>
+                <div class="flex flex-col">
+                    <label for="salinityInput" class="block font-medium text-gray-700 mb-1">염도 (ppt)</label>
+                    <div class="flex items-center gap-2">
+                        <input id="salinityInput" type="number" step="0.1" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
+                        <span id="salinityStatus" class="text-sm font-semibold min-w-[60px] text-right"></span>
+                    </div>
+                </div>
+                <div class="flex flex-col">
+                    <label for="phInput" class="block font-medium text-gray-700 mb-1">pH</label>
+                    <div class="flex items-center gap-2">
+                        <input id="phInput" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
+                        <span id="phStatus" class="text-sm font-semibold min-w-[60px] text-right"></span>
+                    </div>
+                </div>
+                <div class="flex flex-col">
+                    <label for="caInput" class="block font-medium text-gray-700 mb-1">Ca (ppm)</label>
+                    <div class="flex items-center gap-2">
+                        <input id="caInput" type="number" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
+                        <span id="caStatus" class="text-sm font-semibold min-w-[60px] text-right"></span>
+                    </div>
+                </div>
+                <div class="flex flex-col">
+                    <label for="mgInput" class="block font-medium text-gray-700 mb-1">Mg (ppm)</label>
+                    <div class="flex items-center gap-2">
+                        <input id="mgInput" type="number" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
+                        <span id="mgStatus" class="text-sm font-semibold min-w-[60px] text-right"></span>
+                    </div>
+                </div>
+                <div class="flex flex-col">
+                    <label for="khInput" class="block font-medium text-gray-700 mb-1">KH (dKH)</label>
+                    <div class="flex items-center gap-2">
+                        <input id="khInput" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
+                        <span id="khStatus" class="text-sm font-semibold min-w-[60px] text-right"></span>
+                    </div>
+                </div>
+                <div class="flex flex-col">
+                    <label for="no2Input" class="block font-medium text-gray-700 mb-1">NO₂ (ppm)</label>
+                    <div class="flex items-center gap-2">
+                        <input id="no2Input" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
+                        <span id="no2Status" class="text-sm font-semibold min-w-[60px] text-right"></span>
+                    </div>
+                </div>
+                <div class="flex flex-col">
+                    <label for="no3Input" class="block font-medium text-gray-700 mb-1">NO₃ (ppm)</label>
+                    <div class="flex items-center gap-2">
+                        <input id="no3Input" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
+                        <span id="no3Status" class="text-sm font-semibold min-w-[60px] text-right"></span>
+                    </div>
+                </div>
+                <div class="flex flex-col">
+                    <label for="po4Input" class="block font-medium text-gray-700 mb-1">PO₄ (ppm)</label>
+                    <div class="flex items-center gap-2">
+                        <input id="po4Input" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
+                        <span id="po4Status" class="text-sm font-semibold min-w-[60px] text-right"></span>
+                    </div>
                 </div>
             </div>
-            <div class="flex flex-col">
-                <label for="salinityInput" class="block font-medium text-gray-700 mb-1">염도 (ppt)</label>
-                <div class="flex items-center gap-2">
-                    <input id="salinityInput" type="number" step="0.1" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
-                    <span id="salinityStatus" class="text-sm font-semibold min-w-[60px] text-right"></span>
-                </div>
-            </div>
-            <div class="flex flex-col">
-                <label for="phInput" class="block font-medium text-gray-700 mb-1">pH</label>
-                <div class="flex items-center gap-2">
-                    <input id="phInput" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
-                    <span id="phStatus" class="text-sm font-semibold min-w-[60px] text-right"></span>
-                </div>
-            </div>
-            <div class="flex flex-col">
-                <label for="caInput" class="block font-medium text-gray-700 mb-1">Ca (ppm)</label>
-                <div class="flex items-center gap-2">
-                    <input id="caInput" type="number" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
-                    <span id="caStatus" class="text-sm font-semibold min-w-[60px] text-right"></span>
-                </div>
-            </div>
-            <div class="flex flex-col">
-                <label for="mgInput" class="block font-medium text-gray-700 mb-1">Mg (ppm)</label>
-                <div class="flex items-center gap-2">
-                    <input id="mgInput" type="number" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
-                    <span id="mgStatus" class="text-sm font-semibold min-w-[60px] text-right"></span>
-                </div>
-            </div>
-            <div class="flex flex-col">
-                <label for="khInput" class="block font-medium text-gray-700 mb-1">KH (dKH)</label>
-                <div class="flex items-center gap-2">
-                    <input id="khInput" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
-                    <span id="khStatus" class="text-sm font-semibold min-w-[60px] text-right"></span>
-                </div>
-            </div>
-            <div class="flex flex-col">
-                <label for="no2Input" class="block font-medium text-gray-700 mb-1">NO₂ (ppm)</label>
-                <div class="flex items-center gap-2">
-                    <input id="no2Input" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
-                    <span id="no2Status" class="text-sm font-semibold min-w-[60px] text-right"></span>
-                </div>
-            </div>
-            <div class="flex flex-col">
-                <label for="no3Input" class="block font-medium text-gray-700 mb-1">NO₃ (ppm)</label>
-                <div class="flex items-center gap-2">
-                    <input id="no3Input" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
-                    <span id="no3Status" class="text-sm font-semibold min-w-[60px] text-right"></span>
-                </div>
-            </div>
-            <div class="flex flex-col">
-                <label for="po4Input" class="block font-medium text-gray-700 mb-1">PO₄ (ppm)</label>
-                <div class="flex items-center gap-2">
-                    <input id="po4Input" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
-                    <span id="po4Status" class="text-sm font-semibold min-w-[60px] text-right"></span>
-                </div>
+            <div class="flex flex-wrap gap-4">
+                <button id="saveRecordOnlyBtn" class="px-6 py-3 bg-blue-500 text-white font-semibold rounded-2xl shadow-md hover:bg-blue-600 transition-colors duration-200">기록 저장</button>
+                <button id="viewResultsBtn" class="px-6 py-3 bg-indigo-500 text-white font-semibold rounded-2xl shadow-md hover:bg-indigo-600 transition-colors duration-200">결과 보기</button>
+                <!-- "그래프 보기" 버튼 제거됨 -->
             </div>
         </div>
-        <div class="flex flex-wrap gap-4">
-            <button id="saveRecordOnlyBtn" class="px-6 py-3 bg-blue-500 text-white font-semibold rounded-2xl shadow-md hover:bg-blue-600 transition-colors duration-200">기록 저장</button>
-            <button id="viewResultsBtn" class="px-6 py-3 bg-indigo-500 text-white font-semibold rounded-2xl shadow-md hover:bg-indigo-600 transition-colors duration-200">결과 보기</button>
-            <button id="viewGraphsBtn" class="px-6 py-3 bg-green-500 text-white font-semibold rounded-2xl shadow-md hover:bg-green-600 transition-colors duration-200">그래프 보기</button>
-        </div>
-    </div>
 
-    <!-- Graph Section -->
-    <div id="chartContainer" class="max-w-3xl mx-auto bg-white rounded-2xl shadow p-6 mt-6 hidden">
-        <h2 class="text-xl font-bold mb-4 text-gray-800">수질 파라미터 추이</h2>
-        <canvas id="trendChart" height="200"></canvas>
-    </div>
+        <!-- Right Column: Graph and Records/Comparison Results -->
+        <div class="flex flex-col gap-6">
+            <!-- Graph Section (initially visible) -->
+            <div id="chartContainer" class="bg-white rounded-2xl shadow p-6">
+                <h2 class="text-xl font-bold mb-4 text-gray-800">수질 파라미터 추이</h2>
+                <canvas id="trendChart" height="200"></canvas>
+            </div>
 
-    <!-- Records and Comparison Results Section -->
-    <div id="viewRecordsContainer" class="max-w-3xl mx-auto bg-white rounded-2xl shadow p-6 mt-6 hidden">
-        <h2 class="text-xl font-bold mb-4 text-gray-800">저장된 기록 및 비교 결과</h2>
-        <div class="overflow-x-auto mb-4">
-            <table id="recordsTable" class="w-full table-auto border-collapse text-sm">
-                <thead>
-                    <tr class="bg-gray-100">
-                        <th class="border border-gray-300 px-3 py-2 text-gray-700">날짜</th>
-                        <th class="border border-gray-300 px-3 py-2 text-gray-700">부피 (L)</th>
-                        <th class="border border-gray-300 px-3 py-2 text-gray-700">온도</th>
-                        <th class="border border-gray-300 px-3 py-2 text-gray-700">염도</th>
-                        <th class="border border-gray-300 px-3 py-2 text-gray-700">pH</th>
-                        <th class="border border-gray-300 px-3 py-2 text-gray-700">Ca</th>
-                        <th class="border border-gray-300 px-3 py-2 text-gray-700">Mg</th>
-                        <th class="border border-gray-300 px-3 py-2 text-gray-700">KH</th>
-                        <th class="border border-gray-300 px-3 py-2 text-gray-700">NO₂</th>
-                        <th class="border border-gray-300 px-3 py-2 text-gray-700">NO₃</th>
-                        <th class="border border-gray-300 px-3 py-2 text-gray-700">PO₄</th>
-                        <th class="border border-gray-300 px-3 py-2 text-gray-700">상태</th>
-                        <th class="border border-gray-300 px-3 py-2 text-gray-700">삭제</th> <!-- New column for delete button -->
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- Records will be inserted here by JavaScript -->
-                </tbody>
-            </table>
-        </div>
-        <div id="dosagePlan" class="bg-blue-50 p-4 rounded-lg border border-blue-200 text-blue-800">
-            <!-- Dosing plan will be inserted here by JavaScript -->
+            <!-- Records and Comparison Results Section (initially hidden, shown by "결과 보기" button) -->
+            <div id="viewRecordsContainer" class="bg-white rounded-2xl shadow p-6 hidden">
+                <h2 class="text-xl font-bold mb-4 text-gray-800">저장된 기록 및 비교 결과</h2>
+                <div class="overflow-x-auto mb-4">
+                    <table id="recordsTable" class="w-full table-auto border-collapse text-sm">
+                        <thead>
+                            <tr class="bg-gray-100">
+                                <th class="border border-gray-300 px-3 py-2 text-gray-700">날짜</th>
+                                <th class="border border-gray-300 px-3 py-2 text-gray-700">부피 (L)</th>
+                                <th class="border border-gray-300 px-3 py-2 text-gray-700">온도</th>
+                                <th class="border border-gray-300 px-3 py-2 text-gray-700">염도</th>
+                                <th class="border border-gray-300 px-3 py-2 text-gray-700">pH</th>
+                                <th class="border border-gray-300 px-3 py-2 text-gray-700">Ca</th>
+                                <th class="border border-gray-300 px-3 py-2 text-gray-700">Mg</th>
+                                <th class="border border-gray-300 px-3 py-2 text-gray-700">KH</th>
+                                <th class="border border-gray-300 px-3 py-2 text-gray-700">NO₂</th>
+                                <th class="border border-gray-300 px-3 py-2 text-gray-700">NO₃</th>
+                                <th class="border border-gray-300 px-3 py-2 text-gray-700">PO₄</th>
+                                <th class="border border-gray-300 px-3 py-2 text-gray-700">상태</th>
+                                <th class="border border-gray-300 px-3 py-2 text-gray-700">삭제</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Records will be inserted here by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="dosagePlan" class="bg-blue-50 p-4 rounded-lg border border-blue-200 text-blue-800">
+                    <!-- Dosing plan will be inserted here by JavaScript -->
+                </div>
+            </div>
         </div>
     </div>
 
@@ -298,6 +305,105 @@
         }
 
         /**
+         * Renders the trend chart using Chart.js.
+         */
+        function renderTrendChart() {
+            const records = getRecords().sort((a, b) => a.date.localeCompare(b.date)); // Sort records by date
+
+            // Always destroy existing chart if it exists and is a Chart instance
+            // This ensures that .destroy() is only called on a valid Chart.js object.
+            if (window.trendChart instanceof Chart) {
+                window.trendChart.destroy();
+                window.trendChart = null; // Clear reference after destroying
+            }
+
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); // Clear canvas regardless
+
+            if (!records.length) {
+                // No records to display, so show a message and keep the chart container visible
+                // but ensure records container is hidden.
+                showMessageBox('그래프를 그릴 저장된 기록이 없습니다.');
+                document.getElementById('chartContainer').classList.remove('hidden');
+                document.getElementById('viewRecordsContainer').classList.add('hidden');
+                return;
+            }
+
+            const params = ['temp', 'salinity', 'ph', 'ca', 'mg', 'kh', 'no2', 'no3', 'po4'];
+            const colors = [
+                'rgb(255, 99, 132)', 'rgb(255, 159, 64)', 'rgb(255, 205, 86)',
+                'rgb(75, 192, 192)', 'rgb(54, 162, 235)', 'rgb(153, 102, 255)',
+                'rgb(201, 203, 207)', 'rgb(255, 0, 255)', 'rgb(0, 255, 255)'
+            ];
+
+            const datasets = params.map((key, i) => {
+                const dataPoints = records.map(r => r[key]);
+                const hasValidData = dataPoints.some(val => val !== null && !isNaN(val));
+
+                if (hasValidData) {
+                    return {
+                        label: key.toUpperCase(),
+                        data: dataPoints,
+                        borderColor: colors[i % colors.length],
+                        backgroundColor: colors[i % colors.length],
+                        fill: false,
+                        spanGaps: true,
+                        tension: 0.1
+                    };
+                }
+                return null;
+            }).filter(dataset => dataset !== null);
+
+            if (datasets.length === 0) {
+                // No valid numeric data to plot, show a message.
+                showMessageBox('그래프를 그릴 유효한 수치 데이터가 없습니다.');
+                document.getElementById('chartContainer').classList.remove('hidden');
+                document.getElementById('viewRecordsContainer').classList.add('hidden');
+                return;
+            }
+
+            // Create a new Chart.js instance.
+            window.trendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: records.map(r => r.date),
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        title: {
+                            display: true,
+                            text: '수질 파라미터 추이'
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: '날짜'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: '값'
+                            }
+                        }
+                    }
+                }
+            });
+
+            document.getElementById('chartContainer').classList.remove('hidden');
+            document.getElementById('viewRecordsContainer').classList.add('hidden');
+        }
+
+        /**
          * Displays records in the table and calculates the 7-day dosing plan.
          */
         function displayRecordsAndDosingPlan() {
@@ -306,7 +412,7 @@
             if (!records.length) {
                 showMessageBox('저장된 기록이 없습니다.');
                 document.getElementById('viewRecordsContainer').classList.add('hidden');
-                document.getElementById('chartContainer').classList.add('hidden');
+                document.getElementById('chartContainer').classList.add('hidden'); // Hide chart if no records
                 return;
             }
 
@@ -458,108 +564,12 @@
 
             showMessageBox('기록이 저장되었습니다.');
             updateInputStatuses(record); // Update statuses next to inputs based on the newly saved record
+            renderTrendChart(); // Re-render the chart after saving a new record
         });
 
         // Event listener for the new "View Results" button
         document.getElementById('viewResultsBtn').addEventListener('click', () => {
             displayRecordsAndDosingPlan(); // Call the function to display records and dosing plan
-        });
-
-
-        // Event listener for the "View Graphs" button
-        document.getElementById('viewGraphsBtn').addEventListener('click', () => {
-            const records = getRecords().sort((a, b) => a.date.localeCompare(b.date)); // Sort records by date
-
-            if (!records.length) {
-                showMessageBox('저장된 기록이 없습니다.');
-                return;
-            }
-
-            // Define parameters to be charted and their respective colors
-            const params = ['temp', 'salinity', 'ph', 'ca', 'mg', 'kh', 'no2', 'no3', 'po4'];
-            const colors = [
-                'rgb(255, 99, 132)',  // Red
-                'rgb(255, 159, 64)',  // Orange
-                'rgb(255, 205, 86)',  // Yellow
-                'rgb(75, 192, 192)',  // Green
-                'rgb(54, 162, 235)',  // Blue
-                'rgb(153, 102, 255)', // Purple
-                'rgb(201, 203, 207)', // Grey
-                'rgb(255, 0, 255)',   // Magenta (for NO3)
-                'rgb(0, 255, 255)'    // Cyan (for PO4)
-            ];
-
-            // Filter out datasets that only contain null or non-numeric values
-            const datasets = params.map((key, i) => {
-                const dataPoints = records.map(r => r[key]);
-                // Check if there's at least one valid number in the data points for this parameter
-                const hasValidData = dataPoints.some(val => val !== null && !isNaN(val));
-
-                if (hasValidData) {
-                    return {
-                        label: key.toUpperCase(),
-                        data: dataPoints,
-                        borderColor: colors[i % colors.length],
-                        backgroundColor: colors[i % colors.length],
-                        fill: false,
-                        spanGaps: true,
-                        tension: 0.1
-                    };
-                }
-                return null; // Return null for datasets with no valid data
-            }).filter(dataset => dataset !== null); // Filter out null datasets
-
-            if (datasets.length === 0) {
-                showMessageBox('그래프를 그릴 유효한 수치 데이터가 없습니다.');
-                return;
-            }
-
-            // Destroy existing chart instance to prevent memory leaks and redraw issues
-            if (window.trendChart) {
-                window.trendChart.destroy();
-            }
-
-            // Get the canvas context and create a new Chart.js instance
-            const ctx = document.getElementById('trendChart').getContext('2d');
-            window.trendChart = new Chart(ctx, {
-                type: 'line', // Line chart type
-                data: {
-                    labels: records.map(r => r.date), // Dates for the X-axis
-                    datasets: datasets
-                },
-                options: {
-                    responsive: true, // Chart resizes with the container
-                    maintainAspectRatio: false, // Allows height to be controlled by CSS
-                    plugins: {
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false,
-                        },
-                        title: {
-                            display: true,
-                            text: '수질 파라미터 추이' // Chart title
-                        }
-                    },
-                    scales: {
-                        x: {
-                            title: {
-                                display: true,
-                                text: '날짜' // X-axis label
-                            }
-                        },
-                        y: {
-                            title: {
-                                display: true,
-                                text: '값' // Y-axis label
-                            }
-                        }
-                    }
-                }
-            });
-
-            // Show the chart container
-            document.getElementById('chartContainer').classList.remove('hidden');
-            document.getElementById('viewRecordsContainer').classList.add('hidden'); // Hide records if graphs are viewed
         });
 
         // Initialize the date input with today's date and update statuses on load if records exist
@@ -601,6 +611,9 @@
 
                 updateInputStatuses(latest); // Update statuses based on loaded data
             }
+
+            // Render the graph on initial load
+            renderTrendChart();
         });
     </script>
 </body>
