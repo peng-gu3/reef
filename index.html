@@ -15,47 +15,47 @@
 </head>
 <body class="bg-gray-100 font-sans">
   <div class="container mx-auto p-4 max-w-5xl">
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div class="bg-white p-6 rounded shadow">
-        <h2 class="text-xl font-bold mb-4">어항 정보 입력</h2>
-        <div class="grid grid-cols-2 gap-3">
-          <input id="date" type="date" class="border p-2 rounded" />
-          <input id="vol" placeholder="용량(L)" class="border p-2 rounded" value="160" />
-          <input id="temp" placeholder="온도(°C)" class="border p-2 rounded" />
-          <input id="salinity" placeholder="염도(ppt)" class="border p-2 rounded" />
-          <input id="ph" placeholder="pH" class="border p-2 rounded" />
-          <input id="ca" placeholder="Ca(ppm)" class="border p-2 rounded" />
-          <input id="mg" placeholder="Mg(ppm)" class="border p-2 rounded" />
-          <input id="kh" placeholder="KH(dKH)" class="border p-2 rounded" />
-          <input id="no2" placeholder="NO₂(ppm)" class="border p-2 rounded" />
-          <input id="no3" placeholder="NO₃(ppm)" class="border p-2 rounded" />
-          <input id="po4" placeholder="PO₄(ppm)" class="border p-2 rounded" />
-        </div>
-        <div class="flex flex-wrap space-x-2 mt-4">
-          <button id="calculate-btn" class="flex-1 bg-blue-600 text-white py-2 rounded">계산하기</button>
-          <button id="save-btn" class="flex-1 bg-green-600 text-white py-2 rounded">기록 저장</button>
-          <button id="graph-btn" class="flex-1 bg-purple-600 text-white py-2 rounded">그래프 보기</button>
-          <button id="ai-btn" class="flex-1 bg-indigo-600 text-white py-2 rounded">AI 어드바이스</button>
-        </div>
-      </div>
 
+    <!-- 어항 정보 입력 영역 -->
+    <div class="bg-white p-6 rounded shadow mb-6">
+      <h2 class="text-xl font-bold mb-4">어항 정보 입력</h2>
+      <div class="grid grid-cols-2 gap-3">
+        <input id="date" type="date" class="border p-2 rounded" />
+        <input id="vol" placeholder="용량(L)" class="border p-2 rounded" value="160" />
+        <input id="temp" placeholder="온도(°C)" class="border p-2 rounded" />
+        <input id="salinity" placeholder="염도(ppt)" class="border p-2 rounded" />
+        <input id="ph" placeholder="pH" class="border p-2 rounded" />
+        <input id="ca" placeholder="Ca(ppm)" class="border p-2 rounded" />
+        <input id="mg" placeholder="Mg(ppm)" class="border p-2 rounded" />
+        <input id="kh" placeholder="KH(dKH)" class="border p-2 rounded" />
+        <input id="no2" placeholder="NO₂(ppm)" class="border p-2 rounded" />
+        <input id="no3" placeholder="NO₃(ppm)" class="border p-2 rounded" />
+        <input id="po4" placeholder="PO₄(ppm)" class="border p-2 rounded" />
+      </div>
+      <div class="flex flex-wrap space-x-2 mt-4">
+        <button id="calculate-btn" class="flex-1 bg-blue-600 text-white py-2 rounded">계산하기</button>
+        <button id="save-btn" class="flex-1 bg-green-600 text-white py-2 rounded">기록 저장</button>
+        <button id="graph-btn" class="flex-1 bg-purple-600 text-white py-2 rounded">그래프 보기</button>
+        <button id="ai-btn" class="flex-1 bg-indigo-600 text-white py-2 rounded">AI 어드바이스</button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div class="bg-white p-6 rounded shadow">
         <h2 class="text-xl font-bold mb-4">계산 결과 및 권장 사항</h2>
         <div id="results-output" class="space-y-2"></div>
       </div>
-    </div>
 
-    <div class="mt-8 bg-white p-6 rounded shadow">
-      <div class="flex justify-between mb-4">
-        <h2 class="text-xl font-bold">저장된 기록</h2>
-        <div class="space-x-2">
+      <div class="bg-white p-6 rounded shadow">
+        <h2 class="text-xl font-bold mb-4">저장된 기록</h2>
+        <div class="flex justify-end mb-2">
           <button id="clear-logs-btn" class="bg-red-500 text-white px-4 py-2 rounded">기록 초기화</button>
         </div>
+        <table class="w-full text-sm">
+          <thead><tr><th>날짜</th><th>온도</th><th>염도</th><th>pH</th><th>Ca</th><th>Mg</th><th>KH</th><th>NO₂</th><th>NO₃</th><th>PO₄</th><th>삭제</th></tr></thead>
+          <tbody id="log-table-body"></tbody>
+        </table>
       </div>
-      <table class="w-full text-sm">
-        <thead><tr><th>날짜</th><th>온도</th><th>염도</th><th>pH</th><th>Ca</th><th>Mg</th><th>KH</th><th>NO₂</th><th>NO₃</th><th>PO₄</th><th>삭제</th></tr></thead>
-        <tbody id="log-table-body"></tbody>
-      </table>
     </div>
   </div>
 
@@ -104,6 +104,24 @@
       if (!isNaN(no2)) addResult('NO₂', no2 + 'ppm', '0.00ppm 권장', (no2 > 0.00) ? 'action' : 'good');
       if (!isNaN(no3)) addResult('NO₃', no3 + 'ppm', '0.5~2.0ppm', (no3 < 0.5) ? 'low' : (no3 > 2.0 ? 'high' : 'good'));
       if (!isNaN(po4)) addResult('PO₄', po4 + 'ppm', '0.03~0.08ppm', (po4 < 0.03) ? 'low' : (po4 > 0.08 ? 'high' : 'good'));
+    };
+
+    document.getElementById('save-btn').onclick = () => {
+      const date = document.getElementById('date').value;
+      const temp = document.getElementById('temp').value;
+      const salinity = document.getElementById('salinity').value;
+      const ph = document.getElementById('ph').value;
+      const ca = document.getElementById('ca').value;
+      const mg = document.getElementById('mg').value;
+      const kh = document.getElementById('kh').value;
+      const no2 = document.getElementById('no2').value;
+      const no3 = document.getElementById('no3').value;
+      const po4 = document.getElementById('po4').value;
+
+      const tbody = document.getElementById('log-table-body');
+      const row = document.createElement('tr');
+      row.innerHTML = `<td>${date}</td><td>${temp}</td><td>${salinity}</td><td>${ph}</td><td>${ca}</td><td>${mg}</td><td>${kh}</td><td>${no2}</td><td>${no3}</td><td>${po4}</td><td><button onclick="this.parentElement.parentElement.remove()" class="text-red-500">삭제</button></td>`;
+      tbody.appendChild(row);
     };
   </script>
 </body>
