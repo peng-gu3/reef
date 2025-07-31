@@ -3,1056 +3,135 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>*</title>
+    <title>PENG_GU</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        /* Custom font family application */
-        body {
-            font-family: 'Noto Sans KR', sans-serif;
-        }
-        /* Basic styling for the custom message box */
-        .message-box-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        .message-box {
-            background-color: white;
-            padding: 24px;
-            border-radius: 16px; /* Rounded corners for the message box */
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            text-align: center;
-            max-width: 400px;
-            width: 90%;
-        }
-        .message-box-button {
-            background-color: #3B82F6; /* Blue-500 */
-            color: white;
-            padding: 8px 16px;
-            border-radius: 8px; /* Rounded corners for the button */
-            margin-top: 16px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        .message-box-button:hover {
-            background-color: #2563EB; /* Blue-600 */
-        }
-        /* Custom styles for status indicators */
-        .status-normal { background-color: #D1FAE5; /* Green-100 */ } /* Light green background */
-        .status-low { background-color: #FEE2E2; /* Red-100 */ } /* Light red background */
-        .status-high { background-color: #FFEDD5; /* Orange-100 */ } /* Light orange background */
-
-        .status-text-normal { color: #065F46; /* Green-700 */ }
-        .status-text-low { color: #B91C1C; /* Red-700 */ }
-        .status-text-high { color: #C2410C; /* Orange-700 */ }
-
-        .status-item {
-            padding: 12px;
-            border-radius: 8px;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 4px;
-        }
-        .status-item .param-label {
-            font-weight: 600;
-            color: #374151; /* Gray-700 */
-        }
-        .status-item .param-value {
-            font-size: 0.9rem;
-            color: #4B5563; /* Gray-600 */
-        }
-        .status-item .param-range {
-            font-size: 0.8rem;
-            color: #6B7280; /* Gray-500 */
-        }
-        .status-item .status-message {
-            font-weight: 700;
-            font-size: 1rem;
-        }
-        .status-item .dosing-recommendation {
-            font-size: 0.85rem;
-            color: #1D4ED8; /* Blue-700 */
-            margin-top: 4px;
-        }
-        .dosing-completed-text {
-            color: #065F46; /* Green-700 */
-            font-weight: bold;
-            margin-left: 10px;
-        }
+        body { font-family: 'Noto Sans KR', sans-serif; background-color: #f3f4f6; }
+        .tab-button { padding: 10px 20px; cursor: pointer; background-color: white; border: 1px solid #d1d5db; border-bottom: none; border-radius: 8px 8px 0 0; font-weight: 600; color: #4b5563; transition: all 0.2s; margin-bottom: -1px; }
+        .tab-button.active { background-color: #3b82f6; color: white; border-color: #3b82f6; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .message-box-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background-color:rgba(0,0,0,.5);display:flex;justify-content:center;align-items:center;z-index:1000}
+        .message-box{background-color:#fff;padding:24px;border-radius:16px;box-shadow:0 4px 12px rgba(0,0,0,.15);text-align:center;max-width:400px;width:90%}
+        .message-box-button{background-color:#3b82f6;color:#fff;padding:8px 16px;border-radius:8px;margin-top:16px;cursor:pointer;transition:background-color .2s}
+        .status-normal{background-color:#d1fae5}.status-low{background-color:#fee2e2}.status-high{background-color:#ffedd5}
+        .status-text-normal{color:#065f46}.status-text-low{color:#b91c1c}.status-text-high{color:#c2410c}
+        .status-item{padding:12px;border-radius:8px;display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+        .dosing-recommendation{font-size: .85rem; color: #1D4ED8; margin-top: 4px;}
+        #aquarium-container { position: relative; margin: auto; border: 2px dashed #ccc; background-color: #f0f8ff; cursor: crosshair; resize: both; overflow: hidden; touch-action: none; min-height: 400px; transition: width 0.2s, height 0.2s; }
+        #aquariumImageTag { width: 100%; height: 100%; object-fit: contain; object-position: center; position: absolute; top: 0; left: 0; z-index: 1; pointer-events: none; }
+        .coral-marker { position: absolute; color: white; padding: 3px 10px; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.7); transform: translate(-50%, -50%); cursor: grab; font-weight: 500; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.2); text-shadow: 0px 0px 3px rgba(0, 0, 0, 0.5); transition: font-size 0.1s; user-select: none; z-index: 10; }
+        .coral-marker.dragging { cursor: grabbing; z-index: 1000; box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
+        #aquarium-container.move-image-mode { cursor: grab; }
+        #aquarium-container.moving-image { cursor: grabbing; }
     </style>
 </head>
-<body class="bg-gray-100 p-6">
-    <div id="mainAppContainer" class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="bg-white rounded-2xl shadow p-6">
-            <h1 class="text-2xl font-bold mb-4 text-gray-800">PENG_GU</h1>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                <div class="flex flex-col">
-                    <label for="dateInput" class="block font-medium text-gray-700 mb-1">날짜</label>
-                    <input id="dateInput" type="date" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
-                </div>
-                <div class="flex flex-col">
-                    <label for="volumeInput" class="block font-medium text-gray-700 mb-1">수조 부피 (L)</label>
-                    <input id="volumeInput" type="number" step="1" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" value="160" />
-                </div>
-                <div class="flex flex-col">
-                    <label for="tempInput" class="block font-medium text-gray-700 mb-1">온도 (°C)</label>
-                    <div class="flex items-center gap-2">
-                        <input id="tempInput" type="number" step="0.1" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
-                    </div>
-                </div>
-                <div class="flex flex-col">
-                    <label for="salinityInput" class="block font-medium text-gray-700 mb-1">염도 (ppt)</label>
-                    <div class="flex items-center gap-2">
-                        <input id="salinityInput" type="number" step="0.1" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
-                    </div>
-                </div>
-                <div class="flex flex-col">
-                    <label for="phInput" class="block font-medium text-gray-700 mb-1">pH</label>
-                    <div class="flex items-center gap-2">
-                        <input id="phInput" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
-                    </div>
-                </div>
-                <div class="flex flex-col">
-                    <label for="caInput" class="block font-medium text-gray-700 mb-1">Ca (ppm)</label>
-                    <div class="flex items-center gap-2">
-                        <input id="caInput" type="number" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
-                    </div>
-                </div>
-                <div class="flex flex-col">
-                    <label for="mgInput" class="block font-medium text-gray-700 mb-1">Mg (ppm)</label>
-                    <div class="flex items-center gap-2">
-                        <input id="mgInput" type="number" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
-                    </div>
-                </div>
-                <div class="flex flex-col">
-                    <label for="khAmInput" class="block font-medium text-gray-700 mb-1">KH (dKH) 오전</label>
-                    <div class="flex items-center gap-2">
-                        <input id="khAmInput" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
-                    </div>
-                </div>
-                <div class="flex flex-col">
-                    <label for="khPmInput" class="block font-medium text-gray-700 mb-1">KH (dKH) 오후</label>
-                    <div class="flex items-center gap-2">
-                        <input id="khPmInput" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
-                    </div>
-                </div>
-                <div class="flex flex-col">
-                    <label for="no2Input" class="block font-medium text-gray-700 mb-1">NO₂ (ppm)</label>
-                    <div class="flex items-center gap-2">
-                        <input id="no2Input" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
-                    </div>
-                </div>
-                <div class="flex flex-col">
-                    <label for="no3Input" class="block font-medium text-gray-700 mb-1">NO₃ (ppm)</label>
-                    <div class="flex items-center gap-2">
-                        <input id="no3Input" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
-                    </div>
-                </div>
-                <div class="flex flex-col">
-                    <label for="po4Input" class="block font-medium text-gray-700 mb-1">PO₄ (ppm)</label>
-                    <div class="flex items-center gap-2">
-                        <input id="po4Input" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" />
-                    </div>
-                </div>
-                <div class="flex flex-col">
-                    <label for="creatureInput" class="block font-medium text-gray-700 mb-1">생물 투입</label>
-                    <input id="creatureInput" type="text" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500" placeholder="예: 물고기 2마리, 산호 1개" />
-                </div>
-            </div>
-            <div class="flex flex-wrap gap-4">
-                <button id="saveRecordBtn" class="px-6 py-3 bg-blue-500 text-white font-semibold rounded-2xl shadow-md hover:bg-blue-600 transition-colors duration-200">기록 저장 및 결과 보기</button>
-                <button id="editRecordBtn" class="px-6 py-3 bg-gray-500 text-white font-semibold rounded-2xl shadow-md hover:bg-gray-600 transition-colors duration-200">수정</button>
-                <button id="cancelEditBtn" class="px-6 py-3 bg-red-500 text-white font-semibold rounded-2xl shadow-md hover:bg-red-600 transition-colors duration-200 hidden">취소</button>
-                <button id="clearRecordsBtn" class="px-6 py-3 bg-red-700 text-white font-semibold rounded-2xl shadow-md hover:bg-red-800 transition-colors duration-200">기록 초기화</button>
-            </div>
+<body class="p-4 md:p-6">
+
+    <div class="max-w-7xl mx-auto">
+        <h1 class="text-3xl font-bold mb-4 text-gray-800">PENG_GU</h1>
+        <div class="flex border-b border-gray-300">
+            <button id="tabBtnDosing" class="tab-button active">도징 계산기 & 기록</button>
+            <button id="tabBtnLayout" class="tab-button">어항 레이아웃</button>
         </div>
-
-        <div class="flex flex-col gap-6">
-            <div id="chartContainer" class="bg-white rounded-2xl shadow p-6 h-[400px]">
-                <h2 class="text-xl font-bold mb-4 text-gray-800">수질 파라미터 추이</h2>
-                <canvas id="trendChart" class="w-full h-full"></canvas>
-            </div>
-
-            <div id="viewRecordsContainer" class="bg-white rounded-2xl shadow p-6">
-                <h2 class="text-xl font-bold mb-4 text-gray-800">저장된 기록 및 비교 결과</h2>
-                <div class="overflow-x-auto mb-4">
-                    <table id="recordsTable" class="w-full table-auto border-collapse text-sm">
-                        <thead>
-                            <tr class="bg-gray-100">
-                                <th class="border border-gray-300 px-3 py-2 text-gray-700">날짜</th>
-                                <th class="border border-gray-300 px-3 py-2 text-gray-700">부피 (L)</th>
-                                <th class="border border-gray-300 px-3 py-2 text-gray-700">온도</th>
-                                <th class="border border-gray-300 px-3 py-2 text-gray-700">염도</th>
-                                <th class="border border-gray-300 px-3 py-2 text-gray-700">pH</th>
-                                <th class="border border-gray-300 px-3 py-2 text-gray-700">Ca</th>
-                                <th class="border border-gray-300 px-3 py-2 text-gray-700">Mg</th>
-                                <th class="border border-gray-300 px-3 py-2 text-gray-700">KH (오전)</th>
-                                <th class="border border-gray-300 px-3 py-2 text-gray-700">KH (오후)</th>
-                                <th class="border border-gray-300 px-3 py-2 text-gray-700">NO₂</th>
-                                <th class="border border-gray-300 px-3 py-2 text-gray-700">NO₃</th>
-                                <th class="border border-gray-300 px-3 py-2 text-gray-700">PO₄</th>
-                                <th class="border border-gray-300 px-3 py-2 text-gray-700">생물 투입</th>
-                                <th class="border border-gray-300 px-3 py-2 text-gray-700">삭제</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            </tbody>
-                    </table>
+        <div class="bg-white p-6 rounded-b-lg rounded-r-lg shadow-lg">
+            <div id="tabContentDosing" class="tab-content active">
                 </div>
-                <div id="dosagePlan" class="bg-blue-50 p-4 rounded-lg border border-blue-200 text-blue-800 flex flex-col">
-                    <div class="flex items-center mb-2">
-                        <h3 class="font-semibold text-blue-900">도징 계획</h3>
-                        <button id="completeDosingBtn" class="px-3 py-1 bg-green-600 text-white rounded-lg text-xs hover:bg-green-700 transition-colors duration-200 ml-auto">도징 완료</button>
-                        <span id="dosingCompletionStatus" class="dosing-completed-text hidden">완료됨</span>
-                    </div>
-                    <ul id="dosingPlanList" class="list-disc list-inside text-blue-800"></ul>
+            <div id="tabContentLayout" class="tab-content">
                 </div>
-            </div>
         </div>
     </div>
+    <div id="customMessageBoxOverlay" class="message-box-overlay hidden"><div class="message-box"><p id="customMessageBoxContent" class="text-gray-800 text-lg mb-4"></p><button id="customMessageBoxButton" class="message-box-button">확인</button></div></div>
 
-    <div id="consolidatedStatusContainer" class="max-w-6xl mx-auto bg-white rounded-2xl shadow p-6 mt-6">
-        <h2 class="text-xl font-bold mb-4 text-gray-800">현재 수질 상태 및 권장 사항</h2>
-        <div id="statusDetails" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            </div>
-        <div id="importantNotes" class="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800">
-            <h3 class="font-semibold mb-2">⚠️ 중요 주의사항</h3>
-            <p class="text-sm">본 계산 결과는 일반적인 참고용이며, 사용하는 도징 제품의 설명서를 반드시 우선적으로 확인하세요. 어항의 상태를 지속적으로 관찰하며 소량씩 나누어 안전하게 도징하는 것을 권장합니다.</p>
-        </div>
-    </div>
+<script>
+// =============== UTILITY & INITIALIZATION ===============
+function showMessageBox(message) { document.getElementById('customMessageBoxContent').textContent = message; document.getElementById('customMessageBoxOverlay').classList.remove('hidden'); }
+function hideMessageBox() { document.getElementById('customMessageBoxOverlay').classList.add('hidden'); }
+document.getElementById('customMessageBoxButton').addEventListener('click', hideMessageBox);
+document.addEventListener('DOMContentLoaded', () => {
+    const tabBtnDosing = document.getElementById('tabBtnDosing'), tabBtnLayout = document.getElementById('tabBtnLayout'), tabContentDosing = document.getElementById('tabContentDosing'), tabContentLayout = document.getElementById('tabContentLayout');
+    function switchTab(activeBtn, inactiveBtn, activeContent, inactiveContent) { activeBtn.classList.add('active'); inactiveBtn.classList.remove('active'); activeContent.classList.add('active'); inactiveContent.classList.remove('active'); }
+    tabBtnDosing.addEventListener('click', () => switchTab(tabBtnDosing, tabBtnLayout, tabContentDosing, tabContentLayout));
+    tabBtnLayout.addEventListener('click', () => switchTab(tabBtnLayout, tabBtnDosing, tabContentLayout, tabContentDosing));
+    initDosingCalculator();
+    initLayoutManager();
+});
 
-    <div id="customMessageBoxOverlay" class="message-box-overlay hidden">
-        <div class="message-box">
-            <p id="customMessageBoxContent" class="text-gray-800 text-lg mb-4"></p>
-            <button id="customMessageBoxButton" class="message-box-button">확인</button>
-        </div>
-    </div>
+// =============== DOSING CALCULATOR SCRIPT ===============
+function initDosingCalculator() {
+    document.getElementById('tabContentDosing').innerHTML = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="bg-white rounded-2xl p-6 border"><h2 class="text-2xl font-bold mb-4 text-gray-800">데이터 입력</h2><div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4" id="dosingInputs"><div class="flex flex-col"><label for="dateInput" class="block font-medium text-gray-700 mb-1">날짜</label><input id="dateInput" type="date" class="w-full border border-gray-300 rounded-lg p-2"/></div><div class="flex flex-col"><label for="volumeInput" class="block font-medium text-gray-700 mb-1">수조 부피 (L)</label><input id="volumeInput" type="number" step="1" class="w-full border border-gray-300 rounded-lg p-2" value="160"/></div><div class="flex flex-col"><label for="tempInput" class="block font-medium text-gray-700 mb-1">온도 (°C)</label><input id="tempInput" type="number" step="0.1" class="w-full border border-gray-300 rounded-lg p-2"/></div><div class="flex flex-col"><label for="salinityInput" class="block font-medium text-gray-700 mb-1">염도 (ppt)</label><input id="salinityInput" type="number" step="0.1" class="w-full border border-gray-300 rounded-lg p-2"/></div><div class="flex flex-col"><label for="phInput" class="block font-medium text-gray-700 mb-1">pH</label><input id="phInput" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2"/></div><div class="flex flex-col"><label for="caInput" class="block font-medium text-gray-700 mb-1">Ca (ppm)</label><input id="caInput" type="number" class="w-full border border-gray-300 rounded-lg p-2"/></div><div class="flex flex-col"><label for="mgInput" class="block font-medium text-gray-700 mb-1">Mg (ppm)</label><input id="mgInput" type="number" class="w-full border border-gray-300 rounded-lg p-2"/></div><div class="flex flex-col"><label for="khAmInput" class="block font-medium text-gray-700 mb-1">KH (dKH) 오전</label><input id="khAmInput" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2"/></div><div class="flex flex-col"><label for="khPmInput" class="block font-medium text-gray-700 mb-1">KH (dKH) 오후</label><input id="khPmInput" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2"/></div><div class="flex flex-col"><label for="no2Input" class="block font-medium text-gray-700 mb-1">NO₂ (ppm)</label><input id="no2Input" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2"/></div><div class="flex flex-col"><label for="no3Input" class="block font-medium text-gray-700 mb-1">NO₃ (ppm)</label><input id="no3Input" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2"/></div><div class="flex flex-col"><label for="po4Input" class="block font-medium text-gray-700 mb-1">PO₄ (ppm)</label><input id="po4Input" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2"/></div><div class="flex flex-col col-span-1 sm:col-span-2"><label for="creatureInput" class="block font-medium text-gray-700 mb-1">생물 투입</label><input id="creatureInput" type="text" class="w-full border border-gray-300 rounded-lg p-2" placeholder="예: 물고기 2마리, 산호 1개"/></div></div><div class="flex flex-wrap gap-4"><button id="saveRecordBtn" class="px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg shadow-md hover:bg-blue-600">기록 저장</button><button id="editRecordBtn" class="px-4 py-2 bg-gray-500 text-white font-semibold rounded-lg shadow-md hover:bg-gray-600">수정</button><button id="cancelEditBtn" class="px-4 py-2 bg-red-500 text-white font-semibold rounded-lg shadow-md hover:bg-red-600 hidden">취소</button><button id="clearRecordsBtn" class="px-4 py-2 bg-red-700 text-white font-semibold rounded-lg shadow-md hover:bg-red-800">기록 초기화</button></div></div><div class="flex flex-col gap-6"><div class="bg-white rounded-2xl p-6 border"><h2 class="text-xl font-bold mb-4 text-gray-800">저장된 기록</h2><div class="overflow-x-auto max-h-96"><table id="recordsTable" class="w-full table-auto border-collapse text-sm"><thead><tr class="bg-gray-100 sticky top-0"><th class="border p-2">날짜</th><th class="border p-2">부피</th><th class="border p-2">온도</th><th class="border p-2">염도</th><th class="border p-2">pH</th><th class="border p-2">Ca</th><th class="border p-2">Mg</th><th class="border p-2">KH오전</th><th class="border p-2">KH오후</th><th class="border p-2">NO₂</th><th class="border p-2">NO₃</th><th class="border p-2">PO₄</th><th class="border p-2">생물</th><th class="border p-2">삭제</th></tr></thead><tbody></tbody></table></div></div><div id="dosagePlanContainer" class="bg-white rounded-2xl p-6 border"><h2 class="text-xl font-bold mb-4 text-gray-800">도징 계획</h2><ul id="dosingPlanList" class="space-y-3"></ul></div></div></div><div id="consolidatedStatusContainer" class="mt-6"><h2 class="text-xl font-bold mb-4 text-gray-800">현재 수질 상태 및 권장 사항</h2><div id="statusDetails" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div><div id="importantNotes" class="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800"><h3 class="font-semibold mb-2">⚠️ 중요 주의사항</h3><p class="text-sm">본 계산 결과는 참고용이며, 사용하는 제품 설명서를 반드시 우선 확인하세요. 어항 상태를 관찰하며 소량씩 안전하게 도징하는 것을 권장합니다.</p></div></div>`;
+    let isEditMode = false, currentEditingDate = null;
+    const reference = { temp: { min: 25, max: 26, label: '온도', unit: '°C' }, salinity: { min: 34, max: 35, label: '염도', unit: 'ppt' }, ph: { min: 8.0, max: 8.3, label: 'pH', unit: '' }, ca: { min: 420, max: 430, unitDose: (d, v) => (d * v) / 100, label: 'Ca', unit: 'ppm', doseUnit: 'ml' }, mg: { min: 1400, max: 1440, unitDose: (d, v) => (d * v) / 100, label: 'Mg', unit: 'ppm', doseUnit: 'ml' }, kh: { min: 7.0, max: 8.0, unitDose: (d, v) => (d * v) / 10, label: 'KH', unit: 'dKH', doseUnit: 'ml' }, no2: { min: 0, max: 0.02, label: 'NO₂', unit: 'ppm', recommendationHigh: '검출! 즉시 환수 권장.' }, no3: { min: 0.5, max: 2.0, label: 'NO₃', unitDose: (d, v) => (d * v) / 100, unit: 'ppm', doseUnit: 'ml', recommendationHigh: '높음. 환수 또는 리무버 사용 권장.' }, po4: { min: 0.03, max: 0.1, label: 'PO₄', unitDose: (d, v) => (d * v) / 10, unit: 'ppm', doseUnit: 'ml', recommendationHigh: '높음. 환수 또는 리무버 사용 권장.' } };
+    function getRecords() { return JSON.parse(localStorage.getItem('dosingRecords') || '[]'); }
+    function saveRecords(records) { localStorage.setItem('dosingRecords', JSON.stringify(records)); }
+    function getCurrentFormValues() { return { date: document.getElementById('dateInput').value, volume: parseFloat(document.getElementById('volumeInput').value) || null, temp: parseFloat(document.getElementById('tempInput').value) || null, salinity: parseFloat(document.getElementById('salinityInput').value) || null, ph: parseFloat(document.getElementById('phInput').value) || null, ca: parseFloat(document.getElementById('caInput').value) || null, mg: parseFloat(document.getElementById('mgInput').value) || null, khAm: parseFloat(document.getElementById('khAmInput').value) || null, khPm: parseFloat(document.getElementById('khPmInput').value) || null, no2: parseFloat(document.getElementById('no2Input').value) || null, no3: parseFloat(document.getElementById('no3Input').value) || null, po4: parseFloat(document.getElementById('po4Input').value) || null, creature: document.getElementById('creatureInput').value || null, dosingStatus: {} }; }
+    function updateConsolidatedStatuses(dataObject) { const container = document.getElementById('statusDetails'); container.innerHTML = ''; if (!dataObject || !dataObject.volume) { container.innerHTML = '<p class="text-gray-500 col-span-full">수치를 입력하거나 기록을 선택하여 상태를 확인하세요.</p>'; return; } Object.keys(reference).forEach(key => { const ref = reference[key]; let val; if (key === 'kh') { const { khAm, khPm } = dataObject; val = (khAm && khPm) ? Math.min(khAm, khPm) : (khAm || khPm); } else { val = dataObject[key]; } let statusText = '데이터 없음', statusClass = 'bg-gray-100', statusTextColor = 'text-gray-500', recommendation = '', dosingPlan = ''; if (typeof val === 'number' && !isNaN(val)) { if (val < ref.min) { statusText = '낮음'; statusClass = 'status-low'; statusTextColor = 'status-text-low'; if (ref.unitDose && dataObject.volume > 0) { const diff = ref.min - val; const totalDose = ref.unitDose(diff, dataObject.volume); const dailyDose = totalDose / 7; dosingPlan = `권장 도징: 총 ${totalDose.toFixed(1)}${ref.doseUnit} (일 ${dailyDose.toFixed(1)}${ref.doseUnit})`; } } else if (val > ref.max) { statusText = '높음'; statusClass = 'status-high'; statusTextColor = 'status-text-high'; if (ref.recommendationHigh) recommendation = ref.recommendationHigh; } else { statusText = '정상'; statusClass = 'status-normal'; statusTextColor = 'status-text-normal'; } } let displayVal = '-'; if (key === 'kh') { displayVal = `오전: ${dataObject.khAm || '-'} / 오후: ${dataObject.khPm || '-'}`; } else if (typeof val === 'number' && !isNaN(val)) { if (['no2','no3','po4','ph'].includes(key)) displayVal = val.toFixed(2); else if (['temp','salinity'].includes(key)) displayVal = val.toFixed(1); else displayVal = val.toString(); } const item = document.createElement('div'); item.className = `status-item ${statusClass}`; item.innerHTML = `<div class="flex justify-between w-full items-center"><span class="font-semibold text-gray-700">${ref.label}</span><span class="text-sm text-gray-600">${displayVal} ${ref.unit||''}</span></div><span class="text-xs text-gray-500">목표: ${ref.min??'-'} ~ ${ref.max??'-'} ${ref.unit||''}</span><span class="font-bold text-sm ${statusTextColor}">${statusText}</span>${recommendation?`<span class="dosing-recommendation">${recommendation}</span>`:''}${dosingPlan?`<span class="dosing-recommendation">${dosingPlan}</span>`:''}`; container.appendChild(item); }); }
+    function renderDosingPlan(record) { const list = document.getElementById('dosingPlanList'); list.innerHTML = ''; if (!record || !record.volume) { list.innerHTML = `<li class="text-gray-500 text-sm">기록을 선택하면 도징 계획이 표시됩니다.</li>`; return; } let hasDosingPlan = false; const paramsToDose = ['ca', 'mg', 'kh', 'no3', 'po4']; paramsToDose.forEach(key => { const ref = reference[key]; let val; if (key === 'kh') { const { khAm, khPm } = record; val = (khAm && khPm) ? Math.min(khAm, khPm) : (khAm || khPm); } else { val = record[key]; } if (ref.unitDose && typeof val === 'number' && val < ref.min) { hasDosingPlan = true; const diff = ref.min - val, totalDose = ref.unitDose(diff, record.volume), dailyDose = totalDose / 7; const dosingText = `권장: 총 ${totalDose.toFixed(1)}${ref.doseUnit} (일 ${dailyDose.toFixed(1)}${ref.doseUnit})`; const isCompleted = record.dosingStatus && record.dosingStatus[key]; const li = document.createElement('li'); li.className = 'flex justify-between items-center text-sm p-2 rounded-md transition-colors ' + (isCompleted ? 'bg-green-50' : 'bg-blue-50'); li.innerHTML = `<div><span class="font-bold text-gray-800">${ref.label}</span><span class="text-gray-600 ml-2">${dosingText}</span></div><button class="dosing-complete-btn px-3 py-1 text-xs font-semibold rounded-full ${isCompleted ? 'bg-green-500 text-white cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600 text-white'}" data-date="${record.date}" data-param="${key}" ${isCompleted ? 'disabled' : ''}>${isCompleted ? '도징 완료' : '도징 예정'}</button>`; list.appendChild(li); } }); if (!hasDosingPlan) { list.innerHTML = `<li class="text-gray-500 text-sm">모든 수치가 안정적입니다. 도징이 필요하지 않습니다.</li>`; } document.querySelectorAll('.dosing-complete-btn').forEach(btn => btn.addEventListener('click', toggleDosingStatus)); }
+    function toggleDosingStatus(e) { const { date, param } = e.target.dataset; const records = getRecords(); const recordIndex = records.findIndex(r => r.date === date); if (recordIndex > -1) { if (!records[recordIndex].dosingStatus) { records[recordIndex].dosingStatus = {}; } records[recordIndex].dosingStatus[param] = true; saveRecords(records); renderDosingPlan(records[recordIndex]); } }
+    function displayRecordsTable() { const records = getRecords().sort((a, b) => b.date.localeCompare(a.date)); const tbody = document.querySelector('#recordsTable tbody'); tbody.innerHTML = !records.length ? `<tr><td colspan="14" class="text-center p-4 text-gray-500">저장된 기록이 없습니다.</td></tr>` : ''; records.forEach(r => { const tr = document.createElement('tr'); tr.className = 'hover:bg-gray-50 cursor-pointer'; tr.addEventListener('click', () => { loadRecordIntoForm(r); }); const format = (v, k) => (typeof v === 'number') ? (['no2','no3','po4','ph','khAm','khPm'].includes(k) ? v.toFixed(2) : (['temp','salinity'].includes(k) ? v.toFixed(1) : v)) : (v || '-'); tr.innerHTML = `<td class="border p-2">${r.date}</td><td class="border p-2 text-center">${r.volume}</td><td class="border p-2 text-center">${format(r.temp,'temp')}</td><td class="border p-2 text-center">${format(r.salinity,'salinity')}</td><td class="border p-2 text-center">${format(r.ph,'ph')}</td><td class="border p-2 text-center">${format(r.ca,'ca')}</td><td class="border p-2 text-center">${format(r.mg,'mg')}</td><td class="border p-2 text-center">${format(r.khAm,'khAm')}</td><td class="border p-2 text-center">${format(r.khPm,'khPm')}</td><td class="border p-2 text-center">${format(r.no2,'no2')}</td><td class="border p-2 text-center">${format(r.no3,'no3')}</td><td class="border p-2 text-center">${format(r.po4,'po4')}</td><td class="border p-2">${r.creature||'-'}</td><td class="border p-2 text-center"><button class="delete-btn text-red-500 hover:font-bold" data-date="${r.date}">X</button></td>`; tbody.appendChild(tr); }); document.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', e => { e.stopPropagation(); if (confirm(`'${e.target.dataset.date}' 기록을 삭제하시겠습니까?`)) { saveRecords(getRecords().filter(rec => rec.date !== e.target.dataset.date)); refreshDosingUI(); } })); }
+    function loadRecordIntoForm(record) { Object.keys(record).forEach(key => { const el = document.getElementById(key + 'Input'); if (el) el.value = record[key] || ''; }); renderDosingPlan(record); updateConsolidatedStatuses(record); }
+    function refreshDosingUI() { displayRecordsTable(); const records = getRecords(); const latest = records.length > 0 ? records.sort((a,b) => b.date.localeCompare(a.date))[0] : null; renderDosingPlan(latest); updateConsolidatedStatuses(latest || {}); }
+    document.getElementById('saveRecordBtn').addEventListener('click', () => { const record = getCurrentFormValues(); if (!record.date) return showMessageBox('날짜를 입력해주세요.'); let records = getRecords(); const idx = records.findIndex(r => r.date === (isEditMode ? currentEditingDate : record.date)); if (isEditMode) { const oldStatus = records[idx].dosingStatus; record.dosingStatus = oldStatus; records[idx] = record; isEditMode = false; document.getElementById('saveRecordBtn').textContent = '기록 저장'; document.getElementById('editRecordBtn').classList.remove('hidden'); document.getElementById('cancelEditBtn').classList.add('hidden'); document.getElementById('dateInput').disabled = false; } else { if (idx !== -1) return showMessageBox('해당 날짜의 기록이 이미 존재합니다.'); records.push(record); } saveRecords(records); displayRecordsTable(); renderDosingPlan(record); updateConsolidatedStatuses(record); });
+    document.getElementById('editRecordBtn').addEventListener('click', () => { const date = document.getElementById('dateInput').value; if (!date || getRecords().findIndex(r => r.date === date) === -1) return showMessageBox('수정할 기록을 먼저 테이블에서 클릭해주세요.'); isEditMode = true; currentEditingDate = date; document.getElementById('saveRecordBtn').textContent = '수정 완료'; document.getElementById('editRecordBtn').classList.add('hidden'); document.getElementById('cancelEditBtn').classList.remove('hidden'); document.getElementById('dateInput').disabled = true; });
+    document.getElementById('cancelEditBtn').addEventListener('click', () => { isEditMode = false; document.getElementById('saveRecordBtn').textContent = '기록 저장'; document.getElementById('editRecordBtn').classList.remove('hidden'); document.getElementById('cancelEditBtn').classList.add('hidden'); document.getElementById('dateInput').disabled = false; });
+    document.getElementById('clearRecordsBtn').addEventListener('click', () => { if (confirm('모든 기록을 정말로 초기화하시겠습니까?')) { saveRecords([]); refreshDosingUI(); } });
+    document.querySelectorAll('#dosingInputs input').forEach(input => { input.addEventListener('input', () => updateConsolidatedStatuses(getCurrentFormValues())); });
+    const today = new Date(); document.getElementById('dateInput').value = `${today.getFullYear()}-${(today.getMonth()+1).toString().padStart(2,'0')}-${today.getDate().toString().padStart(2,'0')}`;
+    refreshDosingUI();
+}
 
-    <script>
-        // Minimum daily dose for NO3 and PO4
-        const MIN_DAILY_DOSE = 0.3; // ml
-        // Threshold for total dose to recommend single-day dosing (e.g., if total dose is less than 7 * MIN_DAILY_DOSE)
-        const SINGLE_DOSE_THRESHOLD = MIN_DAILY_DOSE * 7; // 2.1ml
-
-        // Global state for edit mode
-        let isEditMode = false;
-        let currentEditingDate = null; // Stores the date of the record being edited
-
-        // Reference ranges for various water parameters
-        // 'unitDose' function calculates the amount needed to increase the parameter by a certain value per liter
-        const reference = {
-            temp: { min: 25, max: 26, label: '온도', unit: '°C' },
-            salinity: { min: 34, max: 35, label: '염도', unit: 'ppt' },
-            ph: { min: 8.0, max: 8.3, label: 'pH', unit: '' },
-            ca: { min: 420, max: 430, unitDose: (diff, volume) => (diff * volume) / 100, label: 'Ca', unit: 'ppm', doseUnit: 'ml' },
-            mg: { min: 1400, max: 1440, unitDose: (diff, volume) => (diff * volume) / 100, label: 'Mg', unit: 'ppm', doseUnit: 'ml' },
-            kh: { min: 7.0, max: 8.0, unitDose: (diff, volume) => (diff * volume) / 10, label: 'KH', unit: 'dKH', doseUnit: 'ml' },
-            no2: { min: 0, max: 0.02, label: 'NO₂', unit: 'ppm', recommendationHigh: '검출됨! 즉시 환수를 권장합니다.' },
-            // Updated unitDose for NO3 based on provided image: 1ml per 100L increases NO3 by 1ppm
-            no3: { min: 0.5, max: 2.0, unit: 'ppm', label: 'NO₃', unitDose: (diff, volume) => (diff * volume) / 100, doseUnit: 'ml', minDaily: MIN_DAILY_DOSE, recommendationHigh: '높음. 20% 환수 또는 리무버 사용을 권장합니다.' },
-            // unitDose for PO4 based on provided image: 1ml per 100L increases PO4 by 0.1ppm
-            po4: { min: 0.03, max: 0.1, unit: 'ppm', label: 'PO₄', unitDose: (diff, volume) => (diff * volume) / 10, doseUnit: 'ml', minDaily: MIN_DAILY_DOSE, recommendationHigh: '높음. 20% 환수 또는 리무버 사용을 권장합니다.' }
+// =============== LAYOUT MANAGER SCRIPT ===============
+function initLayoutManager() {
+    const layoutContent = document.getElementById('tabContentLayout');
+    layoutContent.innerHTML = `<div class="lg:col-span-3 flex flex-col gap-4"><h2 class="text-2xl font-bold text-gray-800">어항 레이아웃</h2><div class="flex flex-wrap gap-4 items-center p-4 bg-gray-50 rounded-lg border"><div><label for="layout_imageUpload" class="block text-sm font-medium">어항 사진</label><input type="file" id="layout_imageUpload" accept="image/*" class="mt-1 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"></div><div><label for="layout_coralName" class="block text-sm font-medium">산호 이름</label><input type="text" id="layout_coralName" placeholder="예: 버튼 산호" class="mt-1 border border-gray-300 rounded-lg p-2"></div><div><label for="layout_coralColor" class="block text-sm font-medium">마커 색상</label><input type="color" id="layout_coralColor" value="#DC2626" class="mt-1 w-10 h-10 p-1 border-none rounded-lg cursor-pointer"></div><div class="flex-grow min-w-[150px]"><label for="layout_fontSizeSlider" class="block text-sm font-medium">글씨 크기: <span id="layout_fontSizeValue">13px</span></label><input type="range" id="layout_fontSizeSlider" min="8" max="24" value="13" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"></div><div class="flex items-center self-end pb-1"><input type="checkbox" id="moveImageCheckbox" class="h-5 w-5 text-blue-600 rounded cursor-pointer mr-2"><label for="moveImageCheckbox" class="text-sm cursor-pointer">사진 이동 모드</label></div></div><div class="grid grid-cols-1 xl:grid-cols-3 gap-6 flex-grow"><div id="aquarium-container" class="xl:col-span-2 h-[60vh]"><img id="aquariumImageTag" src=""></div><div id="coral-list-container" class="bg-gray-50 p-4 rounded-lg border"><h2 class="text-lg font-semibold mb-2">산호 목록</h2><ul id="coral-list" class="space-y-2"></ul></div></div></div>`;
+    const aquariumContainer = document.getElementById('aquarium-container'), imageTag = document.getElementById('aquariumImageTag'), imageUpload = document.getElementById('layout_imageUpload'), coralNameInput = document.getElementById('layout_coralName'), coralColorInput = document.getElementById('layout_coralColor'), coralList = document.getElementById('coral-list'), fontSizeSlider = document.getElementById('layout_fontSizeSlider'), fontSizeValue = document.getElementById('layout_fontSizeValue'), moveImageCheckbox = document.getElementById('moveImageCheckbox');
+    let corals = JSON.parse(localStorage.getItem('myCorals') || '[]'), currentFontSize = localStorage.getItem('markerFontSize') || 13, isMovingImage = false, isDraggingMarker = false, initialMousePos = { x: 0, y: 0 }, initialBgPos = { x: 0, y: 0 };
+    function loadSavedLayoutData() { const savedImage = localStorage.getItem('aquariumImage'); if (savedImage) imageTag.src = savedImage; const savedObjPos = localStorage.getItem('aquariumImgPos') || 'center'; imageTag.style.objectPosition = savedObjPos; const savedWidth = localStorage.getItem('aquariumWidth') || 800; const savedHeight = localStorage.getItem('aquariumHeight') || 600; aquariumContainer.style.width = `${savedWidth}px`; aquariumContainer.style.height = `${savedHeight}px`; fontSizeSlider.value = currentFontSize; fontSizeValue.textContent = `${currentFontSize}px`; renderCorals(); }
+    function renderCorals() { aquariumContainer.querySelectorAll('.coral-marker').forEach(m=>m.remove()); coralList.innerHTML = ''; corals.forEach((coral, index) => { const marker = document.createElement('div'); marker.className = 'coral-marker'; marker.style.left = `${coral.x}%`; marker.style.top = `${coral.y}%`; marker.dataset.index = index; marker.textContent = coral.name; marker.style.backgroundColor = coral.color || '#DC2626'; marker.style.fontSize = `${currentFontSize}px`; marker.addEventListener('mousedown', startDragMarker); marker.addEventListener('touchstart', startDragMarker, { passive: false }); aquariumContainer.appendChild(marker); const li = document.createElement('li'); li.className = 'flex justify-between items-center bg-white p-2 rounded shadow-sm'; li.innerHTML = `<div class="flex items-center gap-3"><span class="w-4 h-4 rounded" style="background-color:${coral.color || '#DC2626'}; border:1px solid #ddd;"></span><span>${coral.name}</span></div><button data-index="${index}" class="remove-btn text-red-500 font-bold hover:text-red-700">X</button>`; coralList.appendChild(li); }); document.querySelectorAll('.remove-btn').forEach(btn => btn.addEventListener('click', removeCoral)); }
+    function startDragMarker(e) { if (moveImageCheckbox.checked) return; e.preventDefault(); e.stopPropagation(); isDraggingMarker = true; const activeMarker = e.target; activeMarker.classList.add('dragging'); const drag = (ev) => { const rect = aquariumContainer.getBoundingClientRect(); let clientX = ev.clientX || ev.touches[0].clientX, clientY = ev.clientY || ev.touches[0].clientY; let newX = Math.max(0, Math.min(clientX - rect.left, rect.width)), newY = Math.max(0, Math.min(clientY - rect.top, rect.height)); activeMarker.style.left = `${(newX / rect.width) * 100}%`; activeMarker.style.top = `${(newY / rect.height) * 100}%`; }; const stopDrag = () => { const index = activeMarker.dataset.index; corals[index].x = parseFloat(activeMarker.style.left); corals[index].y = parseFloat(activeMarker.style.top); saveCoralData(); activeMarker.classList.remove('dragging'); document.removeEventListener('mousemove', drag); document.removeEventListener('mouseup', stopDrag); document.removeEventListener('touchmove', drag); document.removeEventListener('touchend', stopDrag); setTimeout(() => isDraggingMarker = false, 50); }; document.addEventListener('mousemove', drag); document.addEventListener('mouseup', stopDrag); document.addEventListener('touchmove', drag, { passive: false }); document.addEventListener('touchend', stopDrag); }
+    function saveCoralData() { localStorage.setItem('myCorals', JSON.stringify(corals)); }
+    imageUpload.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (corals.length > 0 && !confirm("새로운 사진을 올리면 기존 산호 위치가 모두 초기화됩니다. 계속하시겠습니까?")) {
+            imageUpload.value = ""; return;
+        }
+        const reader = new FileReader();
+        reader.onload = (re) => {
+            const imageUrl = re.target.result;
+            const img = new Image();
+            img.onload = () => {
+                const parentWidth = aquariumContainer.parentElement.clientWidth;
+                const imageAspectRatio = img.naturalHeight / img.naturalWidth;
+                const newWidth = parentWidth;
+                const newHeight = newWidth * imageAspectRatio;
+                aquariumContainer.style.width = `${newWidth}px`;
+                aquariumContainer.style.height = `${newHeight}px`;
+                localStorage.setItem('aquariumWidth', Math.round(newWidth));
+                localStorage.setItem('aquariumHeight', Math.round(newHeight));
+                imageTag.src = imageUrl;
+                localStorage.setItem('aquariumImage', imageUrl);
+                corals = []; saveCoralData(); renderCorals();
+            };
+            img.src = imageUrl;
         };
+        reader.readAsDataURL(file);
+    });
+    function handleContainerInteraction(e) { if (moveImageCheckbox.checked && e.target === aquariumContainer) { isMovingImage = true; aquariumContainer.classList.add('moving-image'); initialMousePos = { x: e.clientX || e.touches[0].clientX, y: e.clientY || e.touches[0].clientY }; const objPos = getComputedStyle(imageTag).objectPosition.split(' '); initialBgPos = { x: parseFloat(objPos[0]), y: parseFloat(objPos[1]) }; document.addEventListener('mousemove', moveImage); document.addEventListener('mouseup', stopMoveImage); document.addEventListener('touchmove', moveImage, { passive: false }); document.addEventListener('touchend', stopMoveImage); } }
+    aquariumContainer.addEventListener('mousedown', handleContainerInteraction); aquariumContainer.addEventListener('touchstart', handleContainerInteraction, { passive: false });
+    function moveImage(e) { if (!isMovingImage) return; let clientX = e.clientX || e.touches[0].clientX, clientY = e.clientY || e.touches[0].clientY; let deltaX = clientX - initialMousePos.x, deltaY = clientY - initialMousePos.y; imageTag.style.objectPosition = `${initialBgPos.x + deltaX}px ${initialBgPos.y + deltaY}px`; }
+    function stopMoveImage() { if (!isMovingImage) return; isMovingImage = false; aquariumContainer.classList.remove('moving-image'); localStorage.setItem('aquariumImgPos', imageTag.style.objectPosition); document.removeEventListener('mousemove', moveImage); document.removeEventListener('mouseup', stopMoveImage); document.removeEventListener('touchmove', moveImage); document.removeEventListener('touchend', stopMoveImage); }
+    aquariumContainer.addEventListener('click', (e) => { if (moveImageCheckbox.checked || isDraggingMarker || e.target !== aquariumContainer) return; const name = coralNameInput.value.trim(); if (!name) return showMessageBox('먼저 추가할 산호의 이름을 입력해주세요.'); const rect = aquariumContainer.getBoundingClientRect(); corals.push({ name, color: coralColorInput.value, x: ((e.clientX - rect.left) / rect.width) * 100, y: ((e.clientY - rect.top) / rect.height) * 100 }); coralNameInput.value = ''; saveCoralData(); renderCorals(); });
+    function removeCoral(e) { corals.splice(e.target.dataset.index, 1); saveCoralData(); renderCorals(); }
+    const resizeObserver = new ResizeObserver(entries => { for (let entry of entries) { requestAnimationFrame(() => { const { width, height } = entry.contentRect; localStorage.setItem('aquariumWidth', Math.round(width)); localStorage.setItem('aquariumHeight', Math.round(height)); }); } });
+    resizeObserver.observe(aquariumContainer);
+    fontSizeSlider.addEventListener('input', (e) => { currentFontSize = e.target.value; fontSizeValue.textContent = `${currentFontSize}px`; document.querySelectorAll('.coral-marker').forEach(m => m.style.fontSize = `${currentFontSize}px`); localStorage.setItem('markerFontSize', currentFontSize); });
+    moveImageCheckbox.addEventListener('change', e => { aquariumContainer.classList.toggle('move-image-mode', e.target.checked); });
+    loadSavedLayoutData();
+}
+</script>
 
-        // --- Utility Functions for Local Storage and Message Box ---
-
-        /**
-         * Retrieves records from local storage.
-         * @returns {Array} An array of stored records.
-         */
-        function getRecords() {
-            try {
-                return JSON.parse(localStorage.getItem('records') || '[]');
-            } catch (e) {
-                console.error("Failed to parse records from local storage:", e);
-                return [];
-            }
-        }
-
-        /**
-         * Saves records to local storage.
-         * @param {Array} records - The array of records to save.
-         */
-        function saveRecords(records) {
-            try {
-                localStorage.setItem('records', JSON.stringify(records));
-            } catch (e) {
-                console.error("Failed to save records to local storage:", e);
-            }
-        }
-
-        /**
-         * Displays a custom message box.
-         * @param {string} message - The message to display.
-         */
-        function showMessageBox(message) {
-            const overlay = document.getElementById('customMessageBoxOverlay');
-            const content = document.getElementById('customMessageBoxContent');
-            content.textContent = message;
-            overlay.classList.remove('hidden');
-        }
-
-        /**
-         * Hides the custom message box.
-         */
-        function hideMessageBox() {
-            const overlay = document.getElementById('customMessageBoxOverlay');
-            overlay.classList.add('hidden');
-        }
-
-        /**
-         * Collects current values from all input fields.
-         * @returns {Object} An object containing current input values.
-         */
-        function getCurrentFormValues() {
-            return {
-                date: document.getElementById('dateInput').value,
-                volume: parseFloat(document.getElementById('volumeInput').value) || null,
-                temp: parseFloat(document.getElementById('tempInput').value) || null,
-                salinity: parseFloat(document.getElementById('salinityInput').value) || null,
-                ph: parseFloat(document.getElementById('phInput').value) || null,
-                ca: parseFloat(document.getElementById('caInput').value) || null,
-                mg: parseFloat(document.getElementById('mgInput').value) || null,
-                khAm: parseFloat(document.getElementById('khAmInput').value) || null, // KH AM
-                khPm: parseFloat(document.getElementById('khPmInput').value) || null, // KH PM
-                no2: parseFloat(document.getElementById('no2Input').value) || null,
-                no3: parseFloat(document.getElementById('no3Input').value) || null,
-                po4: parseFloat(document.getElementById('po4Input').value) || null,
-                creature: document.getElementById('creatureInput').value || null,
-                isDosingCompleted: false // Default for new records, will be overwritten if existing
-            };
-        }
-
-        /**
-         * Updates the consolidated status display at the bottom of the page.
-         * @param {Object} dataObject - An object containing parameter values (e.g., a record or current form values).
-         */
-        function updateConsolidatedStatuses(dataObject) {
-            const statusDetailsContainer = document.getElementById('statusDetails');
-            statusDetailsContainer.innerHTML = ''; // Clear previous statuses
-
-            const paramsToDisplay = ['temp', 'salinity', 'ph', 'ca', 'mg', 'kh', 'no2', 'no3', 'po4'];
-
-            paramsToDisplay.forEach(key => {
-                const ref = reference[key];
-                let val;
-                if (key === 'kh') { // Special handling for KH (AM/PM)
-                    const khAm = dataObject.khAm;
-                    const khPm = dataObject.khPm;
-                    if (typeof khAm === 'number' && !isNaN(khAm) && typeof khPm === 'number' && !isNaN(khPm)) {
-                        val = Math.min(khAm, khPm); // Use the lower value for status/dosing
-                    } else if (typeof khAm === 'number' && !isNaN(khAm)) {
-                        val = khAm; // Use AM if PM is not available
-                    } else if (typeof khPm === 'number' && !isNaN(khPm)) {
-                        val = khPm; // Use PM if AM is not available
-                    } else {
-                        val = null; // No valid KH data
-                    }
-                } else {
-                    val = dataObject[key];
-                }
-
-                let statusText = '데이터 없음';
-                let statusClass = 'bg-gray-100'; // Default light gray background
-                let statusTextColor = 'text-gray-500'; // Default gray text color
-                let recommendation = '';
-                let dosingPlan = '';
-
-                if (typeof val === 'number' && !isNaN(val) && ref.min !== undefined) { // Robust check for val
-                    if (val < ref.min) {
-                        statusText = '낮음';
-                        statusClass = 'status-low';
-                        statusTextColor = 'status-text-low';
-                        if (ref.unitDose && dataObject.volume > 0) { // Check if unitDose is defined and volume is valid for low values
-                            const diff = ref.min - val;
-                            const totalDose = ref.unitDose(diff, dataObject.volume);
-                            let dailyDose = Math.floor(totalDose / 7 * 10) / 10; // Round down to one decimal place
-
-                            // Apply minimum daily dose for NO3 and PO4 and handle skipping
-                            if (key === 'no3' || key === 'po4') {
-                                if (dailyDose < MIN_DAILY_DOSE) {
-                                    dosingPlan = `권장 도징: 해당 일 도징 건너뛰고 다음 날 수치 확인`;
-                                } else if (totalDose < SINGLE_DOSE_THRESHOLD) {
-                                    dosingPlan = `권장 도징: ${totalDose.toFixed(2)}${ref.doseUnit} (하루에 모두 도징 권장)`;
-                                } else {
-                                    dosingPlan = `권장 도징: ${totalDose.toFixed(2)}${ref.doseUnit} (일일 ${dailyDose.toFixed(2)}${ref.doseUnit}씩 7일간 분할 권장)`;
-                                }
-                            } else { // For other parameters (Ca, Mg, KH)
-                                if (totalDose < SINGLE_DOSE_THRESHOLD) {
-                                    dosingPlan = `권장 도징: ${totalDose.toFixed(2)}${ref.doseUnit} (하루에 모두 도징 권장)`;
-                                } else {
-                                    dosingPlan = `권장 도징: ${totalDose.toFixed(2)}${ref.doseUnit} (일일 ${dailyDose.toFixed(2)}${ref.doseUnit}씩 7일간 분할 권장)`;
-                                }
-                            }
-                        }
-                    } else if (val > ref.max) {
-                        statusText = '높음';
-                        statusClass = 'status-high';
-                        statusTextColor = 'status-text-high';
-                        if (ref.recommendationHigh) { // Use recommendationHigh for high values
-                            recommendation = ref.recommendationHigh;
-                        }
-                    } else {
-                        statusText = '정상';
-                        statusClass = 'status-normal';
-                        statusTextColor = 'status-text-normal';
-                    }
-                }
-
-                const statusItem = document.createElement('div');
-                statusItem.className = `status-item ${statusClass} flex flex-col`; // Use flex-col for stacked content
-
-                // Determine the value to display in the status card
-                let displayVal = '-';
-                if (key === 'kh') {
-                    // For KH, display both AM and PM values if available, otherwise '-'
-                    const khAmDisplay = (typeof dataObject.khAm === 'number' && !isNaN(dataObject.khAm)) ? dataObject.khAm.toFixed(2) : '-';
-                    const khPmDisplay = (typeof dataObject.khPm === 'number' && !isNaN(dataObject.khPm)) ? dataObject.khPm.toFixed(2) : '-';
-                    displayVal = `오전: ${khAmDisplay} / 오후: ${khPmDisplay}`;
-                } else if (typeof val === 'number' && !isNaN(val)) {
-                    // MODIFICATION START: Changed formatting logic for consistency
-                    if (key === 'no2' || key === 'no3' || key === 'po4' || key === 'ph') {
-                        displayVal = val.toFixed(2);
-                    } else if (key === 'temp' || key === 'salinity') {
-                        displayVal = val.toFixed(1);
-                    } else {
-                        displayVal = val.toString();
-                    }
-                    // MODIFICATION END
-                }
-
-                statusItem.innerHTML = `
-                    <div class="flex justify-between w-full items-center">
-                        <span class="param-label">${ref.label || key.toUpperCase()}</span>
-                        <span class="param-value">${displayVal} ${ref.unit || ''}</span>
-                    </div>
-                    <span class="param-range">목표 범위: ${ref.min !== undefined ? ref.min : '-'}~${ref.max !== undefined ? ref.max : '-'} ${ref.unit || ''}</span>
-                    <span class="status-message ${statusTextColor}">${statusText}</span>
-                    ${recommendation ? `<span class="dosing-recommendation">${recommendation}</span>` : ''}
-                    ${dosingPlan ? `<span class="dosing-recommendation">${dosingPlan}</span>` : ''}
-                `;
-                statusDetailsContainer.appendChild(statusItem);
-            });
-
-            // The container is always visible now, no need to toggle hidden class here.
-            document.getElementById('consolidatedStatusContainer').classList.remove('hidden');
-        }
-
-
-        /**
-         * Renders the trend chart using Chart.js.
-         */
-        function renderTrendChart() {
-            const records = getRecords().sort((a, b) => a.date.localeCompare(b.date)); // Sort records by date
-
-            // Always destroy existing chart if it exists and is a Chart instance
-            if (window.trendChart instanceof Chart) {
-                window.trendChart.destroy();
-                window.trendChart = null; // Clear reference after destroying
-            }
-
-            const ctx = document.getElementById('trendChart').getContext('2d');
-            // Clear canvas regardless of records presence, to ensure a clean slate
-            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-
-            if (!records.length) {
-                // No records, just clear chart and return. Message handled by displayRecordsTable.
-                document.getElementById('chartContainer').classList.remove('hidden'); // Keep container visible
-                return;
-            }
-
-            const params = ['temp', 'salinity', 'ph', 'ca', 'mg', 'no2', 'no3', 'po4']; // Exclude KH for now, will add KH AM/PM separately
-            const colors = [
-                'rgb(255, 99, 132)', 'rgb(255, 159, 64)', 'rgb(255, 255, 0)', // Red, Orange, Yellow
-                'rgb(75, 192, 192)', 'rgb(54, 162, 235)', 'rgb(201, 203, 207)', // Green, Blue, Grey
-                'rgb(255, 0, 255)', 'rgb(0, 255, 255)' // Magenta, Cyan
-            ];
-
-            const datasets = [];
-
-            // Add datasets for general parameters
-            params.forEach((key, i) => {
-                const dataPoints = records.map(r => r[key]);
-                const hasValidData = dataPoints.some(val => typeof val === 'number' && !isNaN(val)); // Robust check
-                if (hasValidData) {
-                    datasets.push({
-                        label: reference[key].label || key.toUpperCase(),
-                        data: dataPoints,
-                        borderColor: colors[i % colors.length],
-                        backgroundColor: colors[i % colors.length],
-                        fill: false,
-                        spanGaps: true,
-                        tension: 0.1
-                    });
-                }
-            });
-
-            // Add datasets for KH AM and KH PM separately
-            const khAmDataPoints = records.map(r => r.khAm);
-            const khPmDataPoints = records.map(r => r.khPm);
-
-            if (khAmDataPoints.some(val => typeof val === 'number' && !isNaN(val))) { // Robust check
-                datasets.push({
-                    label: 'KH (오전)',
-                    data: khAmDataPoints,
-                    borderColor: 'rgb(153, 102, 255)', // Purple for KH AM
-                    backgroundColor: 'rgb(153, 102, 255)',
-                    fill: false,
-                    spanGaps: true,
-                    tension: 0.1
-                });
-            }
-            if (khPmDataPoints.some(val => typeof val === 'number' && !isNaN(val))) { // Robust check
-                datasets.push({
-                    label: 'KH (오후)',
-                    data: khPmDataPoints,
-                    borderColor: 'rgb(100, 100, 255)', // Lighter purple/blue for KH PM
-                    backgroundColor: 'rgb(100, 100, 255)',
-                    fill: false,
-                    spanGaps: true,
-                    tension: 0.1
-                });
-            }
-
-
-            if (datasets.length === 0) {
-                // No valid numeric data, just clear chart and return. Message handled by displayRecordsTable.
-                document.getElementById('chartContainer').classList.remove('hidden'); // Keep container visible
-                return;
-            }
-
-            // Create a new Chart.js instance.
-            window.trendChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: records.map(r => r.date),
-                    datasets: datasets
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false,
-                        },
-                        title: {
-                            display: true,
-                            text: '수질 파라미터 추이'
-                        }
-                    },
-                    scales: {
-                        x: {
-                            title: {
-                                display: true,
-                                text: '날짜'
-                            }
-                        },
-                        y: {
-                            title: {
-                                display: true,
-                                text: '값'
-                            }
-                        }
-                    }
-                }
-            });
-
-            document.getElementById('chartContainer').classList.remove('hidden');
-        }
-
-        /**
-         * Renders the dosing plan based on a specific record.
-         * @param {Object} record - The record object for which to display the dosing plan.
-         */
-        function renderDosingPlanForRecord(record) {
-            const dosingPlanList = document.getElementById('dosingPlanList');
-            dosingPlanList.innerHTML = ''; // Clear previous dosing plan items
-
-            const completeDosingBtn = document.getElementById('completeDosingBtn');
-            const dosingCompletionStatus = document.getElementById('dosingCompletionStatus');
-
-            let hasDosingRecommendation = false;
-            
-            if (record && record.volume && !isNaN(record.volume) && record.volume > 0) {
-                // Add Bacter Origin recommendation if it's Monday (1) or Thursday (4)
-                const recordDate = new Date(record.date);
-                const dayOfWeek = recordDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-
-                if (dayOfWeek === 1 || dayOfWeek === 4) { // Monday or Thursday
-                    const bacterOriginItem = document.createElement('li');
-                    bacterOriginItem.textContent = `박터오리진: 2방울 (160L 어항 기준)`;
-                    dosingPlanList.appendChild(bacterOriginItem);
-                    hasDosingRecommendation = true;
-                }
-
-                Object.keys(reference).forEach(key => {
-                    const ref = reference[key];
-                    let val;
-                    if (key === 'kh') { // Use the lower of AM/PM for KH dosing calculation
-                        const khAm = record.khAm;
-                        const khPm = record.khPm;
-                        if (typeof khAm === 'number' && !isNaN(khAm) && typeof khPm === 'number' && !isNaN(khPm)) {
-                            val = Math.min(khAm, khPm);
-                        } else if (typeof khAm === 'number' && !isNaN(khAm)) {
-                            val = khAm;
-                        } else if (typeof khPm === 'number' && !isNaN(khPm)) {
-                            val = khPm;
-                        } else {
-                            val = null;
-                        }
-                    } else {
-                        val = record[key];
-                    }
-
-                    if (ref.unitDose && typeof val === 'number' && !isNaN(val)) {
-                        let target = ref.min;
-
-                        if (val >= target) {
-                            return;
-                        }
-
-                        const diff = target - val;
-                        const totalDose = ref.unitDose(diff, record.volume);
-                        let dailyDose = Math.floor(totalDose / 7 * 10) / 10; // Round down to one decimal place
-
-                        let dosingMessage = '';
-                        // Apply minimum daily dose for NO3 and PO4 and handle skipping
-                        if (key === 'no3' || key === 'po4') {
-                            if (dailyDose < MIN_DAILY_DOSE) {
-                                dosingMessage = `권장 도징: 해당 일 도징 건너뛰고 다음 날 수치 확인`;
-                            } else if (totalDose < SINGLE_DOSE_THRESHOLD) { // Use totalDose here
-                                dosingMessage = `권장 도징: ${totalDose.toFixed(2)}${ref.doseUnit} (하루에 모두 도징 권장)`;
-                            } else {
-                                dosingMessage = `권장 도징: ${totalDose.toFixed(2)}${ref.doseUnit} (일일 ${dailyDose.toFixed(2)}${ref.doseUnit}씩 7일간 분할 권장)`;
-                            }
-                        } else { // For other parameters (Ca, Mg, KH)
-                            if (totalDose < SINGLE_DOSE_THRESHOLD) {
-                                dosingMessage = `권장 도징: ${totalDose.toFixed(2)}${ref.doseUnit} (하루에 모두 도징 권장)`;
-                            } else {
-                                dosingMessage = `권장 도징: ${totalDose.toFixed(2)}${ref.doseUnit} (일일 ${dailyDose.toFixed(2)}${ref.doseUnit}씩 7일간 분할 권장)`;
-                            }
-                        }
-                        
-                        const listItem = document.createElement('li');
-                        listItem.textContent = `${ref.label || key.toUpperCase()}: ${dosingMessage}`;
-                        dosingPlanList.appendChild(listItem);
-                        hasDosingRecommendation = true;
-                    }
-                });
-                if (!hasDosingRecommendation && (dayOfWeek !== 1 && dayOfWeek !== 4)) { // If no other dosing and not a Bacter Origin day
-                    const listItem = document.createElement('li');
-                    listItem.textContent = '모든 파라미터가 정상 범위이거나 도징이 필요하지 않습니다.';
-                    dosingPlanList.appendChild(listItem);
-                }
-            } else {
-                const listItem = document.createElement('li');
-                listItem.textContent = '선택된 기록 또는 유효한 수조 부피 정보가 없어 도징 계획을 계산할 수 없습니다.';
-                dosingPlanList.appendChild(listItem);
-            }
-
-            // --- Dosing Completion Button Logic for the currently displayed plan ---
-            if (record && record.isDosingCompleted) { // Directly check the record's status
-                completeDosingBtn.classList.add('hidden');
-                dosingCompletionStatus.classList.remove('hidden');
-            } else {
-                completeDosingBtn.classList.remove('hidden');
-                dosingCompletionStatus.classList.add('hidden');
-                
-                // Ensure the event listener is only added once per record or removed/re-added for different records
-                // Use a unique ID based on the record's date to manage listeners
-                const currentRecordDateForBtn = completeDosingBtn.dataset.recordDate;
-                if (currentRecordDateForBtn !== record.date) { // If the button is linked to a different date's listener
-                    // Remove old listener if it exists
-                    const oldListenerName = `completeDosingHandler_${currentRecordDateForBtn ? currentRecordDateForBtn.replace(/-/g, '') : ''}`;
-                    if (window[oldListenerName]) {
-                        completeDosingBtn.removeEventListener('click', window[oldListenerName]);
-                        delete window[oldListenerName]; // Clean up global function reference
-                    }
-
-                    // Add new listener for the current record
-                    const newListenerName = `completeDosingHandler_${record.date.replace(/-/g, '')}`;
-                    window[newListenerName] = () => {
-                        if (record) { // Ensure record is still valid
-                            record.isDosingCompleted = true; // Mark this specific record as completed
-                            const allRecords = getRecords();
-                            const recordIndex = allRecords.findIndex(r => r.date === record.date);
-                            if (recordIndex !== -1) {
-                                allRecords[recordIndex] = record; // Update the record in the main array
-                                saveRecords(allRecords); // Save the updated array
-                                showMessageBox('도징 계획이 완료 처리되었습니다!');
-                                renderDosingPlanForRecord(record); // Re-render this specific plan to update status
-                                displayRecordsTable(); // Also update the table to reflect any changes if needed (though not directly visible here)
-                            }
-                        }
-                    };
-                    completeDosingBtn.addEventListener('click', window[newListenerName]);
-                    completeDosingBtn.dataset.recordDate = record.date; // Store the date this listener is for
-                }
-            }
-        }
-
-        /**
-         * Loads a specific record's data into the input form fields.
-         * @param {Object} record - The record object to load.
-         */
-        function loadRecordIntoForm(record) {
-            document.getElementById('dateInput').value = record.date || '';
-            document.getElementById('volumeInput').value = record.volume !== null ? record.volume : 160;
-            document.getElementById('tempInput').value = record.temp !== null ? record.temp : '';
-            document.getElementById('salinityInput').value = record.salinity !== null ? record.salinity : '';
-            document.getElementById('phInput').value = record.ph !== null ? record.ph : '';
-            document.getElementById('caInput').value = record.ca !== null ? record.ca : '';
-            document.getElementById('mgInput').value = record.mg !== null ? record.mg : '';
-            document.getElementById('khAmInput').value = record.khAm !== null ? record.khAm : ''; // Load KH AM
-            document.getElementById('khPmInput').value = record.khPm !== null ? record.khPm : ''; // Load KH PM
-            document.getElementById('no2Input').value = record.no2 !== null ? record.no2 : '';
-            document.getElementById('no3Input').value = record.no3 !== null ? record.no3 : '';
-            document.getElementById('po4Input').value = record.po4 !== null ? record.po4 : '';
-            document.getElementById('creatureInput').value = record.creature || '';
-            
-            // Reset edit mode state when loading a new record from the table
-            isEditMode = false;
-            currentEditingDate = null;
-            document.getElementById('saveRecordBtn').textContent = '기록 저장 및 결과 보기';
-            document.getElementById('editRecordBtn').classList.remove('hidden');
-            document.getElementById('cancelEditBtn').classList.add('hidden');
-            document.getElementById('dateInput').disabled = false;
-        }
-
-
-        /**
-         * Displays records in the table.
-         */
-        function displayRecordsTable() {
-            const records = getRecords().sort((a, b) => a.date.localeCompare(b.date)); // Sort records by date
-
-            // Ensure the container is visible regardless of records presence
-            document.getElementById('viewRecordsContainer').classList.remove('hidden');
-
-            const tbody = document.querySelector('#recordsTable tbody');
-            tbody.innerHTML = ''; // Clear existing table rows
-
-            if (!records.length) {
-                // If no records, display a message within the table area
-                const noRecordsRow = document.createElement('tr');
-                noRecordsRow.innerHTML = `<td colspan="14" class="border px-3 py-2 text-center text-gray-500">저장된 기록이 없습니다.</td>`;
-                tbody.appendChild(noRecordsRow);
-
-                // Also clear dosing plan and hide completion buttons
-                document.getElementById('dosingPlanList').innerHTML = '<li>저장된 기록이 없어 도징 계획을 계산할 수 없습니다.</li>';
-                document.getElementById('completeDosingBtn').classList.add('hidden');
-                document.getElementById('dosingCompletionStatus').classList.add('hidden');
-                return;
-            }
-
-            // Populate the table with records
-            records.forEach(r => {
-                const tr = document.createElement('tr');
-                tr.className = 'hover:bg-gray-50 cursor-pointer'; // Add cursor pointer for clickability
-
-                // Make the row clickable to show dosing plan for that record AND load into form
-                tr.addEventListener('click', () => {
-                    loadRecordIntoForm(r); // Load data into input fields
-                    updateConsolidatedStatuses(r); // Update consolidated status section
-                    renderDosingPlanForRecord(r); // Show dosing plan for selected record
-                });
-
-                // Add data cells for each parameter, including volume and creature
-                // Note: KH is split into KH (오전) and KH (오후)
-                const columns = ['date', 'volume', 'temp', 'salinity', 'ph', 'ca', 'mg', 'khAm', 'khPm', 'no2', 'no3', 'po4', 'creature'];
-                columns.forEach(key => {
-                    const td = document.createElement('td');
-                    td.className = 'border border-gray-300 px-3 py-2 text-center text-gray-700';
-                    
-                    // MODIFICATION START: Changed formatting logic for consistency
-                    if (key === 'khAm' || key === 'khPm' || key === 'ph' || key === 'no2' || key === 'no3' || key === 'po4') {
-                        td.textContent = (typeof r[key] === 'number' && !isNaN(r[key])) ? r[key].toFixed(2) : '-';
-                    } else if (key === 'temp' || key === 'salinity') {
-                        td.textContent = (typeof r[key] === 'number' && !isNaN(r[key])) ? r[key].toFixed(1) : '-';
-                    } else {
-                        td.textContent = r[key] !== null ? r[key] : '-'; // Display '-' for null values
-                    }
-                    // MODIFICATION END
-                    
-                    tr.appendChild(td);
-                });
-
-                // Add delete button cell
-                const tdDelete = document.createElement('td');
-                tdDelete.className = 'border border-gray-300 px-3 py-2 text-center';
-                const deleteBtn = document.createElement('button');
-                deleteBtn.textContent = '삭제';
-                deleteBtn.className = 'px-3 py-1 bg-red-500 text-white rounded-lg text-xs hover:bg-red-600 transition-colors duration-200';
-                deleteBtn.dataset.date = r.date; // Store date to identify record for deletion
-                deleteBtn.addEventListener('click', (event) => {
-                    event.stopPropagation(); // Prevent row click event from firing
-                    const dateToDelete = event.target.dataset.date;
-                    let currentRecords = getRecords();
-                    const updatedRecords = currentRecords.filter(rec => rec.date !== dateToDelete);
-                    saveRecords(updatedRecords);
-                    showMessageBox(`날짜 ${dateToDelete}의 기록이 삭제되었습니다.`);
-                    displayRecordsTable(); // Re-render the table
-                    // If no records left, clear input statuses and dosing plan
-                    if (updatedRecords.length === 0) {
-                        updateConsolidatedStatuses({}); // Clear all statuses
-                        document.getElementById('dosingPlanList').innerHTML = '';
-                        document.getElementById('completeDosingBtn').classList.add('hidden');
-                        document.getElementById('dosingCompletionStatus').classList.add('hidden');
-                        // Clear form inputs if all records are deleted
-                        document.getElementById('dateInput').value = '';
-                        document.getElementById('volumeInput').value = '160'; // Reset to default
-                        document.getElementById('tempInput').value = '';
-                        document.getElementById('salinityInput').value = '';
-                        document.getElementById('phInput').value = '';
-                        document.getElementById('caInput').value = '';
-                        document.getElementById('mgInput').value = '';
-                        document.getElementById('khAmInput').value = '';
-                        document.getElementById('khPmInput').value = '';
-                        document.getElementById('no2Input').value = '';
-                        document.getElementById('no3Input').value = '';
-                        document.getElementById('po4Input').value = '';
-                        document.getElementById('creatureInput').value = '';
-                    } else {
-                        // Otherwise, update statuses and dosing plan based on the new latest record
-                        const newLatest = updatedRecords.sort((a,b)=>a.date.localeCompare(b.date))[updatedRecords.length - 1];
-                        loadRecordIntoForm(newLatest); // Load new latest into form
-                        updateConsolidatedStatuses(newLatest);
-                        renderDosingPlanForRecord(newLatest);
-                    }
-                    renderTrendChart(); // Re-render chart after deletion
-                });
-                tdDelete.appendChild(deleteBtn);
-                tr.appendChild(tdDelete);
-
-                tbody.appendChild(tr); // Add the row to the table body
-            });
-
-            // Initially render dosing plan for the latest record when table is displayed
-            if (records.length > 0) {
-                const latest = records[records.length - 1];
-                renderDosingPlanForRecord(latest);
-            }
-        }
-
-        // --- Event Listeners ---
-
-        // Event listener for the custom message box button
-        document.getElementById('customMessageBoxButton').addEventListener('click', hideMessageBox);
-
-        // Event listener for the "Save Record / Update Record" button
-        document.getElementById('saveRecordBtn').addEventListener('click', () => {
-            const date = document.getElementById('dateInput').value;
-            const volume = parseFloat(document.getElementById('volumeInput').value);
-
-            if (!date) {
-                showMessageBox('날짜를 입력해주세요.');
-                return;
-            }
-            if (isNaN(volume) || volume <= 0) {
-                showMessageBox('유효한 수조 부피를 입력해주세요.');
-                return;
-            }
-
-            const record = getCurrentFormValues();
-            let records = getRecords();
-
-            if (isEditMode) {
-                // Update existing record
-                const recordIndex = records.findIndex(r => r.date === currentEditingDate);
-                if (recordIndex !== -1) {
-                    // Preserve original isDosingCompleted status when updating
-                    const oldRecord = records[recordIndex];
-                    const updatedRecord = { ...record, isDosingCompleted: oldRecord.isDosingCompleted || false };
-                    records[recordIndex] = updatedRecord;
-                } else {
-                    // This case should ideally not happen if currentEditingDate is valid
-                    // but as a fallback, add as new if not found
-                    records.push({ ...record, isDosingCompleted: false });
-                }
-                saveRecords(records);
-                showMessageBox('기록이 수정되었습니다.');
-
-                // Reset edit mode
-                isEditMode = false;
-                currentEditingDate = null;
-                document.getElementById('saveRecordBtn').textContent = '기록 저장 및 결과 보기';
-                document.getElementById('editRecordBtn').classList.remove('hidden');
-                document.getElementById('cancelEditBtn').classList.add('hidden');
-                document.getElementById('dateInput').disabled = false;
-            } else {
-                // Save new record
-                if (records.some(r => r.date === record.date)) {
-                    showMessageBox('해당 날짜의 기록이 이미 존재합니다. 수정하려면 \'수정\' 버튼을 사용하세요.');
-                    return;
-                }
-                records.push({ ...record, isDosingCompleted: false }); // New record starts as not completed
-                saveRecords(records);
-                showMessageBox('기록이 저장되었습니다.');
-            }
-            
-            updateConsolidatedStatuses(record); // Update consolidated statuses
-            renderTrendChart(); // Re-render chart
-            displayRecordsTable(); // Show records table and dosing plan
-        });
-
-        // Event listener for the "Edit" button
-        document.getElementById('editRecordBtn').addEventListener('click', () => {
-            const dateInput = document.getElementById('dateInput');
-            if (!dateInput.value) {
-                showMessageBox('수정할 기록을 먼저 선택해주세요 (테이블에서 날짜 클릭).');
-                return;
-            }
-
-            // Enter edit mode
-            isEditMode = true;
-            currentEditingDate = dateInput.value; // Store the date of the record being edited
-
-            document.getElementById('saveRecordBtn').textContent = '수정 완료';
-            document.getElementById('editRecordBtn').classList.add('hidden'); // Hide Edit button
-            document.getElementById('cancelEditBtn').classList.remove('hidden'); // Show Cancel button
-            dateInput.disabled = true; // Disable date input during edit
-            showMessageBox(`날짜 ${currentEditingDate}의 기록을 수정합니다.`);
-        });
-
-        // Event listener for the "Cancel" button
-        document.getElementById('cancelEditBtn').addEventListener('click', () => {
-            // Exit edit mode
-            isEditMode = false;
-            currentEditingDate = null;
-
-            document.getElementById('saveRecordBtn').textContent = '기록 저장 및 결과 보기';
-            document.getElementById('editRecordBtn').classList.remove('hidden'); // Show Edit button
-            document.getElementById('cancelEditBtn').classList.add('hidden'); // Hide Cancel button
-            document.getElementById('dateInput').disabled = false; // Enable date input
-
-            // Re-load the latest record into the form when cancelling edit mode, for consistency
-            const records = getRecords();
-            if (records.length > 0) {
-                const latest = records.sort((a,b)=>a.date.localeCompare(b.date))[records.length - 1];
-                loadRecordIntoForm(latest);
-                updateConsolidatedStatuses(latest);
-                renderDosingPlanForRecord(latest);
-            } else {
-                // If no records, clear the form
-                document.getElementById('dateInput').value = '';
-                document.getElementById('volumeInput').value = '160';
-                document.getElementById('tempInput').value = '';
-                document.getElementById('salinityInput').value = '';
-                document.getElementById('phInput').value = '';
-                document.getElementById('caInput').value = '';
-                document.getElementById('mgInput').value = '';
-                document.getElementById('khAmInput').value = '';
-                document.getElementById('khPmInput').value = '';
-                document.getElementById('no2Input').value = '';
-                document.getElementById('no3Input').value = '';
-                document.getElementById('po4Input').value = '';
-                document.getElementById('creatureInput').value = '';
-                updateConsolidatedStatuses({}); // Clear consolidated status
-                document.getElementById('dosingPlanList').innerHTML = ''; // Clear dosing plan
-                document.getElementById('completeDosingBtn').classList.add('hidden');
-                document.getElementById('dosingCompletionStatus').classList.add('hidden');
-            }
-            showMessageBox('수정 모드를 취소했습니다.');
-        });
-
-        // Event listener for the "Clear Records" button
-        document.getElementById('clearRecordsBtn').addEventListener('click', () => {
-            showMessageBox('모든 기록을 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다.', true); // Pass true to indicate a confirmation message
-
-            // Custom confirmation logic for the message box
-            const confirmButton = document.getElementById('customMessageBoxButton');
-            const originalClickListener = confirmButton.onclick; // Store original listener if any
-
-            confirmButton.onclick = () => {
-                hideMessageBox();
-                // Proceed with clearing only if confirmed
-                localStorage.removeItem('records');
-                localStorage.removeItem('completedDosingDate'); // Also clear dosing completion status
-
-                // Reset UI to initial state
-                document.getElementById('dateInput').value = '';
-                document.getElementById('volumeInput').value = '160'; // Reset to default
-                document.getElementById('tempInput').value = '';
-                document.getElementById('salinityInput').value = '';
-                document.getElementById('phInput').value = '';
-                document.getElementById('caInput').value = '';
-                document.getElementById('mgInput').value = '';
-                document.getElementById('khAmInput').value = '';
-                document.getElementById('khPmInput').value = '';
-                document.getElementById('no2Input').value = '';
-                document.getElementById('no3Input').value = '';
-                document.getElementById('po4Input').value = '';
-                document.getElementById('creatureInput').value = '';
-
-                updateConsolidatedStatuses({}); // Clear consolidated status
-                document.getElementById('dosingPlanList').innerHTML = '<li>저장된 기록이 없어 도징 계획을 계산할 수 없습니다.</li>';
-                document.getElementById('completeDosingBtn').classList.add('hidden');
-                document.getElementById('dosingCompletionStatus').classList.add('hidden');
-
-                renderTrendChart(); // Re-render chart (will show no data)
-                displayRecordsTable(); // Re-render table (will show no records message)
-
-                showMessageBox('모든 기록이 초기화되었습니다.');
-                confirmButton.onclick = originalClickListener; // Restore original listener
-            };
-            // For a confirmation, you might want a "Cancel" button too, but for simplicity, we'll use one button.
-            // If you need a full "Yes/No" dialog, the message box logic would need to be expanded.
-        });
-
-
-        // Initialize the date input with today's date and update statuses on load if records exist
-        document.addEventListener('DOMContentLoaded', () => {
-            const today = new Date();
-            const year = today.getFullYear();
-            const month = (today.getMonth() + 1).toString().padStart(2, '0');
-            const day = today.getDate().toString().padStart(2, '0');
-            document.getElementById('dateInput').value = `${year}-${month}-${day}`;
-
-            // Load and display statuses for the latest record on page load
-            const records = getRecords();
-            if (records.length > 0) {
-                const latest = records.sort((a,b)=>a.date.localeCompare(b.date))[records.length - 1];
-                
-                // Pre-fill inputs with latest record values for user convenience
-                loadRecordIntoForm(latest); // Use the new helper function
-                updateConsolidatedStatuses(latest); // Update consolidated statuses based on loaded data
-            } else {
-                // If no records, ensure consolidated status is cleared and hidden
-                updateConsolidatedStatuses({});
-            }
-
-            // Add event listeners for real-time status updates on input change
-            const inputIds = ['tempInput', 'salinityInput', 'phInput', 'caInput', 'mgInput', 'khAmInput', 'khPmInput', 'no2Input', 'no3Input', 'po4Input'];
-            inputIds.forEach(inputId => {
-                const inputElement = document.getElementById(inputId);
-                if (inputElement) {
-                    inputElement.addEventListener('input', () => {
-                        // Only update consolidated status based on current form values if not in edit mode
-                        // or if the date matches the current editing date (to prevent unintended updates)
-                        if (!isEditMode || document.getElementById('dateInput').value === currentEditingDate) {
-                            updateConsolidatedStatuses(getCurrentFormValues());
-                        }
-                    });
-                }
-            });
-
-            // Render the graph on initial load
-            renderTrendChart();
-            // Display records table and dosing plan on initial load
-            displayRecordsTable();
-        });
-    </script>
 </body>
 </html>
-```
