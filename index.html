@@ -1,137 +1,472 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PENG_GU</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body { font-family: 'Noto Sans KR', sans-serif; background-color: #f3f4f6; }
-        .tab-button { padding: 10px 20px; cursor: pointer; background-color: white; border: 1px solid #d1d5db; border-bottom: none; border-radius: 8px 8px 0 0; font-weight: 600; color: #4b5563; transition: all 0.2s; margin-bottom: -1px; }
-        .tab-button.active { background-color: #3b82f6; color: white; border-color: #3b82f6; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-        .message-box-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background-color:rgba(0,0,0,.5);display:flex;justify-content:center;align-items:center;z-index:1000}
-        .message-box{background-color:#fff;padding:24px;border-radius:16px;box-shadow:0 4px 12px rgba(0,0,0,.15);text-align:center;max-width:400px;width:90%}
-        .message-box-button{background-color:#3b82f6;color:#fff;padding:8px 16px;border-radius:8px;margin-top:16px;cursor:pointer;transition:background-color .2s}
-        .status-normal{background-color:#d1fae5}.status-low{background-color:#fee2e2}.status-high{background-color:#ffedd5}
-        .status-text-normal{color:#065f46}.status-text-low{color:#b91c1c}.status-text-high{color:#c2410c}
-        .status-item{padding:12px;border-radius:8px;display:flex;flex-direction:column;align-items:flex-start;gap:4px}
-        .dosing-recommendation{font-size: .85rem; color: #1D4ED8; margin-top: 4px;}
-        #aquarium-container { position: relative; margin: auto; border: 2px dashed #ccc; background-color: #f0f8ff; cursor: crosshair; resize: both; overflow: hidden; touch-action: none; min-height: 400px; transition: width 0.2s, height 0.2s; }
-        #aquariumImageTag { width: 100%; height: 100%; object-fit: contain; object-position: center; position: absolute; top: 0; left: 0; z-index: 1; pointer-events: none; }
-        .coral-marker { position: absolute; color: white; padding: 3px 10px; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.7); transform: translate(-50%, -50%); cursor: grab; font-weight: 500; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.2); text-shadow: 0px 0px 3px rgba(0, 0, 0, 0.5); transition: font-size 0.1s; user-select: none; z-index: 10; }
-        .coral-marker.dragging { cursor: grabbing; z-index: 1000; box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
-        #aquarium-container.move-image-mode { cursor: grab; }
-        #aquarium-container.moving-image { cursor: grabbing; }
-    </style>
-</head>
-<body class="p-4 md:p-6">
+import React, { useState, useEffect, useMemo } from 'react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Droplet, Thermometer, TestTube, ChevronsRight, Settings, PlusCircle, Trash2, BarChart2, MessageSquare, BookOpen, Sunrise, Sunset } from 'lucide-react';
 
-    <div class="max-w-7xl mx-auto">
-        <h1 class="text-3xl font-bold mb-4 text-gray-800">PENG_GU</h1>
-        <div class="flex border-b border-gray-300">
-            <button id="tabBtnDosing" class="tab-button active">도징 계산기 & 기록</button>
-            <button id="tabBtnLayout" class="tab-button">어항 레이아웃</button>
-        </div>
-        <div class="bg-white p-6 rounded-b-lg rounded-r-lg shadow-lg">
-            <div id="tabContentDosing" class="tab-content active">
-                </div>
-            <div id="tabContentLayout" class="tab-content">
-                </div>
-        </div>
-    </div>
-    <div id="customMessageBoxOverlay" class="message-box-overlay hidden"><div class="message-box"><p id="customMessageBoxContent" class="text-gray-800 text-lg mb-4"></p><button id="customMessageBoxButton" class="message-box-button">확인</button></div></div>
+// Firebase Imports - Firestore를 사용하여 데이터를 저장합니다.
+import { initializeApp } from 'firebase/app';
+import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, query, orderBy, deleteDoc } from 'firebase/firestore';
+import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 
-<script>
-// =============== UTILITY & INITIALIZATION ===============
-function showMessageBox(message) { document.getElementById('customMessageBoxContent').textContent = message; document.getElementById('customMessageBoxOverlay').classList.remove('hidden'); }
-function hideMessageBox() { document.getElementById('customMessageBoxOverlay').classList.add('hidden'); }
-document.getElementById('customMessageBoxButton').addEventListener('click', hideMessageBox);
-document.addEventListener('DOMContentLoaded', () => {
-    const tabBtnDosing = document.getElementById('tabBtnDosing'), tabBtnLayout = document.getElementById('tabBtnLayout'), tabContentDosing = document.getElementById('tabContentDosing'), tabContentLayout = document.getElementById('tabContentLayout');
-    function switchTab(activeBtn, inactiveBtn, activeContent, inactiveContent) { activeBtn.classList.add('active'); inactiveBtn.classList.remove('active'); activeContent.classList.add('active'); inactiveContent.classList.remove('active'); }
-    tabBtnDosing.addEventListener('click', () => switchTab(tabBtnDosing, tabBtnLayout, tabContentDosing, tabContentLayout));
-    tabBtnLayout.addEventListener('click', () => switchTab(tabBtnLayout, tabBtnDosing, tabContentLayout, tabContentDosing));
-    initDosingCalculator();
-    initLayoutManager();
-});
+// --- Firebase 설정 ---
+// 이 설정은 자동으로 제공되므로 수정할 필요가 없습니다.
+const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-reef-ai-logger';
 
-// =============== DOSING CALCULATOR SCRIPT ===============
-function initDosingCalculator() {
-    document.getElementById('tabContentDosing').innerHTML = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="bg-white rounded-2xl p-6 border"><h2 class="text-2xl font-bold mb-4 text-gray-800">데이터 입력</h2><div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4" id="dosingInputs"><div class="flex flex-col"><label for="dateInput" class="block font-medium text-gray-700 mb-1">날짜</label><input id="dateInput" type="date" class="w-full border border-gray-300 rounded-lg p-2"/></div><div class="flex flex-col"><label for="volumeInput" class="block font-medium text-gray-700 mb-1">수조 부피 (L)</label><input id="volumeInput" type="number" step="1" class="w-full border border-gray-300 rounded-lg p-2" value="160"/></div><div class="flex flex-col"><label for="tempInput" class="block font-medium text-gray-700 mb-1">온도 (°C)</label><input id="tempInput" type="number" step="0.1" class="w-full border border-gray-300 rounded-lg p-2"/></div><div class="flex flex-col"><label for="salinityInput" class="block font-medium text-gray-700 mb-1">염도 (ppt)</label><input id="salinityInput" type="number" step="0.1" class="w-full border border-gray-300 rounded-lg p-2"/></div><div class="flex flex-col"><label for="phInput" class="block font-medium text-gray-700 mb-1">pH</label><input id="phInput" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2"/></div><div class="flex flex-col"><label for="caInput" class="block font-medium text-gray-700 mb-1">Ca (ppm)</label><input id="caInput" type="number" class="w-full border border-gray-300 rounded-lg p-2"/></div><div class="flex flex-col"><label for="mgInput" class="block font-medium text-gray-700 mb-1">Mg (ppm)</label><input id="mgInput" type="number" class="w-full border border-gray-300 rounded-lg p-2"/></div><div class="flex flex-col"><label for="khAmInput" class="block font-medium text-gray-700 mb-1">KH (dKH) 오전</label><input id="khAmInput" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2"/></div><div class="flex flex-col"><label for="khPmInput" class="block font-medium text-gray-700 mb-1">KH (dKH) 오후</label><input id="khPmInput" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2"/></div><div class="flex flex-col"><label for="no2Input" class="block font-medium text-gray-700 mb-1">NO₂ (ppm)</label><input id="no2Input" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2"/></div><div class="flex flex-col"><label for="no3Input" class="block font-medium text-gray-700 mb-1">NO₃ (ppm)</label><input id="no3Input" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2"/></div><div class="flex flex-col"><label for="po4Input" class="block font-medium text-gray-700 mb-1">PO₄ (ppm)</label><input id="po4Input" type="number" step="0.01" class="w-full border border-gray-300 rounded-lg p-2"/></div><div class="flex flex-col col-span-1 sm:col-span-2"><label for="creatureInput" class="block font-medium text-gray-700 mb-1">생물 투입</label><input id="creatureInput" type="text" class="w-full border border-gray-300 rounded-lg p-2" placeholder="예: 물고기 2마리, 산호 1개"/></div></div><div class="flex flex-wrap gap-4"><button id="saveRecordBtn" class="px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg shadow-md hover:bg-blue-600">기록 저장</button><button id="editRecordBtn" class="px-4 py-2 bg-gray-500 text-white font-semibold rounded-lg shadow-md hover:bg-gray-600">수정</button><button id="cancelEditBtn" class="px-4 py-2 bg-red-500 text-white font-semibold rounded-lg shadow-md hover:bg-red-600 hidden">취소</button><button id="clearRecordsBtn" class="px-4 py-2 bg-red-700 text-white font-semibold rounded-lg shadow-md hover:bg-red-800">기록 초기화</button></div></div><div class="flex flex-col gap-6"><div class="bg-white rounded-2xl p-6 border"><h2 class="text-xl font-bold mb-4 text-gray-800">저장된 기록</h2><div class="overflow-x-auto max-h-96"><table id="recordsTable" class="w-full table-auto border-collapse text-sm"><thead><tr class="bg-gray-100 sticky top-0"><th class="border p-2">날짜</th><th class="border p-2">부피</th><th class="border p-2">온도</th><th class="border p-2">염도</th><th class="border p-2">pH</th><th class="border p-2">Ca</th><th class="border p-2">Mg</th><th class="border p-2">KH오전</th><th class="border p-2">KH오후</th><th class="border p-2">NO₂</th><th class="border p-2">NO₃</th><th class="border p-2">PO₄</th><th class="border p-2">생물</th><th class="border p-2">삭제</th></tr></thead><tbody></tbody></table></div></div><div id="dosagePlanContainer" class="bg-white rounded-2xl p-6 border"><h2 class="text-xl font-bold mb-4 text-gray-800">도징 계획</h2><ul id="dosingPlanList" class="space-y-3"></ul></div></div></div><div id="consolidatedStatusContainer" class="mt-6"><h2 class="text-xl font-bold mb-4 text-gray-800">현재 수질 상태 및 권장 사항</h2><div id="statusDetails" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div><div id="importantNotes" class="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800"><h3 class="font-semibold mb-2">⚠️ 중요 주의사항</h3><p class="text-sm">본 계산 결과는 참고용이며, 사용하는 제품 설명서를 반드시 우선 확인하세요. 어항 상태를 관찰하며 소량씩 안전하게 도징하는 것을 권장합니다.</p></div></div>`;
-    let isEditMode = false, currentEditingDate = null;
-    const reference = { temp: { min: 25, max: 26, label: '온도', unit: '°C' }, salinity: { min: 34, max: 35, label: '염도', unit: 'ppt' }, ph: { min: 8.0, max: 8.3, label: 'pH', unit: '' }, ca: { min: 420, max: 430, unitDose: (d, v) => (d * v) / 100, label: 'Ca', unit: 'ppm', doseUnit: 'ml' }, mg: { min: 1400, max: 1440, unitDose: (d, v) => (d * v) / 100, label: 'Mg', unit: 'ppm', doseUnit: 'ml' }, kh: { min: 7.0, max: 8.0, unitDose: (d, v) => (d * v) / 10, label: 'KH', unit: 'dKH', doseUnit: 'ml' }, no2: { min: 0, max: 0.02, label: 'NO₂', unit: 'ppm', recommendationHigh: '검출! 즉시 환수 권장.' }, no3: { min: 0.5, max: 2.0, label: 'NO₃', unitDose: (d, v) => (d * v) / 100, unit: 'ppm', doseUnit: 'ml', recommendationHigh: '높음. 환수 또는 리무버 사용 권장.' }, po4: { min: 0.03, max: 0.1, label: 'PO₄', unitDose: (d, v) => (d * v) / 10, unit: 'ppm', doseUnit: 'ml', recommendationHigh: '높음. 환수 또는 리무버 사용 권장.' } };
-    function getRecords() { return JSON.parse(localStorage.getItem('dosingRecords') || '[]'); }
-    function saveRecords(records) { localStorage.setItem('dosingRecords', JSON.stringify(records)); }
-    function getCurrentFormValues() { return { date: document.getElementById('dateInput').value, volume: parseFloat(document.getElementById('volumeInput').value) || null, temp: parseFloat(document.getElementById('tempInput').value) || null, salinity: parseFloat(document.getElementById('salinityInput').value) || null, ph: parseFloat(document.getElementById('phInput').value) || null, ca: parseFloat(document.getElementById('caInput').value) || null, mg: parseFloat(document.getElementById('mgInput').value) || null, khAm: parseFloat(document.getElementById('khAmInput').value) || null, khPm: parseFloat(document.getElementById('khPmInput').value) || null, no2: parseFloat(document.getElementById('no2Input').value) || null, no3: parseFloat(document.getElementById('no3Input').value) || null, po4: parseFloat(document.getElementById('po4Input').value) || null, creature: document.getElementById('creatureInput').value || null, dosingStatus: {} }; }
-    function updateConsolidatedStatuses(dataObject) { const container = document.getElementById('statusDetails'); container.innerHTML = ''; if (!dataObject || !dataObject.volume) { container.innerHTML = '<p class="text-gray-500 col-span-full">수치를 입력하거나 기록을 선택하여 상태를 확인하세요.</p>'; return; } Object.keys(reference).forEach(key => { const ref = reference[key]; let val; if (key === 'kh') { const { khAm, khPm } = dataObject; val = (khAm && khPm) ? Math.min(khAm, khPm) : (khAm || khPm); } else { val = dataObject[key]; } let statusText = '데이터 없음', statusClass = 'bg-gray-100', statusTextColor = 'text-gray-500', recommendation = '', dosingPlan = ''; if (typeof val === 'number' && !isNaN(val)) { if (val < ref.min) { statusText = '낮음'; statusClass = 'status-low'; statusTextColor = 'status-text-low'; if (ref.unitDose && dataObject.volume > 0) { const diff = ref.min - val; const totalDose = ref.unitDose(diff, dataObject.volume); const dailyDose = totalDose / 7; dosingPlan = `권장 도징: 총 ${totalDose.toFixed(1)}${ref.doseUnit} (일 ${dailyDose.toFixed(1)}${ref.doseUnit})`; } } else if (val > ref.max) { statusText = '높음'; statusClass = 'status-high'; statusTextColor = 'status-text-high'; if (ref.recommendationHigh) recommendation = ref.recommendationHigh; } else { statusText = '정상'; statusClass = 'status-normal'; statusTextColor = 'status-text-normal'; } } let displayVal = '-'; if (key === 'kh') { displayVal = `오전: ${dataObject.khAm || '-'} / 오후: ${dataObject.khPm || '-'}`; } else if (typeof val === 'number' && !isNaN(val)) { if (['no2','no3','po4','ph'].includes(key)) displayVal = val.toFixed(2); else if (['temp','salinity'].includes(key)) displayVal = val.toFixed(1); else displayVal = val.toString(); } const item = document.createElement('div'); item.className = `status-item ${statusClass}`; item.innerHTML = `<div class="flex justify-between w-full items-center"><span class="font-semibold text-gray-700">${ref.label}</span><span class="text-sm text-gray-600">${displayVal} ${ref.unit||''}</span></div><span class="text-xs text-gray-500">목표: ${ref.min??'-'} ~ ${ref.max??'-'} ${ref.unit||''}</span><span class="font-bold text-sm ${statusTextColor}">${statusText}</span>${recommendation?`<span class="dosing-recommendation">${recommendation}</span>`:''}${dosingPlan?`<span class="dosing-recommendation">${dosingPlan}</span>`:''}`; container.appendChild(item); }); }
-    function renderDosingPlan(record) { const list = document.getElementById('dosingPlanList'); list.innerHTML = ''; if (!record || !record.volume) { list.innerHTML = `<li class="text-gray-500 text-sm">기록을 선택하면 도징 계획이 표시됩니다.</li>`; return; } let hasDosingPlan = false; const paramsToDose = ['ca', 'mg', 'kh', 'no3', 'po4']; paramsToDose.forEach(key => { const ref = reference[key]; let val; if (key === 'kh') { const { khAm, khPm } = record; val = (khAm && khPm) ? Math.min(khAm, khPm) : (khAm || khPm); } else { val = record[key]; } if (ref.unitDose && typeof val === 'number' && val < ref.min) { hasDosingPlan = true; const diff = ref.min - val, totalDose = ref.unitDose(diff, record.volume), dailyDose = totalDose / 7; const dosingText = `권장: 총 ${totalDose.toFixed(1)}${ref.doseUnit} (일 ${dailyDose.toFixed(1)}${ref.doseUnit})`; const isCompleted = record.dosingStatus && record.dosingStatus[key]; const li = document.createElement('li'); li.className = 'flex justify-between items-center text-sm p-2 rounded-md transition-colors ' + (isCompleted ? 'bg-green-50' : 'bg-blue-50'); li.innerHTML = `<div><span class="font-bold text-gray-800">${ref.label}</span><span class="text-gray-600 ml-2">${dosingText}</span></div><button class="dosing-complete-btn px-3 py-1 text-xs font-semibold rounded-full ${isCompleted ? 'bg-green-500 text-white cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600 text-white'}" data-date="${record.date}" data-param="${key}" ${isCompleted ? 'disabled' : ''}>${isCompleted ? '도징 완료' : '도징 예정'}</button>`; list.appendChild(li); } }); if (!hasDosingPlan) { list.innerHTML = `<li class="text-gray-500 text-sm">모든 수치가 안정적입니다. 도징이 필요하지 않습니다.</li>`; } document.querySelectorAll('.dosing-complete-btn').forEach(btn => btn.addEventListener('click', toggleDosingStatus)); }
-    function toggleDosingStatus(e) { const { date, param } = e.target.dataset; const records = getRecords(); const recordIndex = records.findIndex(r => r.date === date); if (recordIndex > -1) { if (!records[recordIndex].dosingStatus) { records[recordIndex].dosingStatus = {}; } records[recordIndex].dosingStatus[param] = true; saveRecords(records); renderDosingPlan(records[recordIndex]); } }
-    function displayRecordsTable() { const records = getRecords().sort((a, b) => b.date.localeCompare(a.date)); const tbody = document.querySelector('#recordsTable tbody'); tbody.innerHTML = !records.length ? `<tr><td colspan="14" class="text-center p-4 text-gray-500">저장된 기록이 없습니다.</td></tr>` : ''; records.forEach(r => { const tr = document.createElement('tr'); tr.className = 'hover:bg-gray-50 cursor-pointer'; tr.addEventListener('click', () => { loadRecordIntoForm(r); }); const format = (v, k) => (typeof v === 'number') ? (['no2','no3','po4','ph','khAm','khPm'].includes(k) ? v.toFixed(2) : (['temp','salinity'].includes(k) ? v.toFixed(1) : v)) : (v || '-'); tr.innerHTML = `<td class="border p-2">${r.date}</td><td class="border p-2 text-center">${r.volume}</td><td class="border p-2 text-center">${format(r.temp,'temp')}</td><td class="border p-2 text-center">${format(r.salinity,'salinity')}</td><td class="border p-2 text-center">${format(r.ph,'ph')}</td><td class="border p-2 text-center">${format(r.ca,'ca')}</td><td class="border p-2 text-center">${format(r.mg,'mg')}</td><td class="border p-2 text-center">${format(r.khAm,'khAm')}</td><td class="border p-2 text-center">${format(r.khPm,'khPm')}</td><td class="border p-2 text-center">${format(r.no2,'no2')}</td><td class="border p-2 text-center">${format(r.no3,'no3')}</td><td class="border p-2 text-center">${format(r.po4,'po4')}</td><td class="border p-2">${r.creature||'-'}</td><td class="border p-2 text-center"><button class="delete-btn text-red-500 hover:font-bold" data-date="${r.date}">X</button></td>`; tbody.appendChild(tr); }); document.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', e => { e.stopPropagation(); if (confirm(`'${e.target.dataset.date}' 기록을 삭제하시겠습니까?`)) { saveRecords(getRecords().filter(rec => rec.date !== e.target.dataset.date)); refreshDosingUI(); } })); }
-    function loadRecordIntoForm(record) { Object.keys(record).forEach(key => { const el = document.getElementById(key + 'Input'); if (el) el.value = record[key] || ''; }); renderDosingPlan(record); updateConsolidatedStatuses(record); }
-    function refreshDosingUI() { displayRecordsTable(); const records = getRecords(); const latest = records.length > 0 ? records.sort((a,b) => b.date.localeCompare(a.date))[0] : null; renderDosingPlan(latest); updateConsolidatedStatuses(latest || {}); }
-    document.getElementById('saveRecordBtn').addEventListener('click', () => { const record = getCurrentFormValues(); if (!record.date) return showMessageBox('날짜를 입력해주세요.'); let records = getRecords(); const idx = records.findIndex(r => r.date === (isEditMode ? currentEditingDate : record.date)); if (isEditMode) { const oldStatus = records[idx].dosingStatus; record.dosingStatus = oldStatus; records[idx] = record; isEditMode = false; document.getElementById('saveRecordBtn').textContent = '기록 저장'; document.getElementById('editRecordBtn').classList.remove('hidden'); document.getElementById('cancelEditBtn').classList.add('hidden'); document.getElementById('dateInput').disabled = false; } else { if (idx !== -1) return showMessageBox('해당 날짜의 기록이 이미 존재합니다.'); records.push(record); } saveRecords(records); displayRecordsTable(); renderDosingPlan(record); updateConsolidatedStatuses(record); });
-    document.getElementById('editRecordBtn').addEventListener('click', () => { const date = document.getElementById('dateInput').value; if (!date || getRecords().findIndex(r => r.date === date) === -1) return showMessageBox('수정할 기록을 먼저 테이블에서 클릭해주세요.'); isEditMode = true; currentEditingDate = date; document.getElementById('saveRecordBtn').textContent = '수정 완료'; document.getElementById('editRecordBtn').classList.add('hidden'); document.getElementById('cancelEditBtn').classList.remove('hidden'); document.getElementById('dateInput').disabled = true; });
-    document.getElementById('cancelEditBtn').addEventListener('click', () => { isEditMode = false; document.getElementById('saveRecordBtn').textContent = '기록 저장'; document.getElementById('editRecordBtn').classList.remove('hidden'); document.getElementById('cancelEditBtn').classList.add('hidden'); document.getElementById('dateInput').disabled = false; });
-    document.getElementById('clearRecordsBtn').addEventListener('click', () => { if (confirm('모든 기록을 정말로 초기화하시겠습니까?')) { saveRecords([]); refreshDosingUI(); } });
-    document.querySelectorAll('#dosingInputs input').forEach(input => { input.addEventListener('input', () => updateConsolidatedStatuses(getCurrentFormValues())); });
-    const today = new Date(); document.getElementById('dateInput').value = `${today.getFullYear()}-${(today.getMonth()+1).toString().padStart(2,'0')}-${today.getDate().toString().padStart(2,'0')}`;
-    refreshDosingUI();
-}
+// Firebase 앱 초기화
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
 
-// =============== LAYOUT MANAGER SCRIPT ===============
-function initLayoutManager() {
-    const layoutContent = document.getElementById('tabContentLayout');
-    layoutContent.innerHTML = `<div class="lg:col-span-3 flex flex-col gap-4"><h2 class="text-2xl font-bold text-gray-800">어항 레이아웃</h2><div class="flex flex-wrap gap-4 items-center p-4 bg-gray-50 rounded-lg border"><div><label for="layout_imageUpload" class="block text-sm font-medium">어항 사진</label><input type="file" id="layout_imageUpload" accept="image/*" class="mt-1 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"></div><div><label for="layout_coralName" class="block text-sm font-medium">산호 이름</label><input type="text" id="layout_coralName" placeholder="예: 버튼 산호" class="mt-1 border border-gray-300 rounded-lg p-2"></div><div><label for="layout_coralColor" class="block text-sm font-medium">마커 색상</label><input type="color" id="layout_coralColor" value="#DC2626" class="mt-1 w-10 h-10 p-1 border-none rounded-lg cursor-pointer"></div><div class="flex-grow min-w-[150px]"><label for="layout_fontSizeSlider" class="block text-sm font-medium">글씨 크기: <span id="layout_fontSizeValue">13px</span></label><input type="range" id="layout_fontSizeSlider" min="8" max="24" value="13" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"></div><div class="flex items-center self-end pb-1"><input type="checkbox" id="moveImageCheckbox" class="h-5 w-5 text-blue-600 rounded cursor-pointer mr-2"><label for="moveImageCheckbox" class="text-sm cursor-pointer">사진 이동 모드</label></div></div><div class="grid grid-cols-1 xl:grid-cols-3 gap-6 flex-grow"><div id="aquarium-container" class="xl:col-span-2 h-[60vh]"><img id="aquariumImageTag" src=""></div><div id="coral-list-container" class="bg-gray-50 p-4 rounded-lg border"><h2 class="text-lg font-semibold mb-2">산호 목록</h2><ul id="coral-list" class="space-y-2"></ul></div></div></div>`;
-    const aquariumContainer = document.getElementById('aquarium-container'), imageTag = document.getElementById('aquariumImageTag'), imageUpload = document.getElementById('layout_imageUpload'), coralNameInput = document.getElementById('layout_coralName'), coralColorInput = document.getElementById('layout_coralColor'), coralList = document.getElementById('coral-list'), fontSizeSlider = document.getElementById('layout_fontSizeSlider'), fontSizeValue = document.getElementById('layout_fontSizeValue'), moveImageCheckbox = document.getElementById('moveImageCheckbox');
-    let corals = JSON.parse(localStorage.getItem('myCorals') || '[]'), currentFontSize = localStorage.getItem('markerFontSize') || 13, isMovingImage = false, isDraggingMarker = false, initialMousePos = { x: 0, y: 0 }, initialBgPos = { x: 0, y: 0 };
-    function loadSavedLayoutData() { const savedImage = localStorage.getItem('aquariumImage'); if (savedImage) imageTag.src = savedImage; const savedObjPos = localStorage.getItem('aquariumImgPos') || 'center'; imageTag.style.objectPosition = savedObjPos; const savedWidth = localStorage.getItem('aquariumWidth') || 800; const savedHeight = localStorage.getItem('aquariumHeight') || 600; aquariumContainer.style.width = `${savedWidth}px`; aquariumContainer.style.height = `${savedHeight}px`; fontSizeSlider.value = currentFontSize; fontSizeValue.textContent = `${currentFontSize}px`; renderCorals(); }
-    function renderCorals() { aquariumContainer.querySelectorAll('.coral-marker').forEach(m=>m.remove()); coralList.innerHTML = ''; corals.forEach((coral, index) => { const marker = document.createElement('div'); marker.className = 'coral-marker'; marker.style.left = `${coral.x}%`; marker.style.top = `${coral.y}%`; marker.dataset.index = index; marker.textContent = coral.name; marker.style.backgroundColor = coral.color || '#DC2626'; marker.style.fontSize = `${currentFontSize}px`; marker.addEventListener('mousedown', startDragMarker); marker.addEventListener('touchstart', startDragMarker, { passive: false }); aquariumContainer.appendChild(marker); const li = document.createElement('li'); li.className = 'flex justify-between items-center bg-white p-2 rounded shadow-sm'; li.innerHTML = `<div class="flex items-center gap-3"><span class="w-4 h-4 rounded" style="background-color:${coral.color || '#DC2626'}; border:1px solid #ddd;"></span><span>${coral.name}</span></div><button data-index="${index}" class="remove-btn text-red-500 font-bold hover:text-red-700">X</button>`; coralList.appendChild(li); }); document.querySelectorAll('.remove-btn').forEach(btn => btn.addEventListener('click', removeCoral)); }
-    function startDragMarker(e) { if (moveImageCheckbox.checked) return; e.preventDefault(); e.stopPropagation(); isDraggingMarker = true; const activeMarker = e.target; activeMarker.classList.add('dragging'); const drag = (ev) => { const rect = aquariumContainer.getBoundingClientRect(); let clientX = ev.clientX || ev.touches[0].clientX, clientY = ev.clientY || ev.touches[0].clientY; let newX = Math.max(0, Math.min(clientX - rect.left, rect.width)), newY = Math.max(0, Math.min(clientY - rect.top, rect.height)); activeMarker.style.left = `${(newX / rect.width) * 100}%`; activeMarker.style.top = `${(newY / rect.height) * 100}%`; }; const stopDrag = () => { const index = activeMarker.dataset.index; corals[index].x = parseFloat(activeMarker.style.left); corals[index].y = parseFloat(activeMarker.style.top); saveCoralData(); activeMarker.classList.remove('dragging'); document.removeEventListener('mousemove', drag); document.removeEventListener('mouseup', stopDrag); document.removeEventListener('touchmove', drag); document.removeEventListener('touchend', stopDrag); setTimeout(() => isDraggingMarker = false, 50); }; document.addEventListener('mousemove', drag); document.addEventListener('mouseup', stopDrag); document.addEventListener('touchmove', drag, { passive: false }); document.addEventListener('touchend', stopDrag); }
-    function saveCoralData() { localStorage.setItem('myCorals', JSON.stringify(corals)); }
-    imageUpload.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        if (corals.length > 0 && !confirm("새로운 사진을 올리면 기존 산호 위치가 모두 초기화됩니다. 계속하시겠습니까?")) {
-            imageUpload.value = ""; return;
+// --- 데이터 구조 및 계산 로직 ---
+
+// 기본 설정값
+const initialSettings = {
+    waterVolume: 160,
+    temp: { min: 25.5, max: 26.5 },
+    salinity: { min: 34, max: 35 },
+    ph: { min: 8.0, max: 8.3 },
+    kh: { min: 7.5, max: 8.5 }, // KH 목표는 동일하게 유지
+    ca: { min: 400, max: 430 },
+    mg: { min: 1350, max: 1440 },
+    no2: { min: 0.00, max: 0.00, danger: 0.01 },
+    no3: { min: 0.5, max: 2.0 },
+    po4: { min: 0.03, max: 0.08 },
+    minDose: 0.3,
+};
+
+// 각 파라미터 정보 (KH가 오전/오후로 분리됨)
+const PARAMETERS = {
+    temp: { name: '온도', unit: '°C' },
+    salinity: { name: '염도', unit: 'ppt' },
+    ph: { name: 'pH', unit: '' },
+    kh_am: { name: 'KH (오전)', unit: 'dKH' },
+    kh_pm: { name: 'KH (오후)', unit: 'dKH' },
+    ca: { name: '칼슘', unit: 'ppm' },
+    mg: { name: '마그네슘', unit: 'ppm' },
+    no2: { name: '아질산', unit: 'ppm' },
+    no3: { name: '질산염', unit: 'ppm' },
+    po4: { name: '인산염', unit: 'ppm' },
+};
+
+// 상태 분석 함수
+const getStatus = (key, value, settings) => {
+    if (value === null || value === undefined || value === '') return { text: '입력 대기', color: 'text-gray-400' };
+    const val = parseFloat(value);
+    // KH 오전/오후 모두 동일한 'kh' 설정을 사용하도록 처리
+    const settingKey = (key === 'kh_am' || key === 'kh_pm') ? 'kh' : key;
+    const setting = settings[settingKey];
+    if (!setting) return { text: 'N/A', color: 'text-gray-400' };
+
+    if (key === 'no2' && val >= setting.danger) {
+        return { text: '위험', color: 'text-red-500 font-bold' };
+    }
+    if (val < setting.min) return { text: '부족', color: 'text-blue-500' };
+    if (val > setting.max) return { text: '과다', color: 'text-yellow-500' };
+    return { text: '적절', color: 'text-green-500' };
+};
+
+// 도징량 계산 및 AI 어드바이스 생성 함수
+const getAdvice = (log, settings) => {
+    if (!log) return [];
+    let adviceList = [];
+
+    // 1. 아질산 (NO2) - 가장 중요
+    const no2Val = parseFloat(log.no2);
+    if (!isNaN(no2Val) && no2Val >= settings.no2.danger) {
+        const dose = Math.round(settings.waterVolume / 100);
+        adviceList.push({
+            level: 'danger',
+            param: '아질산(NO₂)',
+            message: `수치가 ${no2Val}ppm으로 매우 위험합니다. 생물에게 치명적일 수 있습니다.`,
+            action: `즉시 박터 오리진 ${dose}방울을 도징하고, 수치가 0이 될 때까지 매일 환수 및 상태를 확인하세요.`
+        });
+    }
+
+    // 2. KH (오전/오후) - 오후 값을 우선으로 분석
+    const khPmVal = parseFloat(log.kh_pm);
+    const khAmVal = parseFloat(log.kh_am);
+    const latestKhVal = !isNaN(khPmVal) ? khPmVal : khAmVal;
+    const khSource = !isNaN(khPmVal) ? '오후' : '오전';
+
+    if (!isNaN(latestKhVal) && latestKhVal < settings.kh.min) {
+        const neededDose = (settings.waterVolume * (settings.kh.min - latestKhVal)) / 10;
+        if (neededDose >= settings.minDose) {
+            adviceList.push({
+                level: 'warn',
+                param: `KH (${khSource})`,
+                message: `${khSource} KH가 ${latestKhVal}dKH로 낮습니다. 산호 건강과 pH 안정성에 영향을 줍니다.`,
+                action: `KH 도징액 ${neededDose.toFixed(1)}ml를 2~3일에 걸쳐 나누어 도징하세요.`
+            });
         }
-        const reader = new FileReader();
-        reader.onload = (re) => {
-            const imageUrl = re.target.result;
-            const img = new Image();
-            img.onload = () => {
-                const parentWidth = aquariumContainer.parentElement.clientWidth;
-                const imageAspectRatio = img.naturalHeight / img.naturalWidth;
-                const newWidth = parentWidth;
-                const newHeight = newWidth * imageAspectRatio;
-                aquariumContainer.style.width = `${newWidth}px`;
-                aquariumContainer.style.height = `${newHeight}px`;
-                localStorage.setItem('aquariumWidth', Math.round(newWidth));
-                localStorage.setItem('aquariumHeight', Math.round(newHeight));
-                imageTag.src = imageUrl;
-                localStorage.setItem('aquariumImage', imageUrl);
-                corals = []; saveCoralData(); renderCorals();
-            };
-            img.src = imageUrl;
-        };
-        reader.readAsDataURL(file);
-    });
-    function handleContainerInteraction(e) { if (moveImageCheckbox.checked && e.target === aquariumContainer) { isMovingImage = true; aquariumContainer.classList.add('moving-image'); initialMousePos = { x: e.clientX || e.touches[0].clientX, y: e.clientY || e.touches[0].clientY }; const objPos = getComputedStyle(imageTag).objectPosition.split(' '); initialBgPos = { x: parseFloat(objPos[0]), y: parseFloat(objPos[1]) }; document.addEventListener('mousemove', moveImage); document.addEventListener('mouseup', stopMoveImage); document.addEventListener('touchmove', moveImage, { passive: false }); document.addEventListener('touchend', stopMoveImage); } }
-    aquariumContainer.addEventListener('mousedown', handleContainerInteraction); aquariumContainer.addEventListener('touchstart', handleContainerInteraction, { passive: false });
-    function moveImage(e) { if (!isMovingImage) return; let clientX = e.clientX || e.touches[0].clientX, clientY = e.clientY || e.touches[0].clientY; let deltaX = clientX - initialMousePos.x, deltaY = clientY - initialMousePos.y; imageTag.style.objectPosition = `${initialBgPos.x + deltaX}px ${initialBgPos.y + deltaY}px`; }
-    function stopMoveImage() { if (!isMovingImage) return; isMovingImage = false; aquariumContainer.classList.remove('moving-image'); localStorage.setItem('aquariumImgPos', imageTag.style.objectPosition); document.removeEventListener('mousemove', moveImage); document.removeEventListener('mouseup', stopMoveImage); document.removeEventListener('touchmove', moveImage); document.removeEventListener('touchend', stopMoveImage); }
-    aquariumContainer.addEventListener('click', (e) => { if (moveImageCheckbox.checked || isDraggingMarker || e.target !== aquariumContainer) return; const name = coralNameInput.value.trim(); if (!name) return showMessageBox('먼저 추가할 산호의 이름을 입력해주세요.'); const rect = aquariumContainer.getBoundingClientRect(); corals.push({ name, color: coralColorInput.value, x: ((e.clientX - rect.left) / rect.width) * 100, y: ((e.clientY - rect.top) / rect.height) * 100 }); coralNameInput.value = ''; saveCoralData(); renderCorals(); });
-    function removeCoral(e) { corals.splice(e.target.dataset.index, 1); saveCoralData(); renderCorals(); }
-    const resizeObserver = new ResizeObserver(entries => { for (let entry of entries) { requestAnimationFrame(() => { const { width, height } = entry.contentRect; localStorage.setItem('aquariumWidth', Math.round(width)); localStorage.setItem('aquariumHeight', Math.round(height)); }); } });
-    resizeObserver.observe(aquariumContainer);
-    fontSizeSlider.addEventListener('input', (e) => { currentFontSize = e.target.value; fontSizeValue.textContent = `${currentFontSize}px`; document.querySelectorAll('.coral-marker').forEach(m => m.style.fontSize = `${currentFontSize}px`); localStorage.setItem('markerFontSize', currentFontSize); });
-    moveImageCheckbox.addEventListener('change', e => { aquariumContainer.classList.toggle('move-image-mode', e.target.checked); });
-    loadSavedLayoutData();
-}
-</script>
+    }
 
-</body>
-</html>
+    // 3. 칼슘 (Ca)
+    const caVal = parseFloat(log.ca);
+    if (!isNaN(caVal) && caVal < settings.ca.min) {
+        const neededDose = (settings.waterVolume * (settings.ca.min - caVal)) / 100;
+        if (neededDose >= settings.minDose) {
+            adviceList.push({
+                level: 'warn',
+                param: '칼슘(Ca)',
+                message: `칼슘이 ${caVal}ppm으로 낮습니다. 산호의 골격 성장에 필수적입니다.`,
+                action: `칼슘(Ca) 도징액 ${neededDose.toFixed(1)}ml를 2~3일에 걸쳐 나누어 도징하세요.`
+            });
+        }
+    }
+    
+    // 4. 마그네슘 (Mg)
+    const mgVal = parseFloat(log.mg);
+    if (!isNaN(mgVal) && mgVal < settings.mg.min) {
+        const neededDose = (settings.waterVolume * (settings.mg.min - mgVal)) / 100;
+        if (neededDose >= settings.minDose) {
+            adviceList.push({
+                level: 'warn',
+                param: '마그네슘(Mg)',
+                message: `마그네슘이 ${mgVal}ppm으로 낮습니다. KH와 칼슘의 균형을 유지합니다.`,
+                action: `마그네슘(Mg) 도징액 ${neededDose.toFixed(1)}ml를 2~3일에 걸쳐 나누어 도징하세요.`
+            });
+        }
+    }
+
+    // 5. 질산염 (NO3)
+    const no3Val = parseFloat(log.no3);
+    if (!isNaN(no3Val) && no3Val < settings.no3.min) {
+        const neededDose = (settings.waterVolume * (settings.no3.min - no3Val)) / 100;
+        if (neededDose >= settings.minDose) {
+            adviceList.push({
+                level: 'info',
+                param: '질산염(NO₃)',
+                message: `질산염이 ${no3Val}ppm으로 낮습니다. 산호의 영양분이 될 수 있습니다.`,
+                action: `Nitro를 ${neededDose.toFixed(1)}ml 도징하여 수치를 조절하세요.`
+            });
+        }
+    }
+    
+    // 6. 인산염 (PO4)
+    const po4Val = parseFloat(log.po4);
+    if (!isNaN(po4Val) && po4Val < settings.po4.min) {
+        const neededDose = (settings.waterVolume * (settings.po4.min - po4Val)) / 10;
+        if (neededDose >= settings.minDose) {
+            adviceList.push({
+                level: 'info',
+                param: '인산염(PO₄)',
+                message: `인산염이 ${po4Val}ppm으로 낮습니다. 산호의 영양분이 될 수 있습니다.`,
+                action: `Phos를 ${neededDose.toFixed(1)}ml 도징하여 수치를 조절하세요.`
+            });
+        }
+    }
+
+    if (adviceList.length === 0) {
+        adviceList.push({
+            level: 'success',
+            param: '모든 수치 양호',
+            message: '어항의 모든 수치가 안정적인 범위 내에 있습니다.',
+            action: '현재 상태를 잘 유지해주세요! 정기적인 관리가 중요합니다.'
+        });
+    }
+
+    return adviceList;
+};
+
+// --- React 컴포넌트 ---
+
+// 설정 패널 컴포넌트
+const SettingsPanel = ({ settings, setSettings, onSave, isVisible, setVisible }) => {
+    const [localSettings, setLocalSettings] = useState(settings);
+
+    useEffect(() => {
+        setLocalSettings(settings);
+    }, [settings]);
+
+    const handleInputChange = (e, param, field) => {
+        const { value } = e.target;
+        if (param) {
+            setLocalSettings(prev => ({
+                ...prev,
+                [param]: { ...prev[param], [field]: value }
+            }));
+        } else {
+            setLocalSettings(prev => ({ ...prev, [field]: value }));
+        }
+    };
+    
+    const handleSave = () => {
+        onSave(localSettings);
+        setVisible(false);
+    };
+
+    if (!isVisible) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex justify-center items-center p-4">
+            <div className="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto text-white">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-2xl font-bold text-cyan-400">어항 설정</h2>
+                    <button onClick={() => setVisible(false)} className="text-gray-400 hover:text-white">&times;</button>
+                </div>
+                
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-300">수조 총 물량 (L)</label>
+                        <input type="number" value={localSettings.waterVolume} onChange={(e) => handleInputChange(e, null, 'waterVolume')} className="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md shadow-sm focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm p-2" />
+                    </div>
+                     <div>
+                        <label className="block text-sm font-medium text-gray-300">최소 도징량 (ml)</label>
+                        <input type="number" step="0.1" value={localSettings.minDose} onChange={(e) => handleInputChange(e, null, 'minDose')} className="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md shadow-sm focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm p-2" />
+                    </div>
+                    {/* KH 설정은 하나로 통합하여 표시 */}
+                    <div className="bg-gray-700 p-3 rounded-lg">
+                        <h3 className="font-semibold text-cyan-300">KH 목표 범위 (dKH)</h3>
+                        <div className="flex items-center space-x-2 mt-2">
+                            <input type="number" step="0.1" placeholder="최소" value={localSettings.kh?.min || ''} onChange={(e) => handleInputChange(e, 'kh', 'min')} className="w-full bg-gray-600 rounded p-1 text-center" />
+                            <span>~</span>
+                            <input type="number" step="0.1" placeholder="최대" value={localSettings.kh?.max || ''} onChange={(e) => handleInputChange(e, 'kh', 'max')} className="w-full bg-gray-600 rounded p-1 text-center" />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {Object.keys(PARAMETERS).filter(k => k !== 'kh_am' && k !== 'kh_pm').map(key => (
+                            <div key={key} className="bg-gray-700 p-3 rounded-lg">
+                                <h3 className="font-semibold text-cyan-300">{PARAMETERS[key].name} ({PARAMETERS[key].unit})</h3>
+                                <div className="flex items-center space-x-2 mt-2">
+                                    <input type="number" step="0.1" placeholder="최소" value={localSettings[key]?.min || ''} onChange={(e) => handleInputChange(e, key, 'min')} className="w-full bg-gray-600 rounded p-1 text-center" />
+                                    <span>~</span>
+                                    <input type="number" step="0.1" placeholder="최대" value={localSettings[key]?.max || ''} onChange={(e) => handleInputChange(e, key, 'max')} className="w-full bg-gray-600 rounded p-1 text-center" />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="mt-6 flex justify-end">
+                    <button onClick={handleSave} className="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                        저장
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// 메인 앱 컴포넌트
+export default function App() {
+    const [logs, setLogs] = useState([]);
+    const [settings, setSettings] = useState(initialSettings);
+    const [currentLog, setCurrentLog] = useState({ date: new Date().toISOString().slice(0, 10) });
+    const [view, setView] = useState('log'); // log, chart, advice
+    const [isSettingsVisible, setSettingsVisible] = useState(false);
+    const [userId, setUserId] = useState(null);
+    const [isLoading, setLoading] = useState(true);
+
+    // Firebase 인증 및 데이터 로딩
+    useEffect(() => {
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                setUserId(user.uid);
+                
+                // 설정 불러오기
+                const settingsRef = doc(db, `artifacts/${appId}/users/${user.uid}/reef_log_settings`, 'settings');
+                const docSnap = await getDoc(settingsRef);
+                if (docSnap.exists()) {
+                    setSettings(docSnap.data());
+                } else {
+                    await setDoc(settingsRef, initialSettings);
+                }
+
+                // 로그 불러오기 (실시간)
+                const logsQuery = query(collection(db, `artifacts/${appId}/users/${user.uid}/reef_log_entries`), orderBy('date', 'desc'));
+                const unsubscribe = onSnapshot(logsQuery, (querySnapshot) => {
+                    const logsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    setLogs(logsData);
+                    setLoading(false);
+                });
+                return () => unsubscribe();
+
+            } else {
+                signInAnonymously(auth);
+            }
+        });
+    }, []);
+
+    const handleSaveSettings = async (newSettings) => {
+        if (!userId) return;
+        const settingsRef = doc(db, `artifacts/${appId}/users/${userId}/reef_log_settings`, 'settings');
+        await setDoc(settingsRef, newSettings);
+        setSettings(newSettings);
+    };
+
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setCurrentLog(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleAddLog = async () => {
+        if (!userId || !currentLog.date) {
+            alert("날짜를 입력해주세요.");
+            return;
+        }
+        const logId = currentLog.date; // 날짜를 ID로 사용
+        const logRef = doc(db, `artifacts/${appId}/users/${userId}/reef_log_entries`, logId);
+        await setDoc(logRef, { ...currentLog, id: logId }, { merge: true }); // merge: true로 오전/오후 데이터 덮어쓰기 방지
+        setCurrentLog({ date: new Date().toISOString().slice(0, 10) }); // 입력 폼 초기화 (날짜는 오늘로)
+    };
+
+    const handleDeleteLog = async (logId) => {
+        if (!userId || !logId) return;
+        if (window.confirm("정말로 이 기록을 삭제하시겠습니까?")) {
+            const logRef = doc(db, `artifacts/${appId}/users/${userId}/reef_log_entries`, logId);
+            await deleteDoc(logRef);
+        }
+    };
+
+    const advice = useMemo(() => getAdvice(logs[0], settings), [logs, settings]);
+    const chartData = useMemo(() => logs.map(log => ({
+        ...log,
+        date: log.date,
+    })).reverse(), [logs]);
+
+    const AdviceCard = ({ item }) => {
+        const colors = {
+            danger: 'border-red-500 bg-red-900/20',
+            warn: 'border-yellow-500 bg-yellow-900/20',
+            info: 'border-blue-500 bg-blue-900/20',
+            success: 'border-green-500 bg-green-900/20'
+        };
+        const iconColors = {
+            danger: 'text-red-400',
+            warn: 'text-yellow-400',
+            info: 'text-blue-400',
+            success: 'text-green-400'
+        };
+        return (
+            <div className={`border-l-4 p-4 rounded-r-lg ${colors[item.level]}`}>
+                <div className="flex items-start">
+                    <div className={`flex-shrink-0 ${iconColors[item.level]} mr-3 mt-1`}>
+                        {item.level === 'danger' && <TestTube size={20} />}
+                        {item.level === 'warn' && <Droplet size={20} />}
+                        {item.level === 'info' && <ChevronsRight size={20} />}
+                        {item.level === 'success' && <Sunrise size={20} />}
+                    </div>
+                    <div>
+                        <p className="font-bold text-white">{item.param}</p>
+                        <p className="text-sm text-gray-300">{item.message}</p>
+                        <p className="text-sm text-cyan-300 mt-1">{item.action}</p>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    if (isLoading) {
+        return <div className="bg-gray-900 text-white h-screen flex items-center justify-center">로딩 중...</div>
+    }
+
+    return (
+        <div className="bg-gray-900 text-white min-h-screen font-sans p-4 md:p-6">
+            <SettingsPanel settings={settings} setSettings={setSettings} onSave={handleSaveSettings} isVisible={isSettingsVisible} setVisible={setSettingsVisible} />
+            
+            <header className="flex flex-col md:flex-row justify-between items-center mb-6">
+                <h1 className="text-3xl md:text-4xl font-bold text-cyan-400 mb-4 md:mb-0">PENG_GU</h1>
+                <div className="flex items-center space-x-2">
+                    <button onClick={() => setView('log')} className={`px-3 py-2 rounded-lg text-sm flex items-center space-x-2 ${view === 'log' ? 'bg-cyan-500' : 'bg-gray-700 hover:bg-gray-600'}`}><BookOpen size={16}/><span>로그</span></button>
+                    <button onClick={() => setView('chart')} className={`px-3 py-2 rounded-lg text-sm flex items-center space-x-2 ${view === 'chart' ? 'bg-cyan-500' : 'bg-gray-700 hover:bg-gray-600'}`}><BarChart2 size={16}/><span>그래프</span></button>
+                    <button onClick={() => setView('advice')} className={`px-3 py-2 rounded-lg text-sm flex items-center space-x-2 ${view === 'advice' ? 'bg-cyan-500' : 'bg-gray-700 hover:bg-gray-600'}`}><MessageSquare size={16}/><span>AI 분석</span></button>
+                    <button onClick={() => setSettingsVisible(true)} className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600"><Settings size={20}/></button>
+                </div>
+            </header>
+
+            <main>
+                {/* 데이터 입력 폼 */}
+                <div className="bg-gray-800 p-4 rounded-lg mb-6 shadow-lg">
+                    <h2 className="text-xl font-semibold mb-4 text-cyan-300">새 측정값 기록</h2>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                        <input type="date" name="date" value={currentLog.date || ''} onChange={handleInputChange} className="col-span-2 sm:col-span-1 bg-gray-700 border-gray-600 rounded-md p-2 focus:ring-cyan-500 focus:border-cyan-500" />
+                        {Object.keys(PARAMETERS).map(key => (
+                            <div key={key}>
+                                <label className="text-sm text-gray-400 flex items-center">
+                                    {key === 'kh_am' && <Sunrise size={12} className="mr-1"/>}
+                                    {key === 'kh_pm' && <Sunset size={12} className="mr-1"/>}
+                                    {PARAMETERS[key].name}
+                                </label>
+                                <input type="number" step="0.01" name={key} placeholder={PARAMETERS[key].unit} value={currentLog[key] || ''} onChange={handleInputChange} className="w-full mt-1 bg-gray-700 border-gray-600 rounded-md p-2 focus:ring-cyan-500 focus:border-cyan-500" />
+                            </div>
+                        ))}
+                    </div>
+                    <div className="flex justify-end mt-4">
+                        <button onClick={handleAddLog} className="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg flex items-center space-x-2 transition-colors">
+                            <PlusCircle size={18} />
+                            <span>기록 추가/수정</span>
+                        </button>
+                    </div>
+                </div>
+
+                {/* 뷰 전환 컨텐츠 */}
+                <div className="bg-gray-800 p-4 rounded-lg shadow-lg">
+                    {view === 'log' && (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm text-left text-gray-300">
+                                <thead className="text-xs text-cyan-300 uppercase bg-gray-700">
+                                    <tr>
+                                        <th scope="col" className="px-4 py-3">날짜</th>
+                                        {Object.keys(PARAMETERS).map(key => <th key={key} scope="col" className="px-4 py-3 text-center">{PARAMETERS[key].name}</th>)}
+                                        <th scope="col" className="px-4 py-3"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {logs.map(log => (
+                                        <tr key={log.id} className="border-b border-gray-700 hover:bg-gray-700/50">
+                                            <td className="px-4 py-3 font-medium text-white whitespace-nowrap">{log.date}</td>
+                                            {Object.keys(PARAMETERS).map(key => {
+                                                const status = getStatus(key, log[key], settings);
+                                                return <td key={key} className={`px-4 py-3 text-center ${status.color}`}>{log[key] ?? '-'}</td>
+                                            })}
+                                            <td className="px-4 py-3 text-right">
+                                                <button onClick={() => handleDeleteLog(log.id)} className="text-red-500 hover:text-red-400"><Trash2 size={16}/></button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+
+                    {view === 'chart' && (
+                        <div>
+                           <h3 className="text-xl font-semibold mb-4 text-cyan-300">수치 변화 그래프</h3>
+                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                {Object.keys(PARAMETERS).map(key => (
+                                    <div key={key} className="h-64">
+                                        <p className="text-center font-semibold text-cyan-200 mb-2">{PARAMETERS[key].name} ({PARAMETERS[key].unit})</p>
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <LineChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="#4A5568" />
+                                                <XAxis dataKey="date" stroke="#A0AEC0" fontSize={12} tickFormatter={(str) => str.substring(5)} />
+                                                <YAxis stroke="#A0AEC0" fontSize={12} domain={['dataMin - 1', 'dataMax + 1']} />
+                                                <Tooltip contentStyle={{ backgroundColor: '#2D3748', border: '1px solid #4A5568' }} />
+                                                <Legend />
+                                                <Line type="monotone" dataKey={key} name={PARAMETERS[key].name} stroke="#4FD1C5" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls={true} />
+                                            </LineChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                ))}
+                           </div>
+                        </div>
+                    )}
+
+                    {view === 'advice' && (
+                        <div>
+                            <h3 className="text-xl font-semibold mb-4 text-cyan-300">AI 분석 및 조언 (최신 기록 기준)</h3>
+                            {logs.length > 0 ? (
+                                <div className="space-y-4">
+                                    {advice.map((item, index) => <AdviceCard key={index} item={item} />)}
+                                </div>
+                            ) : (
+                                <p className="text-gray-400">분석할 데이터가 없습니다. 먼저 측정값을 기록해주세요.</p>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </main>
+        </div>
+    );
+}
