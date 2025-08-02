@@ -61,12 +61,12 @@
           phosphate: { min: 0.03, max: 0.07, unit: 'ppm' },
         };
         
-        // 그래프 항목 순서를 전체 기록 표시 순서와 일치시킴
         const chartLines = [
             { dataKey: 'temp', name: '온도 (°C)', color: '#FF69B4', yAxisId: 'left' },
             { dataKey: 'salinity', name: '염도 (ppt)', color: '#00BFFF', yAxisId: 'left' },
             { dataKey: 'ph', name: 'pH', color: '#DA70D6', yAxisId: 'left' },
-            { dataKey: 'kh', name: 'KH (dKH)', color: '#4169E1', yAxisId: 'left' },
+            { dataKey: 'kh_am', name: 'KH (오전)', color: '#4169E1', yAxisId: 'left' },
+            { dataKey: 'kh_pm', name: 'KH (오후)', color: '#87CEFA', yAxisId: 'left' },
             { dataKey: 'calcium', name: '칼슘 (ppm)', color: '#3CB371', yAxisId: 'right' },
             { dataKey: 'magnesium', name: '마그네슘 (ppm)', color: '#FFD700', yAxisId: 'right' },
             { dataKey: 'nitrite', name: '아질산 (ppm)', color: '#DC143C', yAxisId: 'left' },
@@ -77,7 +77,8 @@
         const calculateDosing = (log, waterVolume) => {
           const dosing = {};
           if (!log || typeof waterVolume !== 'number' || waterVolume <= 0) return dosing;
-          if (log.kh < TARGET_RANGES.kh.min) { dosing.kh = ((waterVolume * (TARGET_RANGES.kh.min - log.kh)) / 10).toFixed(2); }
+          const currentKh = log.kh_pm ?? log.kh_am; // 오후 값이 있으면 사용, 없으면 오전 값 사용
+          if (currentKh < TARGET_RANGES.kh.min) { dosing.kh = ((waterVolume * (TARGET_RANGES.kh.min - currentKh)) / 10).toFixed(2); }
           if (log.calcium < TARGET_RANGES.calcium.min) { dosing.calcium = ((waterVolume * (TARGET_RANGES.calcium.min - log.calcium)) / 200).toFixed(2); }
           if (log.magnesium < TARGET_RANGES.magnesium.min) { dosing.magnesium = ((waterVolume * (TARGET_RANGES.magnesium.min - log.magnesium)) / 100).toFixed(2); }
           if (log.nitrate < TARGET_RANGES.nitrate.min) { dosing.nitrate = ((waterVolume * (TARGET_RANGES.nitrate.min - log.nitrate)) / 100).toFixed(2); }
@@ -103,7 +104,7 @@
 
           const [newLog, setNewLog] = useState({
             date: new Date().toISOString().slice(0, 10),
-            temp: '', salinity: '', ph: '', kh: '',
+            temp: '', salinity: '', ph: '', kh_am: '', kh_pm: '',
             calcium: '', magnesium: '', nitrite: '', nitrate: '', phosphate: '',
             notes: ''
           });
@@ -114,9 +115,9 @@
 
           useEffect(() => {
             const initialLogs = [
-                { id: 1, date: '2025-07-30', temp: 26.0, salinity: 35.0, ph: 8.1, kh: 7.0, calcium: 380, magnesium: 1300, nitrite: 0, nitrate: 2.0, phosphate: 0.05, notes: '초기 데이터' },
-                { id: 2, date: '2025-08-01', temp: 25.8, salinity: 34.5, ph: 8.2, kh: 7.5, calcium: 410, magnesium: 1350, nitrite: 0, nitrate: 1.5, phosphate: 0.04, notes: '환수 후 안정' },
-                { id: 3, date: '2025-08-02', temp: 25.9, salinity: 34.6, ph: 8.3, kh: 7.8, calcium: 420, magnesium: 1380, nitrite: 0, nitrate: 1.0, phosphate: 0.03, notes: '수질 안정' }
+                { id: 1, date: '2025-07-30', temp: 26.0, salinity: 35.0, ph: 8.1, kh_am: 7.0, kh_pm: 7.2, calcium: 380, magnesium: 1300, nitrite: 0, nitrate: 2.0, phosphate: 0.05, notes: '초기 데이터' },
+                { id: 2, date: '2025-08-01', temp: 25.8, salinity: 34.5, ph: 8.2, kh_am: 7.5, kh_pm: 7.4, calcium: 410, magnesium: 1350, nitrite: 0, nitrate: 1.5, phosphate: 0.04, notes: '환수 후 안정' },
+                { id: 3, date: '2025-08-02', temp: 25.9, salinity: 34.6, ph: 8.3, kh_am: 7.8, kh_pm: 7.9, calcium: 420, magnesium: 1380, nitrite: 0, nitrate: 1.0, phosphate: 0.03, notes: '수질 안정' }
             ].sort((a, b) => new Date(b.date) - new Date(a.date));
             setLogs(initialLogs);
           }, []);
@@ -137,7 +138,7 @@
 - **온도, 염도, pH, 질산염, 인산염:** 모든 수치가 목표 범위 내에서 매우 안정적으로 유지되고 있습니다. 특히 질산염과 인산염 수치가 낮게 관리되는 점은 산호의 건강한 발색에 매우 긍정적입니다. 훌륭합니다!
 
 #### 3. 주의 및 개선 필요 항목
-- **KH (${log.kh} dKH):** 목표치(7.3 ~ 8.0)보다 약간 낮습니다. KH는 산호의 골격 성장에 가장 중요한 요소이므로 꾸준한 도징으로 목표 범위 내로 올려주는 것이 좋습니다.
+- **KH (오전 ${log.kh_am}, 오후 ${log.kh_pm} dKH):** 목표치(7.3 ~ 8.0)보다 약간 낮습니다. KH는 산호의 골격 성장에 가장 중요한 요소이므로 꾸준한 도징으로 목표 범위 내로 올려주는 것이 좋습니다.
 - **칼슘 (${log.calcium} ppm):** 목표치(400 ~ 430)보다 낮습니다. KH와 함께 산호 골격을 구성하는 핵심 미네랄이므로 보충이 필요합니다.
 - **마그네슘 (${log.magnesium} ppm):** 목표치(1350 ~ 1440)보다 낮습니다. 마그네슘은 칼슘과 KH가 안정적으로 유지되도록 돕는 역할을 하므로, 다른 두 요소와 함께 꾸준히 관리해주셔야 합니다.
 
@@ -157,7 +158,7 @@
 
           const handleAddLog = (e) => {
             e.preventDefault();
-            const requiredFields = ['date', 'temp', 'salinity', 'ph', 'kh', 'calcium', 'magnesium', 'nitrite', 'nitrate', 'phosphate'];
+            const requiredFields = ['date', 'temp', 'salinity', 'ph', 'kh_am', 'kh_pm', 'calcium', 'magnesium', 'nitrite', 'nitrate', 'phosphate'];
             if (requiredFields.some(field => !newLog[field])) {
               alert('모든 수질 항목을 입력해주세요.');
               return;
@@ -172,7 +173,7 @@
 
             setLogs([...logs, logToAdd].sort((a, b) => new Date(b.date) - new Date(a.date)));
             setNewLog({
-                date: new Date().toISOString().slice(0, 10), temp: '', salinity: '', ph: '', kh: '',
+                date: new Date().toISOString().slice(0, 10), temp: '', salinity: '', ph: '', kh_am: '', kh_pm: '',
                 calcium: '', magnesium: '', nitrite: '', nitrate: '', phosphate: '', notes: ''
             });
           };
@@ -305,19 +306,20 @@
 
                 <div className="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700 mb-8">
                   <h2 className="text-2xl font-semibold mb-4">새 일지 작성</h2>
-                  <form onSubmit={handleAddLog} className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  <form onSubmit={handleAddLog} className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 items-center">
                     <input type="date" name="date" value={newLog.date} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg" />
                     <input type="number" step="0.1" name="temp" placeholder={`온도 (°C)`} value={newLog.temp} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg" />
                     <input type="number" step="0.1" name="salinity" placeholder={`염도 (ppt)`} value={newLog.salinity} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg" />
                     <input type="number" step="0.1" name="ph" placeholder={`pH`} value={newLog.ph} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg" />
-                    <input type="number" step="0.1" name="kh" placeholder={`KH (dKH)`} value={newLog.kh} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg" />
+                    <input type="number" step="0.1" name="kh_am" placeholder={`KH (오전)`} value={newLog.kh_am} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg" />
+                    <input type="number" step="0.1" name="kh_pm" placeholder={`KH (오후)`} value={newLog.kh_pm} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg" />
                     <input type="number" name="calcium" placeholder={`칼슘 (ppm)`} value={newLog.calcium} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg" />
                     <input type="number" name="magnesium" placeholder={`마그네슘 (ppm)`} value={newLog.magnesium} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg" />
                     <input type="number" step="0.01" name="nitrite" placeholder={`아질산 (ppm)`} value={newLog.nitrite} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg" />
                     <input type="number" step="0.01" name="nitrate" placeholder={`질산염 (ppm)`} value={newLog.nitrate} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg" />
                     <input type="number" step="0.01" name="phosphate" placeholder={`인산염 (ppm)`} value={newLog.phosphate} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg" />
-                    <input type="text" name="notes" placeholder="특이사항" value={newLog.notes} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg col-span-2 lg:col-span-4" />
-                    <button type="submit" className="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 col-span-2 lg:col-span-1">일지 추가</button>
+                    <input type="text" name="notes" placeholder="특이사항" value={newLog.notes} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg col-span-2 lg:col-span-3" />
+                    <button type="submit" className="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 col-span-2 lg:col-span-2">일지 추가</button>
                   </form>
                 </div>
 
@@ -334,6 +336,8 @@
                   <div className="space-y-4">
                     {filteredLogs.length > 0 ? filteredLogs.map(log => {
                       const dosings = calculateDosing(log, waterVolume);
+                      const isKhAmOutOfRange = log.kh_am < TARGET_RANGES.kh.min || log.kh_am > TARGET_RANGES.kh.max;
+                      const isKhPmOutOfRange = log.kh_pm < TARGET_RANGES.kh.min || log.kh_pm > TARGET_RANGES.kh.max;
                       const isOutOfRange = (param) => log[param] < TARGET_RANGES[param].min || log[param] > TARGET_RANGES[param].max;
                       const bacterDosed = dosingStatus[`${log.id}-bacter`];
                       return (
@@ -345,11 +349,12 @@
                                 <button onClick={() => handleDeleteLog(log.id)} className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-1 px-2 rounded-lg">삭제</button>
                             </div>
                           </div>
-                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-x-4 gap-y-2 text-sm mb-4">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-2 text-sm mb-4">
                               <p className={`flex items-center ${isOutOfRange('temp') ? 'text-red-400' : 'text-gray-300'}`}>🌡️<span className="ml-2">온도: {log.temp} °C</span></p>
                               <p className={`flex items-center ${isOutOfRange('salinity') ? 'text-red-400' : 'text-gray-300'}`}>💧<span className="ml-2">염도: {log.salinity} ppt</span></p>
                               <p className={`flex items-center ${isOutOfRange('ph') ? 'text-red-400' : 'text-gray-300'}`}>🧪<span className="ml-2">pH: {log.ph}</span></p>
-                              <p className={`flex items-center ${isOutOfRange('kh') ? 'text-red-400' : 'text-gray-300'}`}>💎<span className="ml-2">KH: {log.kh} dKH</span></p>
+                              <p className={`flex items-center ${isKhAmOutOfRange ? 'text-red-400' : 'text-gray-300'}`}>💎<span className="ml-2">KH (오전): {log.kh_am} dKH</span></p>
+                              <p className={`flex items-center ${isKhPmOutOfRange ? 'text-red-400' : 'text-gray-300'}`}>💎<span className="ml-2">KH (오후): {log.kh_pm} dKH</span></p>
                               <p className={`flex items-center ${isOutOfRange('calcium') ? 'text-red-400' : 'text-gray-300'}`}>🦴<span className="ml-2">칼슘: {log.calcium} ppm</span></p>
                               <p className={`flex items-center ${isOutOfRange('magnesium') ? 'text-red-400' : 'text-gray-300'}`}>🔩<span className="ml-2">마그네슘: {log.magnesium} ppm</span></p>
                               <p className={`flex items-center ${isOutOfRange('nitrite') ? 'text-red-400' : 'text-gray-300'}`}>🚫<span className="ml-2">아질산: {log.nitrite} ppm</span></p>
