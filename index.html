@@ -19,12 +19,25 @@
         body {
             background-color: #1a202c; /* bg-gray-900 */
         }
+        /* Recharts 범례 클릭 시 커서 모양 변경 */
+        .recharts-legend-item {
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
+        // 콘솔에 표시되는 Recharts의 defaultProps 관련 경고 메시지를 숨깁니다.
+        const originalError = console.error;
+        console.error = (...args) => {
+          if (typeof args[0] === 'string' && /defaultProps/.test(args[0])) {
+            return;
+          }
+          originalError(...args);
+        };
+
         const { useState, useEffect } = React;
 
         // --- 설정: 수질 기준치 및 도징 계산 정보 ---
@@ -38,37 +51,30 @@
           nitrate: { min: 0.5, max: 2.0, unit: 'ppm' },
           phosphate: { min: 0.03, max: 0.07, unit: 'ppm' },
         };
+        
+        // 그래프에 표시될 항목들 정의 (알록달록한 색상으로 변경)
+        const chartLines = [
+            { dataKey: 'temp', name: '온도 (°C)', color: '#FF69B4', yAxisId: 'left' },      // Hot Pink
+            { dataKey: 'salinity', name: '염도 (ppt)', color: '#00BFFF', yAxisId: 'left' },  // Deep Sky Blue
+            { dataKey: 'ph', name: 'pH', color: '#DA70D6', yAxisId: 'left' },              // Orchid
+            { dataKey: 'kh', name: 'KH (dKH)', color: '#4169E1', yAxisId: 'left' },          // Royal Blue
+            { dataKey: 'nitrite', name: '아질산 (ppm)', color: '#DC143C', yAxisId: 'left' }, // Crimson (Red)
+            { dataKey: 'nitrate', name: '질산염 (ppm)', color: '#FF4500', yAxisId: 'left' }, // Orange Red
+            { dataKey: 'phosphate', name: '인산염 (ppm)', color: '#32CD32', yAxisId: 'left' }, // Lime Green
+            { dataKey: 'calcium', name: '칼슘 (ppm)', color: '#3CB371', yAxisId: 'right' },    // Medium Sea Green
+            { dataKey: 'magnesium', name: '마그네슘 (ppm)', color: '#FFD700', yAxisId: 'right' }, // Gold
+        ];
 
         // 도징 계산 로직
         const calculateDosing = (log, waterVolume) => {
           const dosing = {};
           if (!log || typeof waterVolume !== 'number' || waterVolume <= 0) return dosing;
 
-          // KH: 1ml/100L 당 0.1dKH 상승 -> (필요량 * 물량) / 10
-          if (log.kh < TARGET_RANGES.kh.min) {
-            const requiredIncrease = TARGET_RANGES.kh.min - log.kh;
-            dosing.kh = ((waterVolume * requiredIncrease) / 10).toFixed(2);
-          }
-          // Calcium: 1ml/100L 당 2ppm 상승 -> (필요량 * 물량) / 200
-          if (log.calcium < TARGET_RANGES.calcium.min) {
-            const requiredIncrease = TARGET_RANGES.calcium.min - log.calcium;
-            dosing.calcium = ((waterVolume * requiredIncrease) / 200).toFixed(2);
-          }
-          // Magnesium: 1ml/100L 당 1ppm 상승 -> (필요량 * 물량) / 100
-          if (log.magnesium < TARGET_RANGES.magnesium.min) {
-            const requiredIncrease = TARGET_RANGES.magnesium.min - log.magnesium;
-            dosing.magnesium = ((waterVolume * requiredIncrease) / 100).toFixed(2);
-          }
-          // Nitrate: 1ml/100L 당 1ppm 상승 -> (필요량 * 물량) / 100
-          if (log.nitrate < TARGET_RANGES.nitrate.min) {
-              const requiredIncrease = TARGET_RANGES.nitrate.min - log.nitrate;
-              dosing.nitrate = ((waterVolume * requiredIncrease) / 100).toFixed(2);
-          }
-          // Phosphate: 1ml/100L 당 0.1ppm 상승 -> (필요량 * 물량) / 10
-          if (log.phosphate < TARGET_RANGES.phosphate.min) {
-              const requiredIncrease = TARGET_RANGES.phosphate.min - log.phosphate;
-              dosing.phosphate = ((waterVolume * requiredIncrease) / 10).toFixed(2);
-          }
+          if (log.kh < TARGET_RANGES.kh.min) { dosing.kh = ((waterVolume * (TARGET_RANGES.kh.min - log.kh)) / 10).toFixed(2); }
+          if (log.calcium < TARGET_RANGES.calcium.min) { dosing.calcium = ((waterVolume * (TARGET_RANGES.calcium.min - log.calcium)) / 200).toFixed(2); }
+          if (log.magnesium < TARGET_RANGES.magnesium.min) { dosing.magnesium = ((waterVolume * (TARGET_RANGES.magnesium.min - log.magnesium)) / 100).toFixed(2); }
+          if (log.nitrate < TARGET_RANGES.nitrate.min) { dosing.nitrate = ((waterVolume * (TARGET_RANGES.nitrate.min - log.nitrate)) / 100).toFixed(2); }
+          if (log.phosphate < TARGET_RANGES.phosphate.min) { dosing.phosphate = ((waterVolume * (TARGET_RANGES.phosphate.min - log.phosphate)) / 10).toFixed(2); }
           return dosing;
         };
 
@@ -78,6 +84,7 @@
           const [waterVolume, setWaterVolume] = useState(200);
           const [logs, setLogs] = useState([]);
           const [dosingStatus, setDosingStatus] = useState({});
+          const [hiddenLines, setHiddenLines] = useState({});
 
           const [newLog, setNewLog] = useState({
             date: new Date().toISOString().slice(0, 10),
@@ -87,7 +94,6 @@
           });
 
           // --- useEffect ---
-          // 컴포넌트 로드 시 초기 데이터 설정
           useEffect(() => {
             const initialLogs = [
                 { id: 1, date: '2025-07-30', temp: 26.0, salinity: 35.0, ph: 8.1, kh: 7.0, calcium: 380, magnesium: 1300, nitrite: 0, nitrate: 2.0, phosphate: 0.05, notes: '초기 데이터' },
@@ -111,19 +117,12 @@
               return;
             }
             
-            const logToAdd = {
-              id: Date.now(),
-              ...newLog,
-              temp: parseFloat(newLog.temp),
-              salinity: parseFloat(newLog.salinity),
-              ph: parseFloat(newLog.ph),
-              kh: parseFloat(newLog.kh),
-              calcium: parseFloat(newLog.calcium),
-              magnesium: parseFloat(newLog.magnesium),
-              nitrite: parseFloat(newLog.nitrite),
-              nitrate: parseFloat(newLog.nitrate),
-              phosphate: parseFloat(newLog.phosphate),
-            };
+            const logToAdd = { id: Date.now(), ...newLog };
+            for (const key in logToAdd) {
+                if(key !== 'date' && key !== 'notes' && key !== 'id') {
+                    logToAdd[key] = parseFloat(logToAdd[key]);
+                }
+            }
 
             setLogs([...logs, logToAdd].sort((a, b) => new Date(a.date) - new Date(b.date)));
             setNewLog({
@@ -139,20 +138,18 @@
           };
           
           const toggleDosingStatus = (logId, param) => {
-            setDosingStatus(prev => ({
-                ...prev,
-                [`${logId}-${param}`]: !prev[`${logId}-${param}`]
-            }));
+            setDosingStatus(prev => ({ ...prev, [`${logId}-${param}`]: !prev[`${logId}-${param}`] }));
+          };
+
+          const handleLegendClick = (e) => {
+            const { dataKey } = e;
+            setHiddenLines(prev => ({ ...prev, [dataKey]: !prev[dataKey] }));
           };
 
           // --- 그래프 렌더링 함수 ---
           const renderChart = () => {
             if (!window.Recharts) {
-              return (
-                <div className="flex items-center justify-center h-full text-yellow-400">
-                  그래프 라이브러리 로딩 중...
-                </div>
-              );
+              return <div className="flex items-center justify-center h-full text-yellow-400">그래프 라이브러리 로딩 중...</div>;
             }
 
             const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = window.Recharts;
@@ -161,15 +158,13 @@
                 <LineChart data={logs} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#4A5568" />
                     <XAxis dataKey="date" stroke="#A0AEC0" />
-                    <YAxis yAxisId="left" stroke="#8884d8" domain={['dataMin - 1', 'dataMax + 1']} />
-                    <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" domain={['dataMin - 50', 'dataMax + 50']} />
+                    <YAxis yAxisId="left" stroke="#A0AEC0" domain={['dataMin - 1', 'dataMax + 1']} />
+                    <YAxis yAxisId="right" orientation="right" stroke="#A0AEC0" domain={['dataMin - 50', 'dataMax + 50']} />
                     <Tooltip contentStyle={{ backgroundColor: '#1A202C', border: '1px solid #4A5568' }} />
-                    <Legend wrapperStyle={{ color: '#E2E8F0' }} />
-                    <Line yAxisId="left" type="monotone" dataKey="kh" stroke="#8884d8" name="KH" />
-                    <Line yAxisId="right" type="monotone" dataKey="calcium" stroke="#82ca9d" name="Calcium (ppm)" />
-                    <Line yAxisId="right" type="monotone" dataKey="magnesium" stroke="#ffc658" name="Magnesium (ppm)" />
-                    <Line yAxisId="left" type="monotone" dataKey="nitrate" stroke="#ff8042" name="Nitrate (ppm)" />
-                    <Line yAxisId="left" type="monotone" dataKey="phosphate" stroke="#d0ed57" name="Phosphate (ppm)" />
+                    <Legend onClick={handleLegendClick} />
+                    {chartLines.map(line => (
+                        !hiddenLines[line.dataKey] && <Line key={line.dataKey} {...line} />
+                    ))}
                 </LineChart>
               </ResponsiveContainer>
             );
@@ -223,6 +218,7 @@
                     {logs.map(log => {
                       const dosings = calculateDosing(log, waterVolume);
                       const isOutOfRange = (param) => log[param] < TARGET_RANGES[param].min || log[param] > TARGET_RANGES[param].max;
+                      const bacterDosed = dosingStatus[`${log.id}-bacter`];
                       return (
                         <div key={log.id} className="bg-gray-800 p-4 rounded-lg border border-gray-700">
                           <div className="flex justify-between items-start mb-3">
@@ -254,7 +250,12 @@
                                       </div>
                                   ))}
                                   {Object.keys(dosings).length === 0 && <p className="text-sm text-gray-400">모든 수치가 안정적입니다. (도징 필요 없음)</p>}
-                                  <button onClick={() => alert(`박터오리진 도징 완료 처리 (100L당 1방울)`)} className="bg-purple-600 hover:bg-purple-700 py-1 px-3 rounded-lg text-xs font-bold">박터오리진 도징</button>
+                                  <button 
+                                    onClick={() => toggleDosingStatus(log.id, 'bacter')}
+                                    className={`py-1 px-3 rounded-lg text-xs font-bold ${bacterDosed ? 'bg-green-600' : 'bg-purple-600 hover:bg-purple-700'}`}
+                                  >
+                                    {bacterDosed ? '✔️ 박터오리진 도징완료' : '박터오리진 도징'}
+                                  </button>
                               </div>
                           </div>
                           {log.notes && <p className="mt-3 text-gray-300 text-sm"><span className="font-semibold">📝 특이사항:</span> {log.notes}</p>}
