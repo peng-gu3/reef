@@ -107,7 +107,7 @@
           });
 
           useEffect(() => {
-            localStorage.setItem('waterVolume', waterVolume);
+            setTempVolume(waterVolume);
           }, [waterVolume]);
 
           useEffect(() => {
@@ -165,7 +165,7 @@
                 setAnalysisResult({ logDate: log.date, text: text });
             } catch (error) {
                 console.error("Gemini API 호출 중 오류 발생:", error);
-                setAnalysisResult({ logDate: log.date, text: "AI 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요." });
+                setAnalysisResult({ logDate: log.date, text: "AI 분석 중 오류가 발생했습니다. 네트워크 연결을 확인하거나 잠시 후 다시 시도해주세요." });
             } finally {
                 setIsLoadingAnalysis(false);
             }
@@ -215,6 +215,7 @@
 
           const handleSaveVolume = () => {
             setWaterVolume(tempVolume);
+            localStorage.setItem('waterVolume', tempVolume);
             setIsEditingVolume(false);
           };
 
@@ -236,12 +237,7 @@
           
           const renderColorfulLegendText = (value, entry) => {
             const { color } = entry;
-            const style = {
-                color: color,
-                fontSize: '14px',
-                fontWeight: 500
-            };
-            return <span style={style}>{value}</span>;
+            return <span style={{ color: color, fontSize: '14px', fontWeight: 500 }}>{value}</span>;
           };
 
 
@@ -260,7 +256,7 @@
                     <YAxis yAxisId="right" orientation="right" stroke="#A0AEC0" domain={['dataMin - 50', 'dataMax + 50']} />
                     <Tooltip contentStyle={{ backgroundColor: '#1A202C', border: '1px solid #4A5568' }} />
                     <Legend onClick={handleLegendClick} formatter={renderColorfulLegendText} />
-                    {chartLines.map(line => !hiddenLines[line.dataKey] && <Line key={line.dataKey} {...line} />)}
+                    {chartLines.map(line => !hiddenLines[line.dataKey] && <Line key={line.dataKey} dataKey={line.dataKey} name={line.name} stroke={line.color} yAxisId={line.yAxisId} type="monotone" />)}
                 </LineChart>
               </ResponsiveContainer>
             );
@@ -285,6 +281,7 @@
                         className="bg-gray-700 w-32 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
                       />
                       <button onClick={handleSaveVolume} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">저장</button>
+                      <button onClick={() => setIsEditingVolume(false)} className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg">취소</button>
                     </>
                   ) : (
                     <>
