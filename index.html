@@ -56,6 +56,7 @@
           kh: { min: 7.3, max: 8.0, unit: 'dKH' },
           calcium: { min: 400, max: 430, unit: 'ppm' },
           magnesium: { min: 1350, max: 1440, unit: 'ppm' },
+          nitrite: { min: 0, max: 0, unit: 'ppm' }, // 아질산염 기준값 추가
           nitrate: { min: 0.5, max: 2.0, unit: 'ppm' },
           phosphate: { min: 0.03, max: 0.07, unit: 'ppm' },
         };
@@ -322,7 +323,7 @@
                               <p className={`flex items-center ${isOutOfRange('kh') ? 'text-red-400' : 'text-gray-300'}`}>💎<span className="ml-2">KH: {log.kh} dKH</span></p>
                               <p className={`flex items-center ${isOutOfRange('calcium') ? 'text-red-400' : 'text-gray-300'}`}>🦴<span className="ml-2">칼슘: {log.calcium} ppm</span></p>
                               <p className={`flex items-center ${isOutOfRange('magnesium') ? 'text-red-400' : 'text-gray-300'}`}>🔩<span className="ml-2">마그네슘: {log.magnesium} ppm</span></p>
-                              <p className={`flex items-center ${log.nitrite > 0 ? 'text-red-400' : 'text-gray-300'}`}>🚫<span className="ml-2">아질산: {log.nitrite} ppm</span></p>
+                              <p className={`flex items-center ${isOutOfRange('nitrite') ? 'text-red-400' : 'text-gray-300'}`}>🚫<span className="ml-2">아질산: {log.nitrite} ppm</span></p>
                               <p className={`flex items-center ${isOutOfRange('nitrate') ? 'text-red-400' : 'text-gray-300'}`}>🌿<span className="ml-2">질산염: {log.nitrate} ppm</span></p>
                               <p className={`flex items-center ${isOutOfRange('phosphate') ? 'text-red-400' : 'text-gray-300'}`}>🦠<span className="ml-2">인산염: {log.phosphate} ppm</span></p>
                           </div>
