@@ -3,399 +3,275 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PENG_GU</title>
-    <!-- Tailwind CSS -->
+    <title>해수어항 관리 일지 Pro</title>
+    <!-- Tailwind CSS 로드 -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- React & ReactDOM -->
-    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-    <!-- Babel (JSX를 브라우저에서 변환) -->
+    <!-- React 및 ReactDOM 로드 -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- Babel 로드 (JSX 변환용) -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- Recharts (그래프 라이브러리) -->
-    <script src="https://unpkg.com/recharts/umd/Recharts.min.js"></script>
-    <!-- Lucide Icons (아이콘 라이브러리) -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Firebase SDK (데이터베이스) -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <!-- Recharts 의존성 라이브러리 (Prop-Types) 로드 -->
+    <script src="https://unpkg.com/prop-types/prop-types.min.js"></script>
+    <!-- Recharts (그래프 라이브러리) 로드 -->
+    <script src="https://cdn.jsdelivr.net/npm/recharts@2.12.7/umd/Recharts.min.js"></script>
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background-color: #111827; /* bg-gray-900 */
+            background-color: #1a202c; /* bg-gray-900 */
         }
     </style>
 </head>
 <body>
-
     <div id="root"></div>
 
-    <script>
-        // 이 변수들은 Canvas 환경에서 자동으로 제공됩니다.
-        window.__firebase_config = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
-        window.__app_id = typeof __app_id !== 'undefined' ? __app_id : 'default-reef-ai-logger';
-    </script>
-
     <script type="text/babel">
-        // 모든 외부 스크립트가 로드된 후 앱을 실행합니다.
-        window.onload = function() {
-            const { useState, useEffect, useMemo } = React;
-            const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = window.Recharts;
+        const { useState, useEffect } = React;
 
-            // --- Firebase 설정 ---
-            const firebaseConfig = JSON.parse(window.__firebase_config);
-            if (!firebase.apps.length) {
-                firebase.initializeApp(firebaseConfig);
+        // --- 설정: 수질 기준치 및 도징 계산 정보 ---
+        const TARGET_RANGES = {
+          temp: { min: 25.5, max: 26.5, unit: '°C' },
+          salinity: { min: 34.0, max: 35.0, unit: 'ppt' },
+          ph: { min: 8.0, max: 8.4, unit: '' },
+          kh: { min: 7.3, max: 8.0, unit: 'dKH' },
+          calcium: { min: 400, max: 430, unit: 'ppm' },
+          magnesium: { min: 1350, max: 1440, unit: 'ppm' },
+          nitrate: { min: 0.5, max: 2.0, unit: 'ppm' },
+          phosphate: { min: 0.03, max: 0.07, unit: 'ppm' },
+        };
+
+        // 도징 계산 로직
+        const calculateDosing = (log, waterVolume) => {
+          const dosing = {};
+          if (!log || typeof waterVolume !== 'number' || waterVolume <= 0) return dosing;
+
+          // KH: 1ml/100L 당 0.1dKH 상승 -> (필요량 * 물량) / 10
+          if (log.kh < TARGET_RANGES.kh.min) {
+            const requiredIncrease = TARGET_RANGES.kh.min - log.kh;
+            dosing.kh = ((waterVolume * requiredIncrease) / 10).toFixed(2);
+          }
+          // Calcium: 1ml/100L 당 2ppm 상승 -> (필요량 * 물량) / 200
+          if (log.calcium < TARGET_RANGES.calcium.min) {
+            const requiredIncrease = TARGET_RANGES.calcium.min - log.calcium;
+            dosing.calcium = ((waterVolume * requiredIncrease) / 200).toFixed(2);
+          }
+          // Magnesium: 1ml/100L 당 1ppm 상승 -> (필요량 * 물량) / 100
+          if (log.magnesium < TARGET_RANGES.magnesium.min) {
+            const requiredIncrease = TARGET_RANGES.magnesium.min - log.magnesium;
+            dosing.magnesium = ((waterVolume * requiredIncrease) / 100).toFixed(2);
+          }
+          // Nitrate: 1ml/100L 당 1ppm 상승 -> (필요량 * 물량) / 100
+          if (log.nitrate < TARGET_RANGES.nitrate.min) {
+              const requiredIncrease = TARGET_RANGES.nitrate.min - log.nitrate;
+              dosing.nitrate = ((waterVolume * requiredIncrease) / 100).toFixed(2);
+          }
+          // Phosphate: 1ml/100L 당 0.1ppm 상승 -> (필요량 * 물량) / 10
+          if (log.phosphate < TARGET_RANGES.phosphate.min) {
+              const requiredIncrease = TARGET_RANGES.phosphate.min - log.phosphate;
+              dosing.phosphate = ((waterVolume * requiredIncrease) / 10).toFixed(2);
+          }
+          return dosing;
+        };
+
+
+        const App = () => {
+          // --- 상태 관리 (useState) ---
+          const [waterVolume, setWaterVolume] = useState(200);
+          const [logs, setLogs] = useState([]);
+          const [dosingStatus, setDosingStatus] = useState({});
+
+          const [newLog, setNewLog] = useState({
+            date: new Date().toISOString().slice(0, 10),
+            temp: '', salinity: '', ph: '', kh: '',
+            calcium: '', magnesium: '', nitrite: '0', nitrate: '', phosphate: '',
+            notes: ''
+          });
+
+          // --- useEffect ---
+          // 컴포넌트 로드 시 초기 데이터 설정
+          useEffect(() => {
+            const initialLogs = [
+                { id: 1, date: '2025-07-30', temp: 26.0, salinity: 35.0, ph: 8.1, kh: 7.0, calcium: 380, magnesium: 1300, nitrite: 0, nitrate: 2.0, phosphate: 0.05, notes: '초기 데이터' },
+                { id: 2, date: '2025-08-01', temp: 25.8, salinity: 34.5, ph: 8.2, kh: 7.5, calcium: 410, magnesium: 1350, nitrite: 0, nitrate: 1.5, phosphate: 0.04, notes: '환수 후 안정' }
+            ];
+            setLogs(initialLogs);
+          }, []);
+
+
+          // --- 이벤트 핸들러 ---
+          const handleInputChange = (e) => {
+            const { name, value } = e.target;
+            setNewLog({ ...newLog, [name]: value });
+          };
+
+          const handleAddLog = (e) => {
+            e.preventDefault();
+            const requiredFields = ['date', 'temp', 'salinity', 'ph', 'kh', 'calcium', 'magnesium', 'nitrite', 'nitrate', 'phosphate'];
+            if (requiredFields.some(field => !newLog[field])) {
+              alert('모든 수질 항목을 입력해주세요.');
+              return;
             }
-            const db = firebase.firestore();
-            const auth = firebase.auth();
-            const appId = window.__app_id;
-
-            // --- 데이터 구조 및 계산 로직 ---
-            const initialSettings = {
-                waterVolume: 160,
-                temp: { min: 25.5, max: 26.5 },
-                salinity: { min: 34, max: 35 },
-                ph: { min: 8.0, max: 8.3 },
-                kh: { min: 7.5, max: 8.5 },
-                ca: { min: 400, max: 430 },
-                mg: { min: 1350, max: 1440 },
-                no2: { min: 0.00, max: 0.00, danger: 0.01 },
-                no3: { min: 0.5, max: 2.0 },
-                po4: { min: 0.03, max: 0.08 },
-                minDose: 0.3,
+            
+            const logToAdd = {
+              id: Date.now(),
+              ...newLog,
+              temp: parseFloat(newLog.temp),
+              salinity: parseFloat(newLog.salinity),
+              ph: parseFloat(newLog.ph),
+              kh: parseFloat(newLog.kh),
+              calcium: parseFloat(newLog.calcium),
+              magnesium: parseFloat(newLog.magnesium),
+              nitrite: parseFloat(newLog.nitrite),
+              nitrate: parseFloat(newLog.nitrate),
+              phosphate: parseFloat(newLog.phosphate),
             };
 
-            const PARAMETERS = {
-                temp: { name: '온도', unit: '°C' },
-                salinity: { name: '염도', unit: 'ppt' },
-                ph: { name: 'pH', unit: '' },
-                kh_am: { name: 'KH (오전)', unit: 'dKH' },
-                kh_pm: { name: 'KH (오후)', unit: 'dKH' },
-                ca: { name: '칼슘', unit: 'ppm' },
-                mg: { name: '마그네슘', unit: 'ppm' },
-                no2: { name: '아질산', unit: 'ppm' },
-                no3: { name: '질산염', unit: 'ppm' },
-                po4: { name: '인산염', unit: 'ppm' },
-            };
+            setLogs([...logs, logToAdd].sort((a, b) => new Date(a.date) - new Date(b.date)));
+            setNewLog({
+                date: new Date().toISOString().slice(0, 10), temp: '', salinity: '', ph: '', kh: '',
+                calcium: '', magnesium: '', nitrite: '0', nitrate: '', phosphate: '', notes: ''
+            });
+          };
 
-            const getStatus = (key, value, settings) => {
-                if (value === null || value === undefined || value === '') return { text: '입력 대기', color: 'text-gray-400' };
-                const val = parseFloat(value);
-                const settingKey = (key === 'kh_am' || key === 'kh_pm') ? 'kh' : key;
-                const setting = settings[settingKey];
-                if (!setting) return { text: 'N/A', color: 'text-gray-400' };
+          const handleDeleteLog = (idToDelete) => {
+            if (window.confirm('정말로 이 기록을 삭제하시겠습니까?')) {
+                setLogs(logs.filter(log => log.id !== idToDelete));
+            }
+          };
+          
+          const toggleDosingStatus = (logId, param) => {
+            setDosingStatus(prev => ({
+                ...prev,
+                [`${logId}-${param}`]: !prev[`${logId}-${param}`]
+            }));
+          };
 
-                if (key === 'no2' && val >= setting.danger) {
-                    return { text: '위험', color: 'text-red-500 font-bold' };
-                }
-                if (val < setting.min) return { text: '부족', color: 'text-blue-500' };
-                if (val > setting.max) return { text: '과다', color: 'text-yellow-500' };
-                return { text: '적절', color: 'text-green-500' };
-            };
+          // --- 그래프 렌더링 함수 ---
+          const renderChart = () => {
+            if (!window.Recharts) {
+              return (
+                <div className="flex items-center justify-center h-full text-yellow-400">
+                  그래프 라이브러리 로딩 중...
+                </div>
+              );
+            }
 
-            const getAdvice = (log, settings) => {
-                if (!log) return [];
-                let adviceList = [];
-                const no2Val = parseFloat(log.no2);
-                if (!isNaN(no2Val) && no2Val >= settings.no2.danger) {
-                    const dose = Math.round(settings.waterVolume / 100);
-                    adviceList.push({ level: 'danger', param: '아질산(NO₂)', message: `수치가 ${no2Val}ppm으로 매우 위험합니다. 생물에게 치명적일 수 있습니다.`, action: `즉시 박터 오리진 ${dose}방울을 도징하고, 수치가 0이 될 때까지 매일 환수 및 상태를 확인하세요.` });
-                }
-                const khPmVal = parseFloat(log.kh_pm);
-                const khAmVal = parseFloat(log.kh_am);
-                const latestKhVal = !isNaN(khPmVal) ? khPmVal : khAmVal;
-                const khSource = !isNaN(khPmVal) ? '오후' : '오전';
-                if (!isNaN(latestKhVal) && latestKhVal < settings.kh.min) {
-                    const neededDose = (settings.waterVolume * (settings.kh.min - latestKhVal)) / 10;
-                    if (neededDose >= settings.minDose) { adviceList.push({ level: 'warn', param: `KH (${khSource})`, message: `${khSource} KH가 ${latestKhVal}dKH로 낮습니다. 산호 건강과 pH 안정성에 영향을 줍니다.`, action: `KH 도징액 ${neededDose.toFixed(1)}ml를 2~3일에 걸쳐 나누어 도징하세요.` }); }
-                }
-                const caVal = parseFloat(log.ca);
-                if (!isNaN(caVal) && caVal < settings.ca.min) {
-                    const neededDose = (settings.waterVolume * (settings.ca.min - caVal)) / 100;
-                    if (neededDose >= settings.minDose) { adviceList.push({ level: 'warn', param: '칼슘(Ca)', message: `칼슘이 ${caVal}ppm으로 낮습니다. 산호의 골격 성장에 필수적입니다.`, action: `칼슘(Ca) 도징액 ${neededDose.toFixed(1)}ml를 2~3일에 걸쳐 나누어 도징하세요.` }); }
-                }
-                const mgVal = parseFloat(log.mg);
-                if (!isNaN(mgVal) && mgVal < settings.mg.min) {
-                    const neededDose = (settings.waterVolume * (settings.mg.min - mgVal)) / 100;
-                    if (neededDose >= settings.minDose) { adviceList.push({ level: 'warn', param: '마그네슘(Mg)', message: `마그네슘이 ${mgVal}ppm으로 낮습니다. KH와 칼슘의 균형을 유지합니다.`, action: `마그네슘(Mg) 도징액 ${neededDose.toFixed(1)}ml를 2~3일에 걸쳐 나누어 도징하세요.` }); }
-                }
-                const no3Val = parseFloat(log.no3);
-                if (!isNaN(no3Val) && no3Val < settings.no3.min) {
-                    const neededDose = (settings.waterVolume * (settings.no3.min - no3Val)) / 100;
-                    if (neededDose >= settings.minDose) { adviceList.push({ level: 'info', param: '질산염(NO₃)', message: `질산염이 ${no3Val}ppm으로 낮습니다. 산호의 영양분이 될 수 있습니다.`, action: `Nitro를 ${neededDose.toFixed(1)}ml 도징하여 수치를 조절하세요.` }); }
-                }
-                const po4Val = parseFloat(log.po4);
-                if (!isNaN(po4Val) && po4Val < settings.po4.min) {
-                    const neededDose = (settings.waterVolume * (settings.po4.min - po4Val)) / 10;
-                    if (neededDose >= settings.minDose) { adviceList.push({ level: 'info', param: '인산염(PO₄)', message: `인산염이 ${po4Val}ppm으로 낮습니다. 산호의 영양분이 될 수 있습니다.`, action: `Phos를 ${neededDose.toFixed(1)}ml 도징하여 수치를 조절하세요.` }); }
-                }
-                if (adviceList.length === 0) { adviceList.push({ level: 'success', param: '모든 수치 양호', message: '어항의 모든 수치가 안정적인 범위 내에 있습니다.', action: '현재 상태를 잘 유지해주세요! 정기적인 관리가 중요합니다.' }); }
-                return adviceList;
-            };
+            const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = window.Recharts;
+            return (
+              <ResponsiveContainer width="100%" height={400}>
+                <LineChart data={logs} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#4A5568" />
+                    <XAxis dataKey="date" stroke="#A0AEC0" />
+                    <YAxis yAxisId="left" stroke="#8884d8" domain={['dataMin - 1', 'dataMax + 1']} />
+                    <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" domain={['dataMin - 50', 'dataMax + 50']} />
+                    <Tooltip contentStyle={{ backgroundColor: '#1A202C', border: '1px solid #4A5568' }} />
+                    <Legend wrapperStyle={{ color: '#E2E8F0' }} />
+                    <Line yAxisId="left" type="monotone" dataKey="kh" stroke="#8884d8" name="KH" />
+                    <Line yAxisId="right" type="monotone" dataKey="calcium" stroke="#82ca9d" name="Calcium (ppm)" />
+                    <Line yAxisId="right" type="monotone" dataKey="magnesium" stroke="#ffc658" name="Magnesium (ppm)" />
+                    <Line yAxisId="left" type="monotone" dataKey="nitrate" stroke="#ff8042" name="Nitrate (ppm)" />
+                    <Line yAxisId="left" type="monotone" dataKey="phosphate" stroke="#d0ed57" name="Phosphate (ppm)" />
+                </LineChart>
+              </ResponsiveContainer>
+            );
+          };
 
-            // --- React 컴포넌트 ---
-            const Icon = ({ name, size = 16, className = "" }) => {
-                return <i data-lucide={name} width={size} height={size} className={className}></i>;
-            };
+          return (
+            <div className="bg-gray-900 text-white min-h-screen font-sans p-4 md:p-8">
+              <div className="container mx-auto max-w-7xl">
+                
+                <header className="text-center mb-8">
+                  <h1 className="text-4xl font-bold text-cyan-400">해수어항 관리 일지 Pro</h1>
+                  <p className="text-gray-400 mt-2">데이터 기반 어항 관리 시스템</p>
+                </header>
 
-            const SettingsPanel = ({ settings, onSave, isVisible, setVisible }) => {
-                const [localSettings, setLocalSettings] = useState(settings);
-                useEffect(() => { setLocalSettings(settings); }, [settings]);
-                const handleInputChange = (e, param, field) => {
-                    const { value } = e.target;
-                    if (param) { setLocalSettings(prev => ({ ...prev, [param]: { ...prev[param], [field]: value } })); }
-                    else { setLocalSettings(prev => ({ ...prev, [field]: value })); }
-                };
-                const handleSave = () => { onSave(localSettings); setVisible(false); };
-                if (!isVisible) return null;
-                return (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex justify-center items-center p-4">
-                        <div className="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto text-white">
-                            <div className="flex justify-between items-center mb-4">
-                                <h2 className="text-2xl font-bold text-cyan-400">어항 설정</h2>
-                                <button onClick={() => setVisible(false)} className="text-gray-400 hover:text-white">&times;</button>
-                            </div>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-300">수조 총 물량 (L)</label>
-                                    <input type="number" value={localSettings.waterVolume} onChange={(e) => handleInputChange(e, null, 'waterVolume')} className="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md shadow-sm focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm p-2" />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-300">최소 도징량 (ml)</label>
-                                    <input type="number" step="0.1" value={localSettings.minDose} onChange={(e) => handleInputChange(e, null, 'minDose')} className="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md shadow-sm focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm p-2" />
-                                </div>
-                                <div className="bg-gray-700 p-3 rounded-lg">
-                                    <h3 className="font-semibold text-cyan-300">KH 목표 범위 (dKH)</h3>
-                                    <div className="flex items-center space-x-2 mt-2">
-                                        <input type="number" step="0.1" placeholder="최소" value={localSettings.kh?.min || ''} onChange={(e) => handleInputChange(e, 'kh', 'min')} className="w-full bg-gray-600 rounded p-1 text-center" />
-                                        <span>~</span>
-                                        <input type="number" step="0.1" placeholder="최대" value={localSettings.kh?.max || ''} onChange={(e) => handleInputChange(e, 'kh', 'max')} className="w-full bg-gray-600 rounded p-1 text-center" />
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {Object.keys(PARAMETERS).filter(k => k !== 'kh_am' && k !== 'kh_pm').map(key => (
-                                        <div key={key} className="bg-gray-700 p-3 rounded-lg">
-                                            <h3 className="font-semibold text-cyan-300">{PARAMETERS[key].name} ({PARAMETERS[key].unit})</h3>
-                                            <div className="flex items-center space-x-2 mt-2">
-                                                <input type="number" step="0.1" placeholder="최소" value={localSettings[key]?.min || ''} onChange={(e) => handleInputChange(e, key, 'min')} className="w-full bg-gray-600 rounded p-1 text-center" />
-                                                <span>~</span>
-                                                <input type="number" step="0.1" placeholder="최대" value={localSettings[key]?.max || ''} onChange={(e) => handleInputChange(e, key, 'max')} className="w-full bg-gray-600 rounded p-1 text-center" />
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                            <div className="mt-6 flex justify-end">
-                                <button onClick={handleSave} className="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">저장</button>
-                            </div>
+                <div className="bg-gray-800 p-4 rounded-xl mb-8">
+                  <label className="font-bold text-lg mr-4">수조 총 물량 (L):</label>
+                  <input 
+                    type="number"
+                    value={waterVolume}
+                    onChange={(e) => setWaterVolume(parseInt(e.target.value, 10) || 0)}
+                    className="bg-gray-700 w-32 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
+                </div>
+
+                <div className="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700 mb-8 h-[450px]">
+                    <h2 className="text-2xl font-semibold mb-4 text-center">수질 변화 그래프</h2>
+                    {renderChart()}
+                </div>
+
+                <div className="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700 mb-8">
+                  <h2 className="text-2xl font-semibold mb-4">새 일지 작성</h2>
+                  <form onSubmit={handleAddLog} className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    <input type="date" name="date" value={newLog.date} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg" />
+                    <input type="number" step="0.1" name="temp" placeholder={`온도 (°C)`} value={newLog.temp} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg" />
+                    <input type="number" step="0.1" name="salinity" placeholder={`염도 (ppt)`} value={newLog.salinity} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg" />
+                    <input type="number" step="0.1" name="ph" placeholder={`pH`} value={newLog.ph} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg" />
+                    <input type="number" step="0.1" name="kh" placeholder={`KH (dKH)`} value={newLog.kh} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg" />
+                    <input type="number" name="calcium" placeholder={`칼슘 (ppm)`} value={newLog.calcium} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg" />
+                    <input type="number" name="magnesium" placeholder={`마그네슘 (ppm)`} value={newLog.magnesium} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg" />
+                    <input type="number" step="0.01" name="nitrite" placeholder={`아질산 (ppm)`} value={newLog.nitrite} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg" />
+                    <input type="number" step="0.01" name="nitrate" placeholder={`질산염 (ppm)`} value={newLog.nitrate} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg" />
+                    <input type="number" step="0.01" name="phosphate" placeholder={`인산염 (ppm)`} value={newLog.phosphate} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg" />
+                    <input type="text" name="notes" placeholder="특이사항" value={newLog.notes} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg col-span-2 lg:col-span-4" />
+                    <button type="submit" className="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 col-span-2 lg:col-span-1">일지 추가</button>
+                  </form>
+                </div>
+
+                <main>
+                  <h2 className="text-2xl font-semibold mb-4">전체 기록</h2>
+                  <div className="space-y-4">
+                    {logs.map(log => {
+                      const dosings = calculateDosing(log, waterVolume);
+                      const isOutOfRange = (param) => log[param] < TARGET_RANGES[param].min || log[param] > TARGET_RANGES[param].max;
+                      return (
+                        <div key={log.id} className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                          <div className="flex justify-between items-start mb-3">
+                            <p className="font-bold text-lg text-cyan-400">{log.date}</p>
+                            <button onClick={() => handleDeleteLog(log.id)} className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-1 px-2 rounded-lg">삭제</button>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-x-4 gap-y-2 text-sm mb-4">
+                              <p className={isOutOfRange('temp') ? 'text-red-400' : ''}>🌡️ 온도: {log.temp} °C</p>
+                              <p className={isOutOfRange('salinity') ? 'text-red-400' : ''}>💧 염도: {log.salinity} ppt</p>
+                              <p className={isOutOfRange('ph') ? 'text-red-400' : ''}>🧪 pH: {log.ph}</p>
+                              <p className={isOutOfRange('kh') ? 'text-red-400' : ''}>💎 KH: {log.kh} dKH</p>
+                              <p className={isOutOfRange('calcium') ? 'text-red-400' : ''}>🦴 칼슘: {log.calcium} ppm</p>
+                              <p className={isOutOfRange('magnesium') ? 'text-red-400' : ''}>🔩 마그네슘: {log.magnesium} ppm</p>
+                              <p className={log.nitrite > 0 ? 'text-red-400' : ''}>🚫 아질산: {log.nitrite} ppm</p>
+                              <p className={isOutOfRange('nitrate') ? 'text-red-400' : ''}>🌿 질산염: {log.nitrate} ppm</p>
+                              <p className={isOutOfRange('phosphate') ? 'text-red-400' : ''}>🦠 인산염: {log.phosphate} ppm</p>
+                          </div>
+                          <div className="border-t border-gray-700 pt-3">
+                              <h4 className="font-semibold text-md mb-2">도징 관리</h4>
+                              <div className="flex flex-wrap gap-4">
+                                  {Object.keys(dosings).map(param => (
+                                      <div key={param}>
+                                          <button 
+                                              onClick={() => toggleDosingStatus(log.id, param)}
+                                              className={`py-1 px-3 rounded-lg text-xs font-bold ${dosingStatus[`${log.id}-${param}`] ? 'bg-green-600' : 'bg-yellow-500 hover:bg-yellow-600'}`}
+                                          >
+                                              {param.toUpperCase()}: {dosings[param]}ml {dosingStatus[`${log.id}-${param}`] ? '✔️ 도징 완료' : '❓ 도징 예정'}
+                                          </button>
+                                      </div>
+                                  ))}
+                                  {Object.keys(dosings).length === 0 && <p className="text-sm text-gray-400">모든 수치가 안정적입니다. (도징 필요 없음)</p>}
+                                  <button onClick={() => alert(`박터오리진 도징 완료 처리 (100L당 1방울)`)} className="bg-purple-600 hover:bg-purple-700 py-1 px-3 rounded-lg text-xs font-bold">박터오리진 도징</button>
+                              </div>
+                          </div>
+                          {log.notes && <p className="mt-3 text-gray-300 text-sm"><span className="font-semibold">📝 특이사항:</span> {log.notes}</p>}
                         </div>
-                    </div>
-                );
-            };
+                      )
+                    })}
+                  </div>
+                </main>
 
-            const App = () => {
-                const [logs, setLogs] = useState([]);
-                const [settings, setSettings] = useState(initialSettings);
-                const [currentLog, setCurrentLog] = useState({ date: new Date().toISOString().slice(0, 10) });
-                const [view, setView] = useState('log');
-                const [isSettingsVisible, setSettingsVisible] = useState(false);
-                const [userId, setUserId] = useState(null);
-                const [isLoading, setLoading] = useState(true);
+              </div>
+            </div>
+          );
+        };
 
-                useEffect(() => {
-                    lucide.createIcons();
-                });
-
-                useEffect(() => {
-                    auth.onAuthStateChanged(async (user) => {
-                        if (user) {
-                            setUserId(user.uid);
-                            const settingsRef = db.collection(`artifacts/${appId}/users/${user.uid}/reef_log_settings`).doc('settings');
-                            const docSnap = await settingsRef.get();
-                            if (docSnap.exists) {
-                                setSettings(docSnap.data());
-                            } else {
-                                await settingsRef.set(initialSettings);
-                            }
-                            const logsQuery = db.collection(`artifacts/${appId}/users/${user.uid}/reef_log_entries`).orderBy('date', 'desc');
-                            const unsubscribe = logsQuery.onSnapshot((querySnapshot) => {
-                                const logsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                                setLogs(logsData);
-                                setLoading(false);
-                            });
-                            return () => unsubscribe();
-                        } else {
-                            auth.signInAnonymously();
-                        }
-                    });
-                }, []);
-
-                const handleSaveSettings = async (newSettings) => {
-                    if (!userId) return;
-                    const settingsRef = db.collection(`artifacts/${appId}/users/${userId}/reef_log_settings`).doc('settings');
-                    await settingsRef.set(newSettings);
-                    setSettings(newSettings);
-                };
-
-                const handleInputChange = (e) => {
-                    const { name, value } = e.target;
-                    setCurrentLog(prev => ({ ...prev, [name]: value }));
-                };
-
-                const handleAddLog = async () => {
-                    if (!userId || !currentLog.date) {
-                        alert("날짜를 입력해주세요.");
-                        return;
-                    }
-                    const logId = currentLog.date;
-                    const logRef = db.collection(`artifacts/${appId}/users/${userId}/reef_log_entries`).doc(logId);
-                    await logRef.set({ ...currentLog, id: logId }, { merge: true });
-                    setCurrentLog({ date: new Date().toISOString().slice(0, 10) });
-                };
-
-                const handleDeleteLog = async (logId) => {
-                    if (!userId || !logId) return;
-                    if (window.confirm("정말로 이 기록을 삭제하시겠습니까?")) {
-                        const logRef = db.collection(`artifacts/${appId}/users/${userId}/reef_log_entries`).doc(logId);
-                        await logRef.delete();
-                    }
-                };
-
-                const advice = useMemo(() => getAdvice(logs[0], settings), [logs, settings]);
-                const chartData = useMemo(() => logs.map(log => ({ ...log, date: log.date })).reverse(), [logs]);
-
-                const AdviceCard = ({ item }) => {
-                    const colors = { danger: 'border-red-500 bg-red-900/20', warn: 'border-yellow-500 bg-yellow-900/20', info: 'border-blue-500 bg-blue-900/20', success: 'border-green-500 bg-green-900/20' };
-                    const iconColors = { danger: 'text-red-400', warn: 'text-yellow-400', info: 'text-blue-400', success: 'text-green-400' };
-                    const iconName = { danger: 'test-tube', warn: 'droplet', info: 'chevrons-right', success: 'sunrise' };
-                    return (
-                        <div className={`border-l-4 p-4 rounded-r-lg ${colors[item.level]}`}>
-                            <div className="flex items-start">
-                                <div className={`flex-shrink-0 ${iconColors[item.level]} mr-3 mt-1`}>
-                                    <Icon name={iconName[item.level]} size={20} />
-                                </div>
-                                <div>
-                                    <p className="font-bold text-white">{item.param}</p>
-                                    <p className="text-sm text-gray-300">{item.message}</p>
-                                    <p className="text-sm text-cyan-300 mt-1">{item.action}</p>
-                                </div>
-                            </div>
-                        </div>
-                    );
-                };
-
-                if (isLoading) {
-                    return <div className="text-white h-screen flex items-center justify-center">로딩 중...</div>
-                }
-
-                return (
-                    <div className="bg-gray-900 text-white min-h-screen p-4 md:p-6">
-                        <SettingsPanel settings={settings} onSave={handleSaveSettings} isVisible={isSettingsVisible} setVisible={setSettingsVisible} />
-                        <header className="flex flex-col md:flex-row justify-between items-center mb-6">
-                            <h1 className="text-3xl md:text-4xl font-bold text-cyan-400 mb-4 md:mb-0">PENG_GU</h1>
-                            <div className="flex items-center space-x-2">
-                                <button onClick={() => setView('log')} className={`px-3 py-2 rounded-lg text-sm flex items-center space-x-2 ${view === 'log' ? 'bg-cyan-500' : 'bg-gray-700 hover:bg-gray-600'}`}><Icon name="book-open" size={16} className="mr-1" /><span>로그</span></button>
-                                <button onClick={() => setView('chart')} className={`px-3 py-2 rounded-lg text-sm flex items-center space-x-2 ${view === 'chart' ? 'bg-cyan-500' : 'bg-gray-700 hover:bg-gray-600'}`}><Icon name="bar-chart-2" size={16} className="mr-1" /><span>그래프</span></button>
-                                <button onClick={() => setView('advice')} className={`px-3 py-2 rounded-lg text-sm flex items-center space-x-2 ${view === 'advice' ? 'bg-cyan-500' : 'bg-gray-700 hover:bg-gray-600'}`}><Icon name="message-square" size={16} className="mr-1" /><span>AI 분석</span></button>
-                                <button onClick={() => setSettingsVisible(true)} className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600"><Icon name="settings" size={20} /></button>
-                            </div>
-                        </header>
-                        <main>
-                            <div className="bg-gray-800 p-4 rounded-lg mb-6 shadow-lg">
-                                <h2 className="text-xl font-semibold mb-4 text-cyan-300">새 측정값 기록</h2>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                                    <input type="date" name="date" value={currentLog.date || ''} onChange={handleInputChange} className="col-span-2 sm:col-span-1 bg-gray-700 border-gray-600 rounded-md p-2 focus:ring-cyan-500 focus:border-cyan-500" />
-                                    {Object.keys(PARAMETERS).map(key => (
-                                        <div key={key}>
-                                            <label className="text-sm text-gray-400 flex items-center">
-                                                {key === 'kh_am' && <Icon name="sunrise" size={12} className="mr-1" />}
-                                                {key === 'kh_pm' && <Icon name="sunset" size={12} className="mr-1" />}
-                                                {PARAMETERS[key].name}
-                                            </label>
-                                            <input type="number" step="0.01" name={key} placeholder={PARAMETERS[key].unit} value={currentLog[key] || ''} onChange={handleInputChange} className="w-full mt-1 bg-gray-700 border-gray-600 rounded-md p-2 focus:ring-cyan-500 focus:border-cyan-500" />
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="flex justify-end mt-4">
-                                    <button onClick={handleAddLog} className="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg flex items-center space-x-2 transition-colors">
-                                        <Icon name="plus-circle" size={18} className="mr-1" />
-                                        <span>기록 추가/수정</span>
-                                    </button>
-                                </div>
-                            </div>
-                            <div className="bg-gray-800 p-4 rounded-lg shadow-lg">
-                                {view === 'log' && (
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-sm text-left text-gray-300">
-                                            <thead className="text-xs text-cyan-300 uppercase bg-gray-700">
-                                                <tr>
-                                                    <th scope="col" className="px-4 py-3">날짜</th>
-                                                    {Object.keys(PARAMETERS).map(key => <th key={key} scope="col" className="px-4 py-3 text-center">{PARAMETERS[key].name}</th>)}
-                                                    <th scope="col" className="px-4 py-3"></th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {logs.map(log => (
-                                                    <tr key={log.id} className="border-b border-gray-700 hover:bg-gray-700/50">
-                                                        <td className="px-4 py-3 font-medium text-white whitespace-nowrap">{log.date}</td>
-                                                        {Object.keys(PARAMETERS).map(key => {
-                                                            const status = getStatus(key, log[key], settings);
-                                                            return <td key={key} className={`px-4 py-3 text-center ${status.color}`}>{log[key] ?? '-'}</td>
-                                                        })}
-                                                        <td className="px-4 py-3 text-right">
-                                                            <button onClick={() => handleDeleteLog(log.id)} className="text-red-500 hover:text-red-400"><Icon name="trash-2" size={16} /></button>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
-                                {view === 'chart' && (
-                                    <div>
-                                       <h3 className="text-xl font-semibold mb-4 text-cyan-300">수치 변화 그래프</h3>
-                                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                            {Object.keys(PARAMETERS).map(key => (
-                                                <div key={key} className="h-64">
-                                                    <p className="text-center font-semibold text-cyan-200 mb-2">{PARAMETERS[key].name} ({PARAMETERS[key].unit})</p>
-                                                    <ResponsiveContainer width="100%" height="100%">
-                                                        <LineChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                                                            <CartesianGrid strokeDasharray="3 3" stroke="#4A5568" />
-                                                            <XAxis dataKey="date" stroke="#A0AEC0" fontSize={12} tickFormatter={(str) => str ? str.substring(5) : ''} />
-                                                            <YAxis stroke="#A0AEC0" fontSize={12} domain={['dataMin - 1', 'dataMax + 1']} />
-                                                            <Tooltip contentStyle={{ backgroundColor: '#2D3748', border: '1px solid #4A5568' }} />
-                                                            <Legend />
-                                                            <Line type="monotone" dataKey={key} name={PARAMETERS[key].name} stroke="#4FD1C5" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls={true} />
-                                                        </LineChart>
-                                                    </ResponsiveContainer>
-                                                </div>
-                                            ))}
-                                       </div>
-                                    </div>
-                                )}
-                                {view === 'advice' && (
-                                    <div>
-                                        <h3 className="text-xl font-semibold mb-4 text-cyan-300">AI 분석 및 조언 (최신 기록 기준)</h3>
-                                        {logs.length > <strong>0</strong> ? (
-                                            <div className="space-y-4">
-                                                {advice.map((item, index) => <AdviceCard key={index} item={item} />)}
-                                            </div>
-                                        ) : (
-                                            <p className="text-gray-400">분석할 데이터가 없습니다. 먼저 측정값을 기록해주세요.</p>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        </main>
-                    </div>
-                );
-            };
-
-            const container = document.getElementById('root');
-            const root = ReactDOM.createRoot(container);
-            root.render(<App />);
-        }
+        const container = document.getElementById('root');
+        const root = ReactDOM.createRoot(container);
+        root.render(<App />);
     </script>
 </body>
 </html>
