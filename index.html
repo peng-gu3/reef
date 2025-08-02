@@ -1,472 +1,401 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Droplet, Thermometer, TestTube, ChevronsRight, Settings, PlusCircle, Trash2, BarChart2, MessageSquare, BookOpen, Sunrise, Sunset } from 'lucide-react';
-
-// Firebase Imports - Firestore를 사용하여 데이터를 저장합니다.
-import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, query, orderBy, deleteDoc } from 'firebase/firestore';
-import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-
-// --- Firebase 설정 ---
-// 이 설정은 자동으로 제공되므로 수정할 필요가 없습니다.
-const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-reef-ai-logger';
-
-// Firebase 앱 초기화
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
-
-// --- 데이터 구조 및 계산 로직 ---
-
-// 기본 설정값
-const initialSettings = {
-    waterVolume: 160,
-    temp: { min: 25.5, max: 26.5 },
-    salinity: { min: 34, max: 35 },
-    ph: { min: 8.0, max: 8.3 },
-    kh: { min: 7.5, max: 8.5 }, // KH 목표는 동일하게 유지
-    ca: { min: 400, max: 430 },
-    mg: { min: 1350, max: 1440 },
-    no2: { min: 0.00, max: 0.00, danger: 0.01 },
-    no3: { min: 0.5, max: 2.0 },
-    po4: { min: 0.03, max: 0.08 },
-    minDose: 0.3,
-};
-
-// 각 파라미터 정보 (KH가 오전/오후로 분리됨)
-const PARAMETERS = {
-    temp: { name: '온도', unit: '°C' },
-    salinity: { name: '염도', unit: 'ppt' },
-    ph: { name: 'pH', unit: '' },
-    kh_am: { name: 'KH (오전)', unit: 'dKH' },
-    kh_pm: { name: 'KH (오후)', unit: 'dKH' },
-    ca: { name: '칼슘', unit: 'ppm' },
-    mg: { name: '마그네슘', unit: 'ppm' },
-    no2: { name: '아질산', unit: 'ppm' },
-    no3: { name: '질산염', unit: 'ppm' },
-    po4: { name: '인산염', unit: 'ppm' },
-};
-
-// 상태 분석 함수
-const getStatus = (key, value, settings) => {
-    if (value === null || value === undefined || value === '') return { text: '입력 대기', color: 'text-gray-400' };
-    const val = parseFloat(value);
-    // KH 오전/오후 모두 동일한 'kh' 설정을 사용하도록 처리
-    const settingKey = (key === 'kh_am' || key === 'kh_pm') ? 'kh' : key;
-    const setting = settings[settingKey];
-    if (!setting) return { text: 'N/A', color: 'text-gray-400' };
-
-    if (key === 'no2' && val >= setting.danger) {
-        return { text: '위험', color: 'text-red-500 font-bold' };
-    }
-    if (val < setting.min) return { text: '부족', color: 'text-blue-500' };
-    if (val > setting.max) return { text: '과다', color: 'text-yellow-500' };
-    return { text: '적절', color: 'text-green-500' };
-};
-
-// 도징량 계산 및 AI 어드바이스 생성 함수
-const getAdvice = (log, settings) => {
-    if (!log) return [];
-    let adviceList = [];
-
-    // 1. 아질산 (NO2) - 가장 중요
-    const no2Val = parseFloat(log.no2);
-    if (!isNaN(no2Val) && no2Val >= settings.no2.danger) {
-        const dose = Math.round(settings.waterVolume / 100);
-        adviceList.push({
-            level: 'danger',
-            param: '아질산(NO₂)',
-            message: `수치가 ${no2Val}ppm으로 매우 위험합니다. 생물에게 치명적일 수 있습니다.`,
-            action: `즉시 박터 오리진 ${dose}방울을 도징하고, 수치가 0이 될 때까지 매일 환수 및 상태를 확인하세요.`
-        });
-    }
-
-    // 2. KH (오전/오후) - 오후 값을 우선으로 분석
-    const khPmVal = parseFloat(log.kh_pm);
-    const khAmVal = parseFloat(log.kh_am);
-    const latestKhVal = !isNaN(khPmVal) ? khPmVal : khAmVal;
-    const khSource = !isNaN(khPmVal) ? '오후' : '오전';
-
-    if (!isNaN(latestKhVal) && latestKhVal < settings.kh.min) {
-        const neededDose = (settings.waterVolume * (settings.kh.min - latestKhVal)) / 10;
-        if (neededDose >= settings.minDose) {
-            adviceList.push({
-                level: 'warn',
-                param: `KH (${khSource})`,
-                message: `${khSource} KH가 ${latestKhVal}dKH로 낮습니다. 산호 건강과 pH 안정성에 영향을 줍니다.`,
-                action: `KH 도징액 ${neededDose.toFixed(1)}ml를 2~3일에 걸쳐 나누어 도징하세요.`
-            });
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PENG_GU</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <!-- Babel (JSX를 브라우저에서 변환) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Recharts (그래프 라이브러리) -->
+    <script src="https://unpkg.com/recharts/umd/Recharts.min.js"></script>
+    <!-- Lucide Icons (아이콘 라이브러리) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Firebase SDK (데이터베이스) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #111827; /* bg-gray-900 */
         }
-    }
+    </style>
+</head>
+<body>
 
-    // 3. 칼슘 (Ca)
-    const caVal = parseFloat(log.ca);
-    if (!isNaN(caVal) && caVal < settings.ca.min) {
-        const neededDose = (settings.waterVolume * (settings.ca.min - caVal)) / 100;
-        if (neededDose >= settings.minDose) {
-            adviceList.push({
-                level: 'warn',
-                param: '칼슘(Ca)',
-                message: `칼슘이 ${caVal}ppm으로 낮습니다. 산호의 골격 성장에 필수적입니다.`,
-                action: `칼슘(Ca) 도징액 ${neededDose.toFixed(1)}ml를 2~3일에 걸쳐 나누어 도징하세요.`
-            });
-        }
-    }
-    
-    // 4. 마그네슘 (Mg)
-    const mgVal = parseFloat(log.mg);
-    if (!isNaN(mgVal) && mgVal < settings.mg.min) {
-        const neededDose = (settings.waterVolume * (settings.mg.min - mgVal)) / 100;
-        if (neededDose >= settings.minDose) {
-            adviceList.push({
-                level: 'warn',
-                param: '마그네슘(Mg)',
-                message: `마그네슘이 ${mgVal}ppm으로 낮습니다. KH와 칼슘의 균형을 유지합니다.`,
-                action: `마그네슘(Mg) 도징액 ${neededDose.toFixed(1)}ml를 2~3일에 걸쳐 나누어 도징하세요.`
-            });
-        }
-    }
+    <div id="root"></div>
 
-    // 5. 질산염 (NO3)
-    const no3Val = parseFloat(log.no3);
-    if (!isNaN(no3Val) && no3Val < settings.no3.min) {
-        const neededDose = (settings.waterVolume * (settings.no3.min - no3Val)) / 100;
-        if (neededDose >= settings.minDose) {
-            adviceList.push({
-                level: 'info',
-                param: '질산염(NO₃)',
-                message: `질산염이 ${no3Val}ppm으로 낮습니다. 산호의 영양분이 될 수 있습니다.`,
-                action: `Nitro를 ${neededDose.toFixed(1)}ml 도징하여 수치를 조절하세요.`
-            });
-        }
-    }
-    
-    // 6. 인산염 (PO4)
-    const po4Val = parseFloat(log.po4);
-    if (!isNaN(po4Val) && po4Val < settings.po4.min) {
-        const neededDose = (settings.waterVolume * (settings.po4.min - po4Val)) / 10;
-        if (neededDose >= settings.minDose) {
-            adviceList.push({
-                level: 'info',
-                param: '인산염(PO₄)',
-                message: `인산염이 ${po4Val}ppm으로 낮습니다. 산호의 영양분이 될 수 있습니다.`,
-                action: `Phos를 ${neededDose.toFixed(1)}ml 도징하여 수치를 조절하세요.`
-            });
-        }
-    }
+    <script>
+        // 이 변수들은 Canvas 환경에서 자동으로 제공됩니다.
+        window.__firebase_config = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
+        window.__app_id = typeof __app_id !== 'undefined' ? __app_id : 'default-reef-ai-logger';
+    </script>
 
-    if (adviceList.length === 0) {
-        adviceList.push({
-            level: 'success',
-            param: '모든 수치 양호',
-            message: '어항의 모든 수치가 안정적인 범위 내에 있습니다.',
-            action: '현재 상태를 잘 유지해주세요! 정기적인 관리가 중요합니다.'
-        });
-    }
+    <script type="text/babel">
+        // 모든 외부 스크립트가 로드된 후 앱을 실행합니다.
+        window.onload = function() {
+            const { useState, useEffect, useMemo } = React;
+            const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = window.Recharts;
 
-    return adviceList;
-};
+            // --- Firebase 설정 ---
+            const firebaseConfig = JSON.parse(window.__firebase_config);
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            const db = firebase.firestore();
+            const auth = firebase.auth();
+            const appId = window.__app_id;
 
-// --- React 컴포넌트 ---
+            // --- 데이터 구조 및 계산 로직 ---
+            const initialSettings = {
+                waterVolume: 160,
+                temp: { min: 25.5, max: 26.5 },
+                salinity: { min: 34, max: 35 },
+                ph: { min: 8.0, max: 8.3 },
+                kh: { min: 7.5, max: 8.5 },
+                ca: { min: 400, max: 430 },
+                mg: { min: 1350, max: 1440 },
+                no2: { min: 0.00, max: 0.00, danger: 0.01 },
+                no3: { min: 0.5, max: 2.0 },
+                po4: { min: 0.03, max: 0.08 },
+                minDose: 0.3,
+            };
 
-// 설정 패널 컴포넌트
-const SettingsPanel = ({ settings, setSettings, onSave, isVisible, setVisible }) => {
-    const [localSettings, setLocalSettings] = useState(settings);
+            const PARAMETERS = {
+                temp: { name: '온도', unit: '°C' },
+                salinity: { name: '염도', unit: 'ppt' },
+                ph: { name: 'pH', unit: '' },
+                kh_am: { name: 'KH (오전)', unit: 'dKH' },
+                kh_pm: { name: 'KH (오후)', unit: 'dKH' },
+                ca: { name: '칼슘', unit: 'ppm' },
+                mg: { name: '마그네슘', unit: 'ppm' },
+                no2: { name: '아질산', unit: 'ppm' },
+                no3: { name: '질산염', unit: 'ppm' },
+                po4: { name: '인산염', unit: 'ppm' },
+            };
 
-    useEffect(() => {
-        setLocalSettings(settings);
-    }, [settings]);
+            const getStatus = (key, value, settings) => {
+                if (value === null || value === undefined || value === '') return { text: '입력 대기', color: 'text-gray-400' };
+                const val = parseFloat(value);
+                const settingKey = (key === 'kh_am' || key === 'kh_pm') ? 'kh' : key;
+                const setting = settings[settingKey];
+                if (!setting) return { text: 'N/A', color: 'text-gray-400' };
 
-    const handleInputChange = (e, param, field) => {
-        const { value } = e.target;
-        if (param) {
-            setLocalSettings(prev => ({
-                ...prev,
-                [param]: { ...prev[param], [field]: value }
-            }));
-        } else {
-            setLocalSettings(prev => ({ ...prev, [field]: value }));
-        }
-    };
-    
-    const handleSave = () => {
-        onSave(localSettings);
-        setVisible(false);
-    };
+                if (key === 'no2' && val >= setting.danger) {
+                    return { text: '위험', color: 'text-red-500 font-bold' };
+                }
+                if (val < setting.min) return { text: '부족', color: 'text-blue-500' };
+                if (val > setting.max) return { text: '과다', color: 'text-yellow-500' };
+                return { text: '적절', color: 'text-green-500' };
+            };
 
-    if (!isVisible) return null;
+            const getAdvice = (log, settings) => {
+                if (!log) return [];
+                let adviceList = [];
+                const no2Val = parseFloat(log.no2);
+                if (!isNaN(no2Val) && no2Val >= settings.no2.danger) {
+                    const dose = Math.round(settings.waterVolume / 100);
+                    adviceList.push({ level: 'danger', param: '아질산(NO₂)', message: `수치가 ${no2Val}ppm으로 매우 위험합니다. 생물에게 치명적일 수 있습니다.`, action: `즉시 박터 오리진 ${dose}방울을 도징하고, 수치가 0이 될 때까지 매일 환수 및 상태를 확인하세요.` });
+                }
+                const khPmVal = parseFloat(log.kh_pm);
+                const khAmVal = parseFloat(log.kh_am);
+                const latestKhVal = !isNaN(khPmVal) ? khPmVal : khAmVal;
+                const khSource = !isNaN(khPmVal) ? '오후' : '오전';
+                if (!isNaN(latestKhVal) && latestKhVal < settings.kh.min) {
+                    const neededDose = (settings.waterVolume * (settings.kh.min - latestKhVal)) / 10;
+                    if (neededDose >= settings.minDose) { adviceList.push({ level: 'warn', param: `KH (${khSource})`, message: `${khSource} KH가 ${latestKhVal}dKH로 낮습니다. 산호 건강과 pH 안정성에 영향을 줍니다.`, action: `KH 도징액 ${neededDose.toFixed(1)}ml를 2~3일에 걸쳐 나누어 도징하세요.` }); }
+                }
+                const caVal = parseFloat(log.ca);
+                if (!isNaN(caVal) && caVal < settings.ca.min) {
+                    const neededDose = (settings.waterVolume * (settings.ca.min - caVal)) / 100;
+                    if (neededDose >= settings.minDose) { adviceList.push({ level: 'warn', param: '칼슘(Ca)', message: `칼슘이 ${caVal}ppm으로 낮습니다. 산호의 골격 성장에 필수적입니다.`, action: `칼슘(Ca) 도징액 ${neededDose.toFixed(1)}ml를 2~3일에 걸쳐 나누어 도징하세요.` }); }
+                }
+                const mgVal = parseFloat(log.mg);
+                if (!isNaN(mgVal) && mgVal < settings.mg.min) {
+                    const neededDose = (settings.waterVolume * (settings.mg.min - mgVal)) / 100;
+                    if (neededDose >= settings.minDose) { adviceList.push({ level: 'warn', param: '마그네슘(Mg)', message: `마그네슘이 ${mgVal}ppm으로 낮습니다. KH와 칼슘의 균형을 유지합니다.`, action: `마그네슘(Mg) 도징액 ${neededDose.toFixed(1)}ml를 2~3일에 걸쳐 나누어 도징하세요.` }); }
+                }
+                const no3Val = parseFloat(log.no3);
+                if (!isNaN(no3Val) && no3Val < settings.no3.min) {
+                    const neededDose = (settings.waterVolume * (settings.no3.min - no3Val)) / 100;
+                    if (neededDose >= settings.minDose) { adviceList.push({ level: 'info', param: '질산염(NO₃)', message: `질산염이 ${no3Val}ppm으로 낮습니다. 산호의 영양분이 될 수 있습니다.`, action: `Nitro를 ${neededDose.toFixed(1)}ml 도징하여 수치를 조절하세요.` }); }
+                }
+                const po4Val = parseFloat(log.po4);
+                if (!isNaN(po4Val) && po4Val < settings.po4.min) {
+                    const neededDose = (settings.waterVolume * (settings.po4.min - po4Val)) / 10;
+                    if (neededDose >= settings.minDose) { adviceList.push({ level: 'info', param: '인산염(PO₄)', message: `인산염이 ${po4Val}ppm으로 낮습니다. 산호의 영양분이 될 수 있습니다.`, action: `Phos를 ${neededDose.toFixed(1)}ml 도징하여 수치를 조절하세요.` }); }
+                }
+                if (adviceList.length === 0) { adviceList.push({ level: 'success', param: '모든 수치 양호', message: '어항의 모든 수치가 안정적인 범위 내에 있습니다.', action: '현재 상태를 잘 유지해주세요! 정기적인 관리가 중요합니다.' }); }
+                return adviceList;
+            };
 
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex justify-center items-center p-4">
-            <div className="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto text-white">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-2xl font-bold text-cyan-400">어항 설정</h2>
-                    <button onClick={() => setVisible(false)} className="text-gray-400 hover:text-white">&times;</button>
-                </div>
-                
-                <div className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-300">수조 총 물량 (L)</label>
-                        <input type="number" value={localSettings.waterVolume} onChange={(e) => handleInputChange(e, null, 'waterVolume')} className="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md shadow-sm focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm p-2" />
-                    </div>
-                     <div>
-                        <label className="block text-sm font-medium text-gray-300">최소 도징량 (ml)</label>
-                        <input type="number" step="0.1" value={localSettings.minDose} onChange={(e) => handleInputChange(e, null, 'minDose')} className="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md shadow-sm focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm p-2" />
-                    </div>
-                    {/* KH 설정은 하나로 통합하여 표시 */}
-                    <div className="bg-gray-700 p-3 rounded-lg">
-                        <h3 className="font-semibold text-cyan-300">KH 목표 범위 (dKH)</h3>
-                        <div className="flex items-center space-x-2 mt-2">
-                            <input type="number" step="0.1" placeholder="최소" value={localSettings.kh?.min || ''} onChange={(e) => handleInputChange(e, 'kh', 'min')} className="w-full bg-gray-600 rounded p-1 text-center" />
-                            <span>~</span>
-                            <input type="number" step="0.1" placeholder="최대" value={localSettings.kh?.max || ''} onChange={(e) => handleInputChange(e, 'kh', 'max')} className="w-full bg-gray-600 rounded p-1 text-center" />
-                        </div>
-                    </div>
+            // --- React 컴포넌트 ---
+            const Icon = ({ name, size = 16, className = "" }) => {
+                return <i data-lucide={name} width={size} height={size} className={className}></i>;
+            };
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {Object.keys(PARAMETERS).filter(k => k !== 'kh_am' && k !== 'kh_pm').map(key => (
-                            <div key={key} className="bg-gray-700 p-3 rounded-lg">
-                                <h3 className="font-semibold text-cyan-300">{PARAMETERS[key].name} ({PARAMETERS[key].unit})</h3>
-                                <div className="flex items-center space-x-2 mt-2">
-                                    <input type="number" step="0.1" placeholder="최소" value={localSettings[key]?.min || ''} onChange={(e) => handleInputChange(e, key, 'min')} className="w-full bg-gray-600 rounded p-1 text-center" />
-                                    <span>~</span>
-                                    <input type="number" step="0.1" placeholder="최대" value={localSettings[key]?.max || ''} onChange={(e) => handleInputChange(e, key, 'max')} className="w-full bg-gray-600 rounded p-1 text-center" />
+            const SettingsPanel = ({ settings, onSave, isVisible, setVisible }) => {
+                const [localSettings, setLocalSettings] = useState(settings);
+                useEffect(() => { setLocalSettings(settings); }, [settings]);
+                const handleInputChange = (e, param, field) => {
+                    const { value } = e.target;
+                    if (param) { setLocalSettings(prev => ({ ...prev, [param]: { ...prev[param], [field]: value } })); }
+                    else { setLocalSettings(prev => ({ ...prev, [field]: value })); }
+                };
+                const handleSave = () => { onSave(localSettings); setVisible(false); };
+                if (!isVisible) return null;
+                return (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex justify-center items-center p-4">
+                        <div className="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto text-white">
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-2xl font-bold text-cyan-400">어항 설정</h2>
+                                <button onClick={() => setVisible(false)} className="text-gray-400 hover:text-white">&times;</button>
+                            </div>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300">수조 총 물량 (L)</label>
+                                    <input type="number" value={localSettings.waterVolume} onChange={(e) => handleInputChange(e, null, 'waterVolume')} className="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md shadow-sm focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm p-2" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300">최소 도징량 (ml)</label>
+                                    <input type="number" step="0.1" value={localSettings.minDose} onChange={(e) => handleInputChange(e, null, 'minDose')} className="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md shadow-sm focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm p-2" />
+                                </div>
+                                <div className="bg-gray-700 p-3 rounded-lg">
+                                    <h3 className="font-semibold text-cyan-300">KH 목표 범위 (dKH)</h3>
+                                    <div className="flex items-center space-x-2 mt-2">
+                                        <input type="number" step="0.1" placeholder="최소" value={localSettings.kh?.min || ''} onChange={(e) => handleInputChange(e, 'kh', 'min')} className="w-full bg-gray-600 rounded p-1 text-center" />
+                                        <span>~</span>
+                                        <input type="number" step="0.1" placeholder="최대" value={localSettings.kh?.max || ''} onChange={(e) => handleInputChange(e, 'kh', 'max')} className="w-full bg-gray-600 rounded p-1 text-center" />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {Object.keys(PARAMETERS).filter(k => k !== 'kh_am' && k !== 'kh_pm').map(key => (
+                                        <div key={key} className="bg-gray-700 p-3 rounded-lg">
+                                            <h3 className="font-semibold text-cyan-300">{PARAMETERS[key].name} ({PARAMETERS[key].unit})</h3>
+                                            <div className="flex items-center space-x-2 mt-2">
+                                                <input type="number" step="0.1" placeholder="최소" value={localSettings[key]?.min || ''} onChange={(e) => handleInputChange(e, key, 'min')} className="w-full bg-gray-600 rounded p-1 text-center" />
+                                                <span>~</span>
+                                                <input type="number" step="0.1" placeholder="최대" value={localSettings[key]?.max || ''} onChange={(e) => handleInputChange(e, key, 'max')} className="w-full bg-gray-600 rounded p-1 text-center" />
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
-                        ))}
+                            <div className="mt-6 flex justify-end">
+                                <button onClick={handleSave} className="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">저장</button>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                );
+            };
 
-                <div className="mt-6 flex justify-end">
-                    <button onClick={handleSave} className="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
-                        저장
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-};
+            const App = () => {
+                const [logs, setLogs] = useState([]);
+                const [settings, setSettings] = useState(initialSettings);
+                const [currentLog, setCurrentLog] = useState({ date: new Date().toISOString().slice(0, 10) });
+                const [view, setView] = useState('log');
+                const [isSettingsVisible, setSettingsVisible] = useState(false);
+                const [userId, setUserId] = useState(null);
+                const [isLoading, setLoading] = useState(true);
 
-// 메인 앱 컴포넌트
-export default function App() {
-    const [logs, setLogs] = useState([]);
-    const [settings, setSettings] = useState(initialSettings);
-    const [currentLog, setCurrentLog] = useState({ date: new Date().toISOString().slice(0, 10) });
-    const [view, setView] = useState('log'); // log, chart, advice
-    const [isSettingsVisible, setSettingsVisible] = useState(false);
-    const [userId, setUserId] = useState(null);
-    const [isLoading, setLoading] = useState(true);
+                useEffect(() => {
+                    lucide.createIcons();
+                });
 
-    // Firebase 인증 및 데이터 로딩
-    useEffect(() => {
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                setUserId(user.uid);
-                
-                // 설정 불러오기
-                const settingsRef = doc(db, `artifacts/${appId}/users/${user.uid}/reef_log_settings`, 'settings');
-                const docSnap = await getDoc(settingsRef);
-                if (docSnap.exists()) {
-                    setSettings(docSnap.data());
-                } else {
-                    await setDoc(settingsRef, initialSettings);
+                useEffect(() => {
+                    auth.onAuthStateChanged(async (user) => {
+                        if (user) {
+                            setUserId(user.uid);
+                            const settingsRef = db.collection(`artifacts/${appId}/users/${user.uid}/reef_log_settings`).doc('settings');
+                            const docSnap = await settingsRef.get();
+                            if (docSnap.exists) {
+                                setSettings(docSnap.data());
+                            } else {
+                                await settingsRef.set(initialSettings);
+                            }
+                            const logsQuery = db.collection(`artifacts/${appId}/users/${user.uid}/reef_log_entries`).orderBy('date', 'desc');
+                            const unsubscribe = logsQuery.onSnapshot((querySnapshot) => {
+                                const logsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                                setLogs(logsData);
+                                setLoading(false);
+                            });
+                            return () => unsubscribe();
+                        } else {
+                            auth.signInAnonymously();
+                        }
+                    });
+                }, []);
+
+                const handleSaveSettings = async (newSettings) => {
+                    if (!userId) return;
+                    const settingsRef = db.collection(`artifacts/${appId}/users/${userId}/reef_log_settings`).doc('settings');
+                    await settingsRef.set(newSettings);
+                    setSettings(newSettings);
+                };
+
+                const handleInputChange = (e) => {
+                    const { name, value } = e.target;
+                    setCurrentLog(prev => ({ ...prev, [name]: value }));
+                };
+
+                const handleAddLog = async () => {
+                    if (!userId || !currentLog.date) {
+                        alert("날짜를 입력해주세요.");
+                        return;
+                    }
+                    const logId = currentLog.date;
+                    const logRef = db.collection(`artifacts/${appId}/users/${userId}/reef_log_entries`).doc(logId);
+                    await logRef.set({ ...currentLog, id: logId }, { merge: true });
+                    setCurrentLog({ date: new Date().toISOString().slice(0, 10) });
+                };
+
+                const handleDeleteLog = async (logId) => {
+                    if (!userId || !logId) return;
+                    if (window.confirm("정말로 이 기록을 삭제하시겠습니까?")) {
+                        const logRef = db.collection(`artifacts/${appId}/users/${userId}/reef_log_entries`).doc(logId);
+                        await logRef.delete();
+                    }
+                };
+
+                const advice = useMemo(() => getAdvice(logs[0], settings), [logs, settings]);
+                const chartData = useMemo(() => logs.map(log => ({ ...log, date: log.date })).reverse(), [logs]);
+
+                const AdviceCard = ({ item }) => {
+                    const colors = { danger: 'border-red-500 bg-red-900/20', warn: 'border-yellow-500 bg-yellow-900/20', info: 'border-blue-500 bg-blue-900/20', success: 'border-green-500 bg-green-900/20' };
+                    const iconColors = { danger: 'text-red-400', warn: 'text-yellow-400', info: 'text-blue-400', success: 'text-green-400' };
+                    const iconName = { danger: 'test-tube', warn: 'droplet', info: 'chevrons-right', success: 'sunrise' };
+                    return (
+                        <div className={`border-l-4 p-4 rounded-r-lg ${colors[item.level]}`}>
+                            <div className="flex items-start">
+                                <div className={`flex-shrink-0 ${iconColors[item.level]} mr-3 mt-1`}>
+                                    <Icon name={iconName[item.level]} size={20} />
+                                </div>
+                                <div>
+                                    <p className="font-bold text-white">{item.param}</p>
+                                    <p className="text-sm text-gray-300">{item.message}</p>
+                                    <p className="text-sm text-cyan-300 mt-1">{item.action}</p>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                };
+
+                if (isLoading) {
+                    return <div className="text-white h-screen flex items-center justify-center">로딩 중...</div>
                 }
 
-                // 로그 불러오기 (실시간)
-                const logsQuery = query(collection(db, `artifacts/${appId}/users/${user.uid}/reef_log_entries`), orderBy('date', 'desc'));
-                const unsubscribe = onSnapshot(logsQuery, (querySnapshot) => {
-                    const logsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    setLogs(logsData);
-                    setLoading(false);
-                });
-                return () => unsubscribe();
-
-            } else {
-                signInAnonymously(auth);
-            }
-        });
-    }, []);
-
-    const handleSaveSettings = async (newSettings) => {
-        if (!userId) return;
-        const settingsRef = doc(db, `artifacts/${appId}/users/${userId}/reef_log_settings`, 'settings');
-        await setDoc(settingsRef, newSettings);
-        setSettings(newSettings);
-    };
-
-    const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        setCurrentLog(prev => ({ ...prev, [name]: value }));
-    };
-
-    const handleAddLog = async () => {
-        if (!userId || !currentLog.date) {
-            alert("날짜를 입력해주세요.");
-            return;
-        }
-        const logId = currentLog.date; // 날짜를 ID로 사용
-        const logRef = doc(db, `artifacts/${appId}/users/${userId}/reef_log_entries`, logId);
-        await setDoc(logRef, { ...currentLog, id: logId }, { merge: true }); // merge: true로 오전/오후 데이터 덮어쓰기 방지
-        setCurrentLog({ date: new Date().toISOString().slice(0, 10) }); // 입력 폼 초기화 (날짜는 오늘로)
-    };
-
-    const handleDeleteLog = async (logId) => {
-        if (!userId || !logId) return;
-        if (window.confirm("정말로 이 기록을 삭제하시겠습니까?")) {
-            const logRef = doc(db, `artifacts/${appId}/users/${userId}/reef_log_entries`, logId);
-            await deleteDoc(logRef);
-        }
-    };
-
-    const advice = useMemo(() => getAdvice(logs[0], settings), [logs, settings]);
-    const chartData = useMemo(() => logs.map(log => ({
-        ...log,
-        date: log.date,
-    })).reverse(), [logs]);
-
-    const AdviceCard = ({ item }) => {
-        const colors = {
-            danger: 'border-red-500 bg-red-900/20',
-            warn: 'border-yellow-500 bg-yellow-900/20',
-            info: 'border-blue-500 bg-blue-900/20',
-            success: 'border-green-500 bg-green-900/20'
-        };
-        const iconColors = {
-            danger: 'text-red-400',
-            warn: 'text-yellow-400',
-            info: 'text-blue-400',
-            success: 'text-green-400'
-        };
-        return (
-            <div className={`border-l-4 p-4 rounded-r-lg ${colors[item.level]}`}>
-                <div className="flex items-start">
-                    <div className={`flex-shrink-0 ${iconColors[item.level]} mr-3 mt-1`}>
-                        {item.level === 'danger' && <TestTube size={20} />}
-                        {item.level === 'warn' && <Droplet size={20} />}
-                        {item.level === 'info' && <ChevronsRight size={20} />}
-                        {item.level === 'success' && <Sunrise size={20} />}
-                    </div>
-                    <div>
-                        <p className="font-bold text-white">{item.param}</p>
-                        <p className="text-sm text-gray-300">{item.message}</p>
-                        <p className="text-sm text-cyan-300 mt-1">{item.action}</p>
-                    </div>
-                </div>
-            </div>
-        );
-    };
-
-    if (isLoading) {
-        return <div className="bg-gray-900 text-white h-screen flex items-center justify-center">로딩 중...</div>
-    }
-
-    return (
-        <div className="bg-gray-900 text-white min-h-screen font-sans p-4 md:p-6">
-            <SettingsPanel settings={settings} setSettings={setSettings} onSave={handleSaveSettings} isVisible={isSettingsVisible} setVisible={setSettingsVisible} />
-            
-            <header className="flex flex-col md:flex-row justify-between items-center mb-6">
-                <h1 className="text-3xl md:text-4xl font-bold text-cyan-400 mb-4 md:mb-0">PENG_GU</h1>
-                <div className="flex items-center space-x-2">
-                    <button onClick={() => setView('log')} className={`px-3 py-2 rounded-lg text-sm flex items-center space-x-2 ${view === 'log' ? 'bg-cyan-500' : 'bg-gray-700 hover:bg-gray-600'}`}><BookOpen size={16}/><span>로그</span></button>
-                    <button onClick={() => setView('chart')} className={`px-3 py-2 rounded-lg text-sm flex items-center space-x-2 ${view === 'chart' ? 'bg-cyan-500' : 'bg-gray-700 hover:bg-gray-600'}`}><BarChart2 size={16}/><span>그래프</span></button>
-                    <button onClick={() => setView('advice')} className={`px-3 py-2 rounded-lg text-sm flex items-center space-x-2 ${view === 'advice' ? 'bg-cyan-500' : 'bg-gray-700 hover:bg-gray-600'}`}><MessageSquare size={16}/><span>AI 분석</span></button>
-                    <button onClick={() => setSettingsVisible(true)} className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600"><Settings size={20}/></button>
-                </div>
-            </header>
-
-            <main>
-                {/* 데이터 입력 폼 */}
-                <div className="bg-gray-800 p-4 rounded-lg mb-6 shadow-lg">
-                    <h2 className="text-xl font-semibold mb-4 text-cyan-300">새 측정값 기록</h2>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                        <input type="date" name="date" value={currentLog.date || ''} onChange={handleInputChange} className="col-span-2 sm:col-span-1 bg-gray-700 border-gray-600 rounded-md p-2 focus:ring-cyan-500 focus:border-cyan-500" />
-                        {Object.keys(PARAMETERS).map(key => (
-                            <div key={key}>
-                                <label className="text-sm text-gray-400 flex items-center">
-                                    {key === 'kh_am' && <Sunrise size={12} className="mr-1"/>}
-                                    {key === 'kh_pm' && <Sunset size={12} className="mr-1"/>}
-                                    {PARAMETERS[key].name}
-                                </label>
-                                <input type="number" step="0.01" name={key} placeholder={PARAMETERS[key].unit} value={currentLog[key] || ''} onChange={handleInputChange} className="w-full mt-1 bg-gray-700 border-gray-600 rounded-md p-2 focus:ring-cyan-500 focus:border-cyan-500" />
+                return (
+                    <div className="bg-gray-900 text-white min-h-screen p-4 md:p-6">
+                        <SettingsPanel settings={settings} onSave={handleSaveSettings} isVisible={isSettingsVisible} setVisible={setSettingsVisible} />
+                        <header className="flex flex-col md:flex-row justify-between items-center mb-6">
+                            <h1 className="text-3xl md:text-4xl font-bold text-cyan-400 mb-4 md:mb-0">PENG_GU</h1>
+                            <div className="flex items-center space-x-2">
+                                <button onClick={() => setView('log')} className={`px-3 py-2 rounded-lg text-sm flex items-center space-x-2 ${view === 'log' ? 'bg-cyan-500' : 'bg-gray-700 hover:bg-gray-600'}`}><Icon name="book-open" size={16} className="mr-1" /><span>로그</span></button>
+                                <button onClick={() => setView('chart')} className={`px-3 py-2 rounded-lg text-sm flex items-center space-x-2 ${view === 'chart' ? 'bg-cyan-500' : 'bg-gray-700 hover:bg-gray-600'}`}><Icon name="bar-chart-2" size={16} className="mr-1" /><span>그래프</span></button>
+                                <button onClick={() => setView('advice')} className={`px-3 py-2 rounded-lg text-sm flex items-center space-x-2 ${view === 'advice' ? 'bg-cyan-500' : 'bg-gray-700 hover:bg-gray-600'}`}><Icon name="message-square" size={16} className="mr-1" /><span>AI 분석</span></button>
+                                <button onClick={() => setSettingsVisible(true)} className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600"><Icon name="settings" size={20} /></button>
                             </div>
-                        ))}
-                    </div>
-                    <div className="flex justify-end mt-4">
-                        <button onClick={handleAddLog} className="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg flex items-center space-x-2 transition-colors">
-                            <PlusCircle size={18} />
-                            <span>기록 추가/수정</span>
-                        </button>
-                    </div>
-                </div>
-
-                {/* 뷰 전환 컨텐츠 */}
-                <div className="bg-gray-800 p-4 rounded-lg shadow-lg">
-                    {view === 'log' && (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm text-left text-gray-300">
-                                <thead className="text-xs text-cyan-300 uppercase bg-gray-700">
-                                    <tr>
-                                        <th scope="col" className="px-4 py-3">날짜</th>
-                                        {Object.keys(PARAMETERS).map(key => <th key={key} scope="col" className="px-4 py-3 text-center">{PARAMETERS[key].name}</th>)}
-                                        <th scope="col" className="px-4 py-3"></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {logs.map(log => (
-                                        <tr key={log.id} className="border-b border-gray-700 hover:bg-gray-700/50">
-                                            <td className="px-4 py-3 font-medium text-white whitespace-nowrap">{log.date}</td>
-                                            {Object.keys(PARAMETERS).map(key => {
-                                                const status = getStatus(key, log[key], settings);
-                                                return <td key={key} className={`px-4 py-3 text-center ${status.color}`}>{log[key] ?? '-'}</td>
-                                            })}
-                                            <td className="px-4 py-3 text-right">
-                                                <button onClick={() => handleDeleteLog(log.id)} className="text-red-500 hover:text-red-400"><Trash2 size={16}/></button>
-                                            </td>
-                                        </tr>
+                        </header>
+                        <main>
+                            <div className="bg-gray-800 p-4 rounded-lg mb-6 shadow-lg">
+                                <h2 className="text-xl font-semibold mb-4 text-cyan-300">새 측정값 기록</h2>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                                    <input type="date" name="date" value={currentLog.date || ''} onChange={handleInputChange} className="col-span-2 sm:col-span-1 bg-gray-700 border-gray-600 rounded-md p-2 focus:ring-cyan-500 focus:border-cyan-500" />
+                                    {Object.keys(PARAMETERS).map(key => (
+                                        <div key={key}>
+                                            <label className="text-sm text-gray-400 flex items-center">
+                                                {key === 'kh_am' && <Icon name="sunrise" size={12} className="mr-1" />}
+                                                {key === 'kh_pm' && <Icon name="sunset" size={12} className="mr-1" />}
+                                                {PARAMETERS[key].name}
+                                            </label>
+                                            <input type="number" step="0.01" name={key} placeholder={PARAMETERS[key].unit} value={currentLog[key] || ''} onChange={handleInputChange} className="w-full mt-1 bg-gray-700 border-gray-600 rounded-md p-2 focus:ring-cyan-500 focus:border-cyan-500" />
+                                        </div>
                                     ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-
-                    {view === 'chart' && (
-                        <div>
-                           <h3 className="text-xl font-semibold mb-4 text-cyan-300">수치 변화 그래프</h3>
-                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                {Object.keys(PARAMETERS).map(key => (
-                                    <div key={key} className="h-64">
-                                        <p className="text-center font-semibold text-cyan-200 mb-2">{PARAMETERS[key].name} ({PARAMETERS[key].unit})</p>
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <LineChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                                                <CartesianGrid strokeDasharray="3 3" stroke="#4A5568" />
-                                                <XAxis dataKey="date" stroke="#A0AEC0" fontSize={12} tickFormatter={(str) => str.substring(5)} />
-                                                <YAxis stroke="#A0AEC0" fontSize={12} domain={['dataMin - 1', 'dataMax + 1']} />
-                                                <Tooltip contentStyle={{ backgroundColor: '#2D3748', border: '1px solid #4A5568' }} />
-                                                <Legend />
-                                                <Line type="monotone" dataKey={key} name={PARAMETERS[key].name} stroke="#4FD1C5" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls={true} />
-                                            </LineChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                ))}
-                           </div>
-                        </div>
-                    )}
-
-                    {view === 'advice' && (
-                        <div>
-                            <h3 className="text-xl font-semibold mb-4 text-cyan-300">AI 분석 및 조언 (최신 기록 기준)</h3>
-                            {logs.length > 0 ? (
-                                <div className="space-y-4">
-                                    {advice.map((item, index) => <AdviceCard key={index} item={item} />)}
                                 </div>
-                            ) : (
-                                <p className="text-gray-400">분석할 데이터가 없습니다. 먼저 측정값을 기록해주세요.</p>
-                            )}
-                        </div>
-                    )}
-                </div>
-            </main>
-        </div>
-    );
-}
+                                <div className="flex justify-end mt-4">
+                                    <button onClick={handleAddLog} className="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg flex items-center space-x-2 transition-colors">
+                                        <Icon name="plus-circle" size={18} className="mr-1" />
+                                        <span>기록 추가/수정</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="bg-gray-800 p-4 rounded-lg shadow-lg">
+                                {view === 'log' && (
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm text-left text-gray-300">
+                                            <thead className="text-xs text-cyan-300 uppercase bg-gray-700">
+                                                <tr>
+                                                    <th scope="col" className="px-4 py-3">날짜</th>
+                                                    {Object.keys(PARAMETERS).map(key => <th key={key} scope="col" className="px-4 py-3 text-center">{PARAMETERS[key].name}</th>)}
+                                                    <th scope="col" className="px-4 py-3"></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {logs.map(log => (
+                                                    <tr key={log.id} className="border-b border-gray-700 hover:bg-gray-700/50">
+                                                        <td className="px-4 py-3 font-medium text-white whitespace-nowrap">{log.date}</td>
+                                                        {Object.keys(PARAMETERS).map(key => {
+                                                            const status = getStatus(key, log[key], settings);
+                                                            return <td key={key} className={`px-4 py-3 text-center ${status.color}`}>{log[key] ?? '-'}</td>
+                                                        })}
+                                                        <td className="px-4 py-3 text-right">
+                                                            <button onClick={() => handleDeleteLog(log.id)} className="text-red-500 hover:text-red-400"><Icon name="trash-2" size={16} /></button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                                {view === 'chart' && (
+                                    <div>
+                                       <h3 className="text-xl font-semibold mb-4 text-cyan-300">수치 변화 그래프</h3>
+                                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                            {Object.keys(PARAMETERS).map(key => (
+                                                <div key={key} className="h-64">
+                                                    <p className="text-center font-semibold text-cyan-200 mb-2">{PARAMETERS[key].name} ({PARAMETERS[key].unit})</p>
+                                                    <ResponsiveContainer width="100%" height="100%">
+                                                        <LineChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                                                            <CartesianGrid strokeDasharray="3 3" stroke="#4A5568" />
+                                                            <XAxis dataKey="date" stroke="#A0AEC0" fontSize={12} tickFormatter={(str) => str ? str.substring(5) : ''} />
+                                                            <YAxis stroke="#A0AEC0" fontSize={12} domain={['dataMin - 1', 'dataMax + 1']} />
+                                                            <Tooltip contentStyle={{ backgroundColor: '#2D3748', border: '1px solid #4A5568' }} />
+                                                            <Legend />
+                                                            <Line type="monotone" dataKey={key} name={PARAMETERS[key].name} stroke="#4FD1C5" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls={true} />
+                                                        </LineChart>
+                                                    </ResponsiveContainer>
+                                                </div>
+                                            ))}
+                                       </div>
+                                    </div>
+                                )}
+                                {view === 'advice' && (
+                                    <div>
+                                        <h3 className="text-xl font-semibold mb-4 text-cyan-300">AI 분석 및 조언 (최신 기록 기준)</h3>
+                                        {logs.length > <strong>0</strong> ? (
+                                            <div className="space-y-4">
+                                                {advice.map((item, index) => <AdviceCard key={index} item={item} />)}
+                                            </div>
+                                        ) : (
+                                            <p className="text-gray-400">분석할 데이터가 없습니다. 먼저 측정값을 기록해주세요.</p>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </main>
+                    </div>
+                );
+            };
+
+            const container = document.getElementById('root');
+            const root = ReactDOM.createRoot(container);
+            root.render(<App />);
+        }
+    </script>
+</body>
+</html>
