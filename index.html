@@ -224,11 +224,11 @@
                     <div
                       key={`item-${index}`}
                       onClick={() => handleLegendClick({ dataKey })}
-                      className="flex items-center mr-4 mb-2 cursor-pointer"
-                      style={{ opacity: isHidden ? 0.5 : 1 }}
+                      className="flex items-center mr-4 mb-2"
+                      style={{ opacity: isHidden ? 0.5 : 1, cursor: 'pointer' }}
                     >
-                      <div style={{ width: '14px', height: '14px', backgroundColor: isHidden ? '#888' : color, marginRight: '8px' }}></div>
-                      <span style={{ color: isHidden ? '#888' : color, fontSize: '14px', fontWeight: 500 }}>{value}</span>
+                      <div style={{ width: '14px', height: '14px', backgroundColor: color, marginRight: '8px' }}></div>
+                      <span style={{ color: color, fontSize: '14px', fontWeight: 500 }}>{value}</span>
                     </div>
                   );
                 })}
@@ -252,7 +252,10 @@
                     <YAxis yAxisId="right" orientation="right" stroke="#A0AEC0" domain={['dataMin - 50', 'dataMax + 50']} />
                     <Tooltip contentStyle={{ backgroundColor: '#1A202C', border: '1px solid #4A5568' }} />
                     <Legend content={renderCustomLegend} />
-                    {chartLines.map(line => !hiddenLines[line.dataKey] && <Line key={line.dataKey} dataKey={line.dataKey} name={line.name} stroke={line.color} yAxisId={line.yAxisId} type="monotone" />)}
+                    {chartLines.map(line => {
+                        const isHidden = hiddenLines[line.dataKey];
+                        return isHidden ? null : <Line key={line.dataKey} dataKey={line.dataKey} name={line.name} stroke={line.color} yAxisId={line.yAxisId} type="monotone" />;
+                    })}
                 </LineChart>
               </ResponsiveContainer>
             );
