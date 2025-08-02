@@ -103,7 +103,7 @@
           const [newLog, setNewLog] = useState({
             date: new Date().toISOString().slice(0, 10),
             temp: '', salinity: '', ph: '', kh: '',
-            calcium: '', magnesium: '', nitrite: '0', nitrate: '', phosphate: '',
+            calcium: '', magnesium: '', nitrite: '', nitrate: '', phosphate: '',
             notes: ''
           });
 
@@ -172,7 +172,7 @@
             setLogs([...logs, logToAdd].sort((a, b) => new Date(b.date) - new Date(a.date)));
             setNewLog({
                 date: new Date().toISOString().slice(0, 10), temp: '', salinity: '', ph: '', kh: '',
-                calcium: '', magnesium: '', nitrite: '0', nitrate: '', phosphate: '', notes: ''
+                calcium: '', magnesium: '', nitrite: '', nitrate: '', phosphate: '', notes: ''
             });
           };
 
