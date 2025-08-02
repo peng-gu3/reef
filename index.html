@@ -119,56 +119,33 @@
             setLogs(initialLogs);
           }, []);
 
-          const createAnalysisPrompt = (log) => {
-            return `당신은 세계 최고의 해수어항 전문가입니다. 아래는 오늘 측정한 저의 해수어항 수질 데이터입니다.
-
-- 날짜: ${log.date}
-- 온도: ${log.temp}°C (목표: ${TARGET_RANGES.temp.min}-${TARGET_RANGES.temp.max}°C)
-- 염도: ${log.salinity}ppt (목표: ${TARGET_RANGES.salinity.min}-${TARGET_RANGES.salinity.max}ppt)
-- pH: ${log.ph} (목표: ${TARGET_RANGES.ph.min}-${TARGET_RANGES.ph.max})
-- KH: ${log.kh}dKH (목표: ${TARGET_RANGES.kh.min}-${TARGET_RANGES.kh.max}dKH)
-- 칼슘: ${log.calcium}ppm (목표: ${TARGET_RANGES.calcium.min}-${TARGET_RANGES.calcium.max}ppm)
-- 마그네슘: ${log.magnesium}ppm (목표: ${TARGET_RANGES.magnesium.min}-${TARGET_RANGES.magnesium.max}ppm)
-- 질산염: ${log.nitrate}ppm (목표: ${TARGET_RANGES.nitrate.min}-${TARGET_RANGES.nitrate.max}ppm)
-- 인산염: ${log.phosphate}ppm (목표: ${TARGET_RANGES.phosphate.min}-${TARGET_RANGES.phosphate.max}ppm)
-- 특이사항: ${log.notes || '없음'}
-
-이 데이터를 바탕으로, 다음 항목에 대해 전문가의 입장에서 친절하고 상세하게 분석하고 조언해주세요:
-
-1.  **종합 평가:** 현재 어항 상태에 대한 전반적인 평가를 한두 문장으로 요약해주세요.
-2.  **긍정적인 점:** 목표 범위 내에 있어 잘 관리되고 있는 항목들을 칭찬해주세요.
-3.  **주의 및 개선 필요 항목:** 목표 범위를 벗어났거나 주의가 필요한 항목을 지적하고, 그 원인과 해결을 위한 구체적인 조치를 제안해주세요. 도징이 필요하다면 어떤 것을 해야 하는지 알려주세요.
-4.  **다음 관리 팁:** 앞으로 어항을 더 잘 관리하기 위한 추가적인 팁이나 제안을 해주세요.
-
-결과는 마크다운 형식으로 정리해서 보여주세요.`;
-          };
-
-          const handleAnalysis = async (log) => {
+          const handleAnalysis = (log) => {
             setIsLoadingAnalysis(true);
             setAnalysisResult({ logDate: log.date, text: "" });
 
-            const prompt = createAnalysisPrompt(log);
-            const apiKey = "";
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+            // AI 응답 시뮬레이션
+            setTimeout(() => {
+                const sampleAnalysis = `
+### ✨ ${log.date} 기록 종합 분석
 
-            try {
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-                });
+#### 1. 종합 평가
+전반적으로 안정적인 상태를 향해 가고 있으나, 산호 성장의 핵심 요소인 KH, 칼슘, 마그네슘 수치가 목표치보다 낮아 보충이 필요한 시점입니다.
 
-                if (!response.ok) throw new Error(`API 요청 실패: ${response.status}`);
-                
-                const result = await response.json();
-                const text = result.candidates[0].content.parts[0].text;
-                setAnalysisResult({ logDate: log.date, text: text });
-            } catch (error) {
-                console.error("Gemini API 호출 중 오류 발생:", error);
-                setAnalysisResult({ logDate: log.date, text: "AI 분석 중 오류가 발생했습니다. 네트워크 연결을 확인하거나 잠시 후 다시 시도해주세요." });
-            } finally {
+#### 2. 긍정적인 점
+- **온도, 염도, pH, 질산염, 인산염:** 모든 수치가 목표 범위 내에서 매우 안정적으로 유지되고 있습니다. 특히 질산염과 인산염 수치가 낮게 관리되는 점은 산호의 건강한 발색에 매우 긍정적입니다. 훌륭합니다!
+
+#### 3. 주의 및 개선 필요 항목
+- **KH (${log.kh} dKH):** 목표치(7.3 ~ 8.0)보다 약간 낮습니다. KH는 산호의 골격 성장에 가장 중요한 요소이므로 꾸준한 도징으로 목표 범위 내로 올려주는 것이 좋습니다.
+- **칼슘 (${log.calcium} ppm):** 목표치(400 ~ 430)보다 낮습니다. KH와 함께 산호 골격을 구성하는 핵심 미네랄이므로 보충이 필요합니다.
+- **마그네슘 (${log.magnesium} ppm):** 목표치(1350 ~ 1440)보다 낮습니다. 마그네슘은 칼슘과 KH가 안정적으로 유지되도록 돕는 역할을 하므로, 다른 두 요소와 함께 꾸준히 관리해주셔야 합니다.
+
+#### 4. 다음 관리 팁
+- **도징:** 계산된 도징량을 참고하여 KH, 칼슘, 마그네슘을 꾸준히 보충해주세요. 한 번에 너무 많은 양을 넣기보다는, 일주일 분량을 계산하여 매일 조금씩 나누어 투여하는 것이 수질 변화를 최소화하는 데 도움이 됩니다.
+- **관찰:** 도징 후 산호의 폴립 반응이나 색상 변화를 꾸준히 관찰하며 어항의 변화에 대응하는 것이 중요합니다.
+                `;
+                setAnalysisResult({ logDate: log.date, text: sampleAnalysis });
                 setIsLoadingAnalysis(false);
-            }
+            }, 1500); // 1.5초 딜레이로 로딩 효과
           };
 
           const handleInputChange = (e) => {
