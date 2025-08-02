@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>해수어항 관리 일지 Pro</title>
+    <title>해수어항 관리 일지 Pro (with Gemini AI)</title>
     <!-- Tailwind CSS 로드 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- React 및 ReactDOM 로드 -->
@@ -19,9 +19,21 @@
         body {
             background-color: #1a202c; /* bg-gray-900 */
         }
-        /* Recharts 범례 클릭 시 커서 모양 변경 */
         .recharts-legend-item {
             cursor: pointer;
+        }
+        /* 로딩 스피너 스타일 */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -29,18 +41,14 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        // 콘솔에 표시되는 Recharts의 defaultProps 관련 경고 메시지를 숨깁니다.
         const originalError = console.error;
         console.error = (...args) => {
-          if (typeof args[0] === 'string' && /defaultProps/.test(args[0])) {
-            return;
-          }
+          if (typeof args[0] === 'string' && /defaultProps/.test(args[0])) return;
           originalError(...args);
         };
 
         const { useState, useEffect } = React;
 
-        // --- 설정: 수질 기준치 및 도징 계산 정보 ---
         const TARGET_RANGES = {
           temp: { min: 25.5, max: 26.5, unit: '°C' },
           salinity: { min: 34.0, max: 35.0, unit: 'ppt' },
@@ -52,24 +60,21 @@
           phosphate: { min: 0.03, max: 0.07, unit: 'ppm' },
         };
         
-        // 그래프에 표시될 항목들 정의 (알록달록한 색상으로 변경)
         const chartLines = [
-            { dataKey: 'temp', name: '온도 (°C)', color: '#FF69B4', yAxisId: 'left' },      // Hot Pink
-            { dataKey: 'salinity', name: '염도 (ppt)', color: '#00BFFF', yAxisId: 'left' },  // Deep Sky Blue
-            { dataKey: 'ph', name: 'pH', color: '#DA70D6', yAxisId: 'left' },              // Orchid
-            { dataKey: 'kh', name: 'KH (dKH)', color: '#4169E1', yAxisId: 'left' },          // Royal Blue
-            { dataKey: 'nitrite', name: '아질산 (ppm)', color: '#DC143C', yAxisId: 'left' }, // Crimson (Red)
-            { dataKey: 'nitrate', name: '질산염 (ppm)', color: '#FF4500', yAxisId: 'left' }, // Orange Red
-            { dataKey: 'phosphate', name: '인산염 (ppm)', color: '#32CD32', yAxisId: 'left' }, // Lime Green
-            { dataKey: 'calcium', name: '칼슘 (ppm)', color: '#3CB371', yAxisId: 'right' },    // Medium Sea Green
-            { dataKey: 'magnesium', name: '마그네슘 (ppm)', color: '#FFD700', yAxisId: 'right' }, // Gold
+            { dataKey: 'temp', name: '온도 (°C)', color: '#FF69B4', yAxisId: 'left' },
+            { dataKey: 'salinity', name: '염도 (ppt)', color: '#00BFFF', yAxisId: 'left' },
+            { dataKey: 'ph', name: 'pH', color: '#DA70D6', yAxisId: 'left' },
+            { dataKey: 'kh', name: 'KH (dKH)', color: '#4169E1', yAxisId: 'left' },
+            { dataKey: 'nitrite', name: '아질산 (ppm)', color: '#DC143C', yAxisId: 'left' },
+            { dataKey: 'nitrate', name: '질산염 (ppm)', color: '#FF4500', yAxisId: 'left' },
+            { dataKey: 'phosphate', name: '인산염 (ppm)', color: '#32CD32', yAxisId: 'left' },
+            { dataKey: 'calcium', name: '칼슘 (ppm)', color: '#3CB371', yAxisId: 'right' },
+            { dataKey: 'magnesium', name: '마그네슘 (ppm)', color: '#FFD700', yAxisId: 'right' },
         ];
 
-        // 도징 계산 로직
         const calculateDosing = (log, waterVolume) => {
           const dosing = {};
           if (!log || typeof waterVolume !== 'number' || waterVolume <= 0) return dosing;
-
           if (log.kh < TARGET_RANGES.kh.min) { dosing.kh = ((waterVolume * (TARGET_RANGES.kh.min - log.kh)) / 10).toFixed(2); }
           if (log.calcium < TARGET_RANGES.calcium.min) { dosing.calcium = ((waterVolume * (TARGET_RANGES.calcium.min - log.calcium)) / 200).toFixed(2); }
           if (log.magnesium < TARGET_RANGES.magnesium.min) { dosing.magnesium = ((waterVolume * (TARGET_RANGES.magnesium.min - log.magnesium)) / 100).toFixed(2); }
@@ -80,11 +85,16 @@
 
 
         const App = () => {
-          // --- 상태 관리 (useState) ---
-          const [waterVolume, setWaterVolume] = useState(200);
+          const [waterVolume, setWaterVolume] = useState(() => {
+            const savedVolume = localStorage.getItem('waterVolume');
+            return savedVolume ? parseInt(savedVolume, 10) : 200;
+          });
           const [logs, setLogs] = useState([]);
           const [dosingStatus, setDosingStatus] = useState({});
           const [hiddenLines, setHiddenLines] = useState({});
+          const [viewMode, setViewMode] = useState('latest');
+          const [analysisResult, setAnalysisResult] = useState(null);
+          const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
 
           const [newLog, setNewLog] = useState({
             date: new Date().toISOString().slice(0, 10),
@@ -93,17 +103,71 @@
             notes: ''
           });
 
-          // --- useEffect ---
+          useEffect(() => {
+            localStorage.setItem('waterVolume', waterVolume);
+          }, [waterVolume]);
+
           useEffect(() => {
             const initialLogs = [
                 { id: 1, date: '2025-07-30', temp: 26.0, salinity: 35.0, ph: 8.1, kh: 7.0, calcium: 380, magnesium: 1300, nitrite: 0, nitrate: 2.0, phosphate: 0.05, notes: '초기 데이터' },
-                { id: 2, date: '2025-08-01', temp: 25.8, salinity: 34.5, ph: 8.2, kh: 7.5, calcium: 410, magnesium: 1350, nitrite: 0, nitrate: 1.5, phosphate: 0.04, notes: '환수 후 안정' }
-            ];
+                { id: 2, date: '2025-08-01', temp: 25.8, salinity: 34.5, ph: 8.2, kh: 7.5, calcium: 410, magnesium: 1350, nitrite: 0, nitrate: 1.5, phosphate: 0.04, notes: '환수 후 안정' },
+                { id: 3, date: '2025-08-02', temp: 25.9, salinity: 34.6, ph: 8.3, kh: 7.8, calcium: 420, magnesium: 1380, nitrite: 0, nitrate: 1.0, phosphate: 0.03, notes: '수질 안정' }
+            ].sort((a, b) => new Date(b.date) - new Date(a.date));
             setLogs(initialLogs);
           }, []);
 
+          const createAnalysisPrompt = (log) => {
+            return `당신은 세계 최고의 해수어항 전문가입니다. 아래는 오늘 측정한 저의 해수어항 수질 데이터입니다.
 
-          // --- 이벤트 핸들러 ---
+- 날짜: ${log.date}
+- 온도: ${log.temp}°C (목표: ${TARGET_RANGES.temp.min}-${TARGET_RANGES.temp.max}°C)
+- 염도: ${log.salinity}ppt (목표: ${TARGET_RANGES.salinity.min}-${TARGET_RANGES.salinity.max}ppt)
+- pH: ${log.ph} (목표: ${TARGET_RANGES.ph.min}-${TARGET_RANGES.ph.max})
+- KH: ${log.kh}dKH (목표: ${TARGET_RANGES.kh.min}-${TARGET_RANGES.kh.max}dKH)
+- 칼슘: ${log.calcium}ppm (목표: ${TARGET_RANGES.calcium.min}-${TARGET_RANGES.calcium.max}ppm)
+- 마그네슘: ${log.magnesium}ppm (목표: ${TARGET_RANGES.magnesium.min}-${TARGET_RANGES.magnesium.max}ppm)
+- 질산염: ${log.nitrate}ppm (목표: ${TARGET_RANGES.nitrate.min}-${TARGET_RANGES.nitrate.max}ppm)
+- 인산염: ${log.phosphate}ppm (목표: ${TARGET_RANGES.phosphate.min}-${TARGET_RANGES.phosphate.max}ppm)
+- 특이사항: ${log.notes || '없음'}
+
+이 데이터를 바탕으로, 다음 항목에 대해 전문가의 입장에서 친절하고 상세하게 분석하고 조언해주세요:
+
+1.  **종합 평가:** 현재 어항 상태에 대한 전반적인 평가를 한두 문장으로 요약해주세요.
+2.  **긍정적인 점:** 목표 범위 내에 있어 잘 관리되고 있는 항목들을 칭찬해주세요.
+3.  **주의 및 개선 필요 항목:** 목표 범위를 벗어났거나 주의가 필요한 항목을 지적하고, 그 원인과 해결을 위한 구체적인 조치를 제안해주세요. 도징이 필요하다면 어떤 것을 해야 하는지 알려주세요.
+4.  **다음 관리 팁:** 앞으로 어항을 더 잘 관리하기 위한 추가적인 팁이나 제안을 해주세요.
+
+결과는 마크다운 형식으로 정리해서 보여주세요.`;
+          };
+
+          const handleAnalysis = async (log) => {
+            setIsLoadingAnalysis(true);
+            setAnalysisResult({ logDate: log.date, text: "" });
+
+            const prompt = createAnalysisPrompt(log);
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+
+                if (!response.ok) throw new Error(`API 요청 실패: ${response.status}`);
+                
+                const result = await response.json();
+                const text = result.candidates[0].content.parts[0].text;
+                setAnalysisResult({ logDate: log.date, text: text });
+            } catch (error) {
+                console.error("Gemini API 호출 중 오류 발생:", error);
+                setAnalysisResult({ logDate: log.date, text: "AI 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요." });
+            } finally {
+                setIsLoadingAnalysis(false);
+            }
+          };
+
           const handleInputChange = (e) => {
             const { name, value } = e.target;
             setNewLog({ ...newLog, [name]: value });
@@ -124,7 +188,7 @@
                 }
             }
 
-            setLogs([...logs, logToAdd].sort((a, b) => new Date(a.date) - new Date(b.date)));
+            setLogs([...logs, logToAdd].sort((a, b) => new Date(b.date) - new Date(a.date)));
             setNewLog({
                 date: new Date().toISOString().slice(0, 10), temp: '', salinity: '', ph: '', kh: '',
                 calcium: '', magnesium: '', nitrite: '0', nitrate: '', phosphate: '', notes: ''
@@ -146,25 +210,45 @@
             setHiddenLines(prev => ({ ...prev, [dataKey]: !prev[dataKey] }));
           };
 
-          // --- 그래프 렌더링 함수 ---
+          const getFilteredLogs = () => {
+            const today = new Date();
+            const todayStr = today.toISOString().slice(0, 10);
+            
+            switch (viewMode) {
+                case 'latest': return logs.length > 0 ? [logs[0]] : [];
+                case 'today': return logs.filter(log => log.date === todayStr);
+                case 'last7days':
+                    const sevenDaysAgo = new Date();
+                    sevenDaysAgo.setDate(today.getDate() - 7);
+                    return logs.filter(log => new Date(log.date) >= sevenDaysAgo);
+                default: return logs;
+            }
+          };
+          const filteredLogs = getFilteredLogs();
+          
+          // 그래프 범례 텍스트 스타일링 함수
+          const renderColorfulLegendText = (value, entry) => {
+            const { color } = entry;
+            return <span style={{ color: color, fontSize: '14px', fontWeight: '500' }}>{value}</span>;
+          };
+
+
           const renderChart = () => {
             if (!window.Recharts) {
               return <div className="flex items-center justify-center h-full text-yellow-400">그래프 라이브러리 로딩 중...</div>;
             }
-
             const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = window.Recharts;
+            const chartData = [...logs].sort((a, b) => new Date(a.date) - new Date(b.date));
             return (
               <ResponsiveContainer width="100%" height={400}>
-                <LineChart data={logs} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#4A5568" />
                     <XAxis dataKey="date" stroke="#A0AEC0" />
                     <YAxis yAxisId="left" stroke="#A0AEC0" domain={['dataMin - 1', 'dataMax + 1']} />
                     <YAxis yAxisId="right" orientation="right" stroke="#A0AEC0" domain={['dataMin - 50', 'dataMax + 50']} />
                     <Tooltip contentStyle={{ backgroundColor: '#1A202C', border: '1px solid #4A5568' }} />
-                    <Legend onClick={handleLegendClick} />
-                    {chartLines.map(line => (
-                        !hiddenLines[line.dataKey] && <Line key={line.dataKey} {...line} />
-                    ))}
+                    <Legend onClick={handleLegendClick} formatter={renderColorfulLegendText} />
+                    {chartLines.map(line => !hiddenLines[line.dataKey] && <Line key={line.dataKey} {...line} />)}
                 </LineChart>
               </ResponsiveContainer>
             );
@@ -175,18 +259,13 @@
               <div className="container mx-auto max-w-7xl">
                 
                 <header className="text-center mb-8">
-                  <h1 className="text-4xl font-bold text-cyan-400">해수어항 관리 일지 Pro</h1>
-                  <p className="text-gray-400 mt-2">데이터 기반 어항 관리 시스템</p>
+                  <h1 className="text-4xl font-bold text-cyan-400">해수어항 관리 일지 Pro ✨ AI</h1>
+                  <p className="text-gray-400 mt-2">데이터와 AI로 관리하는 스마트 어항 시스템</p>
                 </header>
 
                 <div className="bg-gray-800 p-4 rounded-xl mb-8">
                   <label className="font-bold text-lg mr-4">수조 총 물량 (L):</label>
-                  <input 
-                    type="number"
-                    value={waterVolume}
-                    onChange={(e) => setWaterVolume(parseInt(e.target.value, 10) || 0)}
-                    className="bg-gray-700 w-32 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  />
+                  <input type="number" value={waterVolume} onChange={(e) => setWaterVolume(parseInt(e.target.value, 10) || 0)} className="bg-gray-700 w-32 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500" />
                 </div>
 
                 <div className="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700 mb-8 h-[450px]">
@@ -213,9 +292,17 @@
                 </div>
 
                 <main>
-                  <h2 className="text-2xl font-semibold mb-4">전체 기록</h2>
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-2xl font-semibold">전체 기록</h2>
+                    <div className="flex space-x-2">
+                      <button onClick={() => setViewMode('latest')} className={`px-3 py-1 text-sm rounded-md ${viewMode === 'latest' ? 'bg-cyan-500' : 'bg-gray-600 hover:bg-gray-500'}`}>최근 1개</button>
+                      <button onClick={() => setViewMode('today')} className={`px-3 py-1 text-sm rounded-md ${viewMode === 'today' ? 'bg-cyan-500' : 'bg-gray-600 hover:bg-gray-500'}`}>오늘</button>
+                      <button onClick={() => setViewMode('last7days')} className={`px-3 py-1 text-sm rounded-md ${viewMode === 'last7days' ? 'bg-cyan-500' : 'bg-gray-600 hover:bg-gray-500'}`}>최근 7일</button>
+                    </div>
+                  </div>
+
                   <div className="space-y-4">
-                    {logs.map(log => {
+                    {filteredLogs.length > 0 ? filteredLogs.map(log => {
                       const dosings = calculateDosing(log, waterVolume);
                       const isOutOfRange = (param) => log[param] < TARGET_RANGES[param].min || log[param] > TARGET_RANGES[param].max;
                       const bacterDosed = dosingStatus[`${log.id}-bacter`];
@@ -223,47 +310,62 @@
                         <div key={log.id} className="bg-gray-800 p-4 rounded-lg border border-gray-700">
                           <div className="flex justify-between items-start mb-3">
                             <p className="font-bold text-lg text-cyan-400">{log.date}</p>
-                            <button onClick={() => handleDeleteLog(log.id)} className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-1 px-2 rounded-lg">삭제</button>
+                            <div>
+                                <button onClick={() => handleAnalysis(log)} className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1 px-2 rounded-lg mr-2">✨ AI 분석 및 조언</button>
+                                <button onClick={() => handleDeleteLog(log.id)} className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-1 px-2 rounded-lg">삭제</button>
+                            </div>
                           </div>
                           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-x-4 gap-y-2 text-sm mb-4">
-                              <p className={isOutOfRange('temp') ? 'text-red-400' : ''}>🌡️ 온도: {log.temp} °C</p>
-                              <p className={isOutOfRange('salinity') ? 'text-red-400' : ''}>💧 염도: {log.salinity} ppt</p>
-                              <p className={isOutOfRange('ph') ? 'text-red-400' : ''}>🧪 pH: {log.ph}</p>
-                              <p className={isOutOfRange('kh') ? 'text-red-400' : ''}>💎 KH: {log.kh} dKH</p>
-                              <p className={isOutOfRange('calcium') ? 'text-red-400' : ''}>🦴 칼슘: {log.calcium} ppm</p>
-                              <p className={isOutOfRange('magnesium') ? 'text-red-400' : ''}>🔩 마그네슘: {log.magnesium} ppm</p>
-                              <p className={log.nitrite > 0 ? 'text-red-400' : ''}>🚫 아질산: {log.nitrite} ppm</p>
-                              <p className={isOutOfRange('nitrate') ? 'text-red-400' : ''}>🌿 질산염: {log.nitrate} ppm</p>
-                              <p className={isOutOfRange('phosphate') ? 'text-red-400' : ''}>🦠 인산염: {log.phosphate} ppm</p>
+                              <p className={`flex items-center ${isOutOfRange('temp') ? 'text-red-400' : 'text-gray-300'}`}>🌡️<span className="ml-2">온도: {log.temp} °C</span></p>
+                              <p className={`flex items-center ${isOutOfRange('salinity') ? 'text-red-400' : 'text-gray-300'}`}>💧<span className="ml-2">염도: {log.salinity} ppt</span></p>
+                              <p className={`flex items-center ${isOutOfRange('ph') ? 'text-red-400' : 'text-gray-300'}`}>🧪<span className="ml-2">pH: {log.ph}</span></p>
+                              <p className={`flex items-center ${isOutOfRange('kh') ? 'text-red-400' : 'text-gray-300'}`}>💎<span className="ml-2">KH: {log.kh} dKH</span></p>
+                              <p className={`flex items-center ${isOutOfRange('calcium') ? 'text-red-400' : 'text-gray-300'}`}>🦴<span className="ml-2">칼슘: {log.calcium} ppm</span></p>
+                              <p className={`flex items-center ${isOutOfRange('magnesium') ? 'text-red-400' : 'text-gray-300'}`}>🔩<span className="ml-2">마그네슘: {log.magnesium} ppm</span></p>
+                              <p className={`flex items-center ${log.nitrite > 0 ? 'text-red-400' : 'text-gray-300'}`}>🚫<span className="ml-2">아질산: {log.nitrite} ppm</span></p>
+                              <p className={`flex items-center ${isOutOfRange('nitrate') ? 'text-red-400' : 'text-gray-300'}`}>🌿<span className="ml-2">질산염: {log.nitrate} ppm</span></p>
+                              <p className={`flex items-center ${isOutOfRange('phosphate') ? 'text-red-400' : 'text-gray-300'}`}>🦠<span className="ml-2">인산염: {log.phosphate} ppm</span></p>
                           </div>
                           <div className="border-t border-gray-700 pt-3">
                               <h4 className="font-semibold text-md mb-2">도징 관리</h4>
                               <div className="flex flex-wrap gap-4">
                                   {Object.keys(dosings).map(param => (
-                                      <div key={param}>
-                                          <button 
-                                              onClick={() => toggleDosingStatus(log.id, param)}
-                                              className={`py-1 px-3 rounded-lg text-xs font-bold ${dosingStatus[`${log.id}-${param}`] ? 'bg-green-600' : 'bg-yellow-500 hover:bg-yellow-600'}`}
-                                          >
-                                              {param.toUpperCase()}: {dosings[param]}ml {dosingStatus[`${log.id}-${param}`] ? '✔️ 도징 완료' : '❓ 도징 예정'}
-                                          </button>
-                                      </div>
+                                      <div key={param}><button onClick={() => toggleDosingStatus(log.id, param)} className={`py-1 px-3 rounded-lg text-xs font-bold ${dosingStatus[`${log.id}-${param}`] ? 'bg-green-600' : 'bg-yellow-500 hover:bg-yellow-600'}`}>{param.toUpperCase()}: {dosings[param]}ml {dosingStatus[`${log.id}-${param}`] ? '✔️ 도징 완료' : '❓ 도징 예정'}</button></div>
                                   ))}
                                   {Object.keys(dosings).length === 0 && <p className="text-sm text-gray-400">모든 수치가 안정적입니다. (도징 필요 없음)</p>}
-                                  <button 
-                                    onClick={() => toggleDosingStatus(log.id, 'bacter')}
-                                    className={`py-1 px-3 rounded-lg text-xs font-bold ${bacterDosed ? 'bg-green-600' : 'bg-purple-600 hover:bg-purple-700'}`}
-                                  >
-                                    {bacterDosed ? '✔️ 박터오리진 도징완료' : '박터오리진 도징'}
-                                  </button>
+                                  <button onClick={() => toggleDosingStatus(log.id, 'bacter')} className={`py-1 px-3 rounded-lg text-xs font-bold ${dosingStatus[`${log.id}-bacter`] ? 'bg-green-600' : 'bg-purple-600 hover:bg-purple-700'}`}>{dosingStatus[`${log.id}-bacter`] ? '✔️ 박터오리진 도징완료' : '박터오리진 도징'}</button>
                               </div>
                           </div>
                           {log.notes && <p className="mt-3 text-gray-300 text-sm"><span className="font-semibold">📝 특이사항:</span> {log.notes}</p>}
                         </div>
                       )
-                    })}
+                    }) : <div className="text-center text-gray-500 py-8">해당 기간의 기록이 없습니다.</div>}
                   </div>
                 </main>
+
+                {/* AI 분석 결과 표시 영역 */}
+                {(isLoadingAnalysis || analysisResult) && (
+                    <div className="fixed bottom-0 right-0 m-8 w-full max-w-md bg-gray-800 border-2 border-blue-500 rounded-xl shadow-2xl z-50">
+                        <div className="p-4 border-b border-gray-700">
+                            <h3 className="text-lg font-bold text-blue-400">
+                                {analysisResult ? `${analysisResult.logDate} 기록에 대한 AI 분석` : "AI 분석"}
+                            </h3>
+                        </div>
+                        <div className="p-4 h-80 overflow-y-auto">
+                            {isLoadingAnalysis ? (
+                                <div className="flex items-center justify-center h-full">
+                                    <div className="loader"></div>
+                                    <p className="ml-4">Gemini AI가 데이터를 분석 중입니다...</p>
+                                </div>
+                            ) : (
+                                <pre className="text-sm text-gray-300 whitespace-pre-wrap font-sans">{analysisResult.text}</pre>
+                            )}
+                        </div>
+                         <div className="p-2 border-t border-gray-700 text-right">
+                            <button onClick={() => setAnalysisResult(null)} className="text-xs text-gray-400 hover:text-white">닫기</button>
+                        </div>
+                    </div>
+                )}
 
               </div>
             </div>
