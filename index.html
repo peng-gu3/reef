@@ -61,16 +61,17 @@
           phosphate: { min: 0.03, max: 0.07, unit: 'ppm' },
         };
         
+        // 그래프 항목 순서를 전체 기록 표시 순서와 일치시킴
         const chartLines = [
             { dataKey: 'temp', name: '온도 (°C)', color: '#FF69B4', yAxisId: 'left' },
             { dataKey: 'salinity', name: '염도 (ppt)', color: '#00BFFF', yAxisId: 'left' },
             { dataKey: 'ph', name: 'pH', color: '#DA70D6', yAxisId: 'left' },
             { dataKey: 'kh', name: 'KH (dKH)', color: '#4169E1', yAxisId: 'left' },
+            { dataKey: 'calcium', name: '칼슘 (ppm)', color: '#3CB371', yAxisId: 'right' },
+            { dataKey: 'magnesium', name: '마그네슘 (ppm)', color: '#FFD700', yAxisId: 'right' },
             { dataKey: 'nitrite', name: '아질산 (ppm)', color: '#DC143C', yAxisId: 'left' },
             { dataKey: 'nitrate', name: '질산염 (ppm)', color: '#FF4500', yAxisId: 'left' },
             { dataKey: 'phosphate', name: '인산염 (ppm)', color: '#32CD32', yAxisId: 'left' },
-            { dataKey: 'calcium', name: '칼슘 (ppm)', color: '#3CB371', yAxisId: 'right' },
-            { dataKey: 'magnesium', name: '마그네슘 (ppm)', color: '#FFD700', yAxisId: 'right' },
         ];
 
         const calculateDosing = (log, waterVolume) => {
@@ -252,10 +253,17 @@
                     <YAxis yAxisId="right" orientation="right" stroke="#A0AEC0" domain={['dataMin - 50', 'dataMax + 50']} />
                     <Tooltip contentStyle={{ backgroundColor: '#1A202C', border: '1px solid #4A5568' }} />
                     <Legend content={renderCustomLegend} />
-                    {chartLines.map(line => {
-                        const isHidden = hiddenLines[line.dataKey];
-                        return isHidden ? null : <Line key={line.dataKey} dataKey={line.dataKey} name={line.name} stroke={line.color} yAxisId={line.yAxisId} type="monotone" />;
-                    })}
+                    {chartLines.map(line => (
+                        <Line 
+                            key={line.dataKey} 
+                            hide={hiddenLines[line.dataKey]} 
+                            dataKey={line.dataKey} 
+                            name={line.name} 
+                            stroke={line.color} 
+                            yAxisId={line.yAxisId} 
+                            type="monotone" 
+                        />
+                    ))}
                 </LineChart>
               </ResponsiveContainer>
             );
