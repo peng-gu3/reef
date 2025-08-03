@@ -3,326 +3,259 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>해수항 관리일지 (실시간 동기화)</title>
-    <!-- Tailwind CSS 로드 -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- React 및 ReactDOM 로드 -->
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <!-- Babel 로드 (JSX 변환용) -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- Recharts 의존성 라이브러리 (Prop-Types) 로드 -->
-    <script src="https://unpkg.com/prop-types/prop-types.min.js"></script>
-    <!-- Recharts (그래프 라이브러리) 로드 -->
-    <script src="https://cdn.jsdelivr.net/npm/recharts@2.12.7/umd/Recharts.min.js"></script>
+    <title>해수어항 관리일지 (클라우드 연동)</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { background-color: #1a202c; }
-        .recharts-legend-item { cursor: pointer; }
-        .loader {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; background-color: #f0f4f8; color: #333; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .container { width: 100%; max-width: 800px; background-color: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); margin-bottom: 20px; }
+        h1, h2 { color: #005a9c; border-bottom: 2px solid #e0e0e0; padding-bottom: 10px; text-align: center; }
+        .input-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .input-group { display: flex; flex-direction: column; }
+        label { margin-bottom: 5px; font-weight: bold; color: #555; }
+        input[type="number"], input[type="text"] { padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; }
+        button { background-color: #007bff; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-size: 1rem; font-weight: bold; transition: background-color 0.3s; width: 100%; margin-top: 10px; }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        #log-controls { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+        #log-controls button { width: auto; background-color: #6c757d; padding: 8px 15px; font-size: 0.9rem; }
+        #log-controls button.active { background-color: #005a9c; }
+        #log-list { list-style: none; padding: 0; }
+        #log-list li { background-color: #f9f9f9; border: 1px solid #eee; padding: 15px; margin-bottom: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+        .log-entry-content { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace; font-size: 0.9rem; line-height: 1.6; color: #333; white-space: pre-wrap; }
+        .log-entry-date { font-weight: bold; color: #005a9c; margin-bottom: 8px; width: 100%; }
+        .delete-btn { background-color: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+        .delete-btn:hover { background-color: #c82333; }
+        .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(255, 255, 255, 0.7); z-index: 1000; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; color: #005a9c; font-weight: bold; }
     </style>
 </head>
 <body>
-    <div id="root"></div>
 
-    <script type="text/babel">
-        // Firebase SDK 로드
-        const { initializeApp } = globalThis.firebase;
-        const { getAuth, signInAnonymously } = globalThis.firebase.auth;
-        const { getFirestore, doc, onSnapshot, setDoc, updateDoc } = globalThis.firebase.firestore;
+    <div id="loading" class="loading-overlay" style="display: none;">로딩 중...</div>
 
-        const { useState, useEffect, StrictMode } = React;
+    <div class="container">
+        <h1>🐠 해수어항 관리일지 (클라우드 연동)</h1>
+        <div class="input-group" style="margin-bottom: 20px;">
+            <label for="water-volume">물 용량 (L)</label>
+            <input type="number" id="water-volume" placeholder="예: 120">
+        </div>
+    </div>
 
-        const App = () => {
-            // --- 상태 관리 ---
-            const [fb, setFb] = useState({ app: null, db: null, auth: null, userId: null });
-            const [isReady, setIsReady] = useState(false);
-            const [waterVolume, setWaterVolume] = useState(200);
-            const [isEditingVolume, setIsEditingVolume] = useState(false);
-            const [tempVolume, setTempVolume] = useState(200);
-            const [logs, setLogs] = useState([]);
-            const [dosingStatus, setDosingStatus] = useState({});
-            const [hiddenLines, setHiddenLines] = useState({});
-            const [viewMode, setViewMode] = useState('latest');
-            const [analysisResult, setAnalysisResult] = useState(null);
-            const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
+    <div class="container">
+        <h2>📝 새 일지 작성</h2>
+        <div class="input-grid">
+            <div class="input-group"> <label for="temp">🌡️ 온도 (°C)</label> <input type="number" id="temp" step="0.1"> </div>
+            <div class="input-group"> <label for="salinity">💧 염도 (ppt)</label> <input type="number" id="salinity" step="0.1"> </div>
+            <div class="input-group"> <label for="ph">🧪 pH</label> <input type="number" id="ph" step="0.1"> </div>
+            <div class="input-group"> <label for="kh_am">💎 KH (오전)</label> <input type="number" id="kh_am" step="0.1"> </div>
+            <div class="input-group"> <label for="kh_pm">💎 KH (오후)</label> <input type="number" id="kh_pm" step="0.1"> </div>
+            <div class="input-group"> <label for="calcium">🦴 칼슘 (ppm)</label> <input type="number" id="calcium"> </div>
+            <div class="input-group"> <label for="magnesium">🔩 마그네슘 (ppm)</label> <input type="number" id="magnesium"> </div>
+            <div class="input-group"> <label for="nitrite">🚫 아질산 (ppm)</label> <input type="number" id="nitrite" step="0.01"> </div>
+            <div class="input-group"> <label for="nitrate">🌿 질산염 (ppm)</label> <input type="number" id="nitrate" step="0.1"> </div>
+            <div class="input-group"> <label for="phosphate">🦠 인산염 (ppm)</label> <input type="number" id="phosphate" step="0.01"> </div>
+        </div>
+        <button id="add-log-btn" onclick="addLog()">일지 추가</button>
+    </div>
 
-            const [newLog, setNewLog] = useState({
-                date: new Date().toISOString().slice(0, 10),
-                temp: '', salinity: '', ph: '', kh_am: '', kh_pm: '',
-                calcium: '', magnesium: '', nitrite: '', nitrate: '', phosphate: '',
-                notes: ''
+    <div class="container"> <h2>📊 수치 변화 그래프</h2> <canvas id="logChart"></canvas> </div>
+
+    <div class="container">
+        <h2>📋 전체 기록</h2>
+        <div id="log-controls">
+            <button onclick="filterLogs('latest')" id="btn-latest" class="active">최근 1개</button>
+            <button onclick="filterLogs('today')" id="btn-today">오늘</button>
+            <button onclick="filterLogs('week')" id="btn-week">최근 7일</button>
+            <button onclick="filterLogs('all')" id="btn-all">전체 보기</button>
+        </div>
+        <ul id="log-list"></ul>
+    </div>
+
+<script>
+    // ==================================================================
+    // ❗️❗️ 1단계에서 복사한 웹 앱 URL을 아래에 붙여넣으세요 ❗️❗️
+    const WEB_APP_URL = '여기에_웹_앱_URL을_붙여넣으세요';
+    // ==================================================================
+
+    const paramDetails = {
+        temp: { label: '🌡️ 온도', unit: '°C' }, salinity: { label: '💧 염도', unit: 'ppt' }, ph: { label: '🧪 pH', unit: '' }, kh_am: { label: '💎 KH (오전)', unit: '' }, kh_pm: { label: '💎 KH (오후)', unit: '' }, calcium: { label: '🦴 칼슘', unit: 'ppm' }, magnesium: { label: '🔩 마그네슘', unit: 'ppm' }, nitrite: { label: '🚫 아질산', unit: 'ppm' }, nitrate: { label: '🌿 질산염', unit: 'ppm' }, phosphate: { label: '🦠 인산염', unit: 'ppm' }
+    };
+    let logChart;
+    let logs = [];
+    let currentFilter = 'latest';
+
+    document.addEventListener('DOMContentLoaded', () => {
+        if (WEB_APP_URL === '여기에_웹_앱_URL을_붙여넣으세요') {
+            alert('HTML 파일의 스크립트에서 WEB_APP_URL 변수를 설정해야 합니다!');
+            return;
+        }
+        loadDataFromServer();
+        const savedVolume = localStorage.getItem('fishTankVolume'); // 물 용량은 로컬에 저장
+        if (savedVolume) {
+            document.getElementById('water-volume').value = savedVolume;
+        }
+        document.getElementById('water-volume').addEventListener('change', (e) => {
+            localStorage.setItem('fishTankVolume', e.target.value);
+        });
+        initializeChart();
+    });
+
+    function toggleLoading(isLoading) {
+        document.getElementById('loading').style.display = isLoading ? 'flex' : 'none';
+        document.getElementById('add-log-btn').disabled = isLoading;
+    }
+
+    async function loadDataFromServer() {
+        toggleLoading(true);
+        try {
+            const response = await fetch(WEB_APP_URL);
+            const data = await response.json();
+            logs = data;
+            renderAll();
+        } catch (error) {
+            console.error('데이터 로딩 실패:', error);
+            alert('데이터를 불러오는 데 실패했습니다. 콘솔을 확인해주세요.');
+        } finally {
+            toggleLoading(false);
+        }
+    }
+
+    async function saveDataToServer() {
+        toggleLoading(true);
+        try {
+            await fetch(WEB_APP_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' }, // Apps Script는 text/plain을 더 잘 처리함
+                body: JSON.stringify(logs)
             });
+        } catch (error) {
+            console.error('데이터 저장 실패:', error);
+            alert('데이터를 저장하는 데 실패했습니다. 콘솔을 확인해주세요.');
+        } finally {
+            toggleLoading(false);
+        }
+    }
+    
+    function renderAll() {
+        logs.sort((a, b) => new Date(b.date) - new Date(a.date));
+        renderLogs();
+        updateChart();
+    }
 
-            // --- Firebase 초기화 및 데이터 동기화 ---
-            useEffect(() => {
-                async function initFirebase() {
-                    // 제공된 Firebase 구성 정보 사용
-                    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-                    const app = initializeApp(firebaseConfig);
-                    const db = getFirestore(app);
-                    const auth = getAuth(app);
-
-                    await signInAnonymously(auth);
-                    const userId = auth.currentUser.uid;
-                    setFb({ app, db, auth, userId });
-
-                    // 사용자 데이터 문서 경로 설정
-                    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-                    const userDocRef = doc(db, `artifacts/${appId}/users/${userId}/data/reefData`);
-
-                    // 실시간 데이터 리스너 설정
-                    const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
-                        if (docSnap.exists()) {
-                            const data = docSnap.data();
-                            setLogs(data.logs || []);
-                            setWaterVolume(data.waterVolume || 200);
-                            setTempVolume(data.waterVolume || 200);
-                        } else {
-                            // 새 사용자를 위한 초기 데이터 생성
-                            const initialLogs = [
-                                { id: 1, date: '2025-07-30', temp: 26.0, salinity: 35.0, ph: 8.1, kh_am: 7.0, kh_pm: 7.2, calcium: 380, magnesium: 1300, nitrite: 0, nitrate: 2.0, phosphate: 0.05, notes: '초기 데이터' },
-                            ];
-                            setDoc(userDocRef, { waterVolume: 200, logs: initialLogs });
-                        }
-                        setIsReady(true);
-                    });
-
-                    return () => unsubscribe();
-                }
-                initFirebase();
-            }, []);
-            
-            // --- 데이터 저장 함수 (Firestore 사용) ---
-            const updateFirestore = async (data) => {
-                if (!fb.db || !fb.userId) return;
-                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-                const userDocRef = doc(fb.db, `artifacts/${appId}/users/${fb.userId}/data/reefData`);
-                await updateDoc(userDocRef, data);
-            };
-
-            const handleAddLog = (e) => {
-                e.preventDefault();
-                const requiredFields = ['date', 'temp', 'salinity', 'ph', 'kh_am', 'kh_pm', 'calcium', 'magnesium', 'nitrite', 'nitrate', 'phosphate'];
-                if (requiredFields.some(field => !newLog[field])) {
-                  alert('모든 수질 항목을 입력해주세요.');
-                  return;
-                }
-                
-                const logToAdd = { id: Date.now(), ...newLog };
-                for (const key in logToAdd) {
-                    if(key !== 'date' && key !== 'notes' && key !== 'id') {
-                        logToAdd[key] = parseFloat(logToAdd[key]);
-                    }
-                }
-
-                const updatedLogs = [...logs, logToAdd].sort((a, b) => new Date(b.date) - new Date(a.date));
-                updateFirestore({ logs: updatedLogs });
-                setNewLog({
-                    date: new Date().toISOString().slice(0, 10), temp: '', salinity: '', ph: '', kh_am: '', kh_pm: '',
-                    calcium: '', magnesium: '', nitrite: '', nitrate: '', phosphate: '', notes: ''
-                });
-            };
-
-            const handleDeleteLog = (idToDelete) => {
-                if (window.confirm('정말로 이 기록을 삭제하시겠습니까?')) {
-                    const updatedLogs = logs.filter(log => log.id !== idToDelete);
-                    updateFirestore({ logs: updatedLogs });
-                }
-            };
-
-            const handleSaveVolume = () => {
-                updateFirestore({ waterVolume: tempVolume });
-                setIsEditingVolume(false);
-            };
-
-            // --- 나머지 핸들러 및 렌더링 함수 ---
-            const TARGET_RANGES = {
-              temp: { min: 25.5, max: 26.5 }, salinity: { min: 34.0, max: 35.0 }, ph: { min: 8.0, max: 8.4 },
-              kh: { min: 7.3, max: 8.0 }, calcium: { min: 400, max: 430 }, magnesium: { min: 1350, max: 1440 },
-              nitrite: { min: 0, max: 0 }, nitrate: { min: 0.5, max: 2.0 }, phosphate: { min: 0.03, max: 0.07 },
-            };
-            const chartLines = [
-                { dataKey: 'temp', name: '온도 (°C)', color: '#FF69B4', yAxisId: 'left' }, { dataKey: 'salinity', name: '염도 (ppt)', color: '#00BFFF', yAxisId: 'left' },
-                { dataKey: 'ph', name: 'pH', color: '#DA70D6', yAxisId: 'left' }, { dataKey: 'kh_am', name: 'KH (오전)', color: '#4169E1', yAxisId: 'left' },
-                { dataKey: 'kh_pm', name: 'KH (오후)', color: '#87CEFA', yAxisId: 'left' }, { dataKey: 'calcium', name: '칼슘 (ppm)', color: '#3CB371', yAxisId: 'right' },
-                { dataKey: 'magnesium', name: '마그네슘 (ppm)', color: '#FFD700', yAxisId: 'right' }, { dataKey: 'nitrite', name: '아질산 (ppm)', color: '#DC143C', yAxisId: 'left' },
-                { dataKey: 'nitrate', name: '질산염 (ppm)', color: '#FF4500', yAxisId: 'left' }, { dataKey: 'phosphate', name: '인산염 (ppm)', color: '#32CD32', yAxisId: 'left' },
-            ];
-
-            const calculateDosing = (log, waterVolume) => {
-              const dosing = {};
-              if (!log || typeof waterVolume !== 'number' || waterVolume <= 0) return dosing;
-              const currentKh = log.kh_pm ?? log.kh_am;
-              if (currentKh < TARGET_RANGES.kh.min) { dosing.kh = ((waterVolume * (TARGET_RANGES.kh.min - currentKh)) / 10).toFixed(2); }
-              if (log.calcium < TARGET_RANGES.calcium.min) { dosing.calcium = ((waterVolume * (TARGET_RANGES.calcium.min - log.calcium)) / 200).toFixed(2); }
-              if (log.magnesium < TARGET_RANGES.magnesium.min) { dosing.magnesium = ((waterVolume * (TARGET_RANGES.magnesium.min - log.magnesium)) / 100).toFixed(2); }
-              if (log.nitrate < TARGET_RANGES.nitrate.min) { dosing.nitrate = ((waterVolume * (TARGET_RANGES.nitrate.min - log.nitrate)) / 100).toFixed(2); }
-              if (log.phosphate < TARGET_RANGES.phosphate.min) { dosing.phosphate = ((waterVolume * (TARGET_RANGES.phosphate.min - log.phosphate)) / 10).toFixed(2); }
-              return dosing;
-            };
-
-            const handleAnalysis = (log) => {
-                setIsLoadingAnalysis(true);
-                setAnalysisResult({ logDate: log.date, text: "" });
-                setTimeout(() => {
-                    const sampleAnalysis = `### ✨ ${log.date} 기록 종합 분석\n\n#### 1. 종합 평가\n전반적으로 안정적인 상태를 향해 가고 있으나, 산호 성장의 핵심 요소인 KH, 칼슘, 마그네슘 수치가 목표치보다 낮아 보충이 필요한 시점입니다.\n\n#### 2. 긍정적인 점\n- **온도, 염도, pH, 질산염, 인산염:** 모든 수치가 목표 범위 내에서 매우 안정적으로 유지되고 있습니다. 특히 질산염과 인산염 수치가 낮게 관리되는 점은 산호의 건강한 발색에 매우 긍정적입니다. 훌륭합니다!\n\n#### 3. 주의 및 개선 필요 항목\n- **KH (오전 ${log.kh_am}, 오후 ${log.kh_pm} dKH):** 목표치(7.3 ~ 8.0)보다 약간 낮습니다. KH는 산호의 골격 성장에 가장 중요한 요소이므로 꾸준한 도징으로 목표 범위 내로 올려주는 것이 좋습니다.\n- **칼슘 (${log.calcium} ppm):** 목표치(400 ~ 430)보다 낮습니다.\n- **마그네슘 (${log.magnesium} ppm):** 목표치(1350 ~ 1440)보다 낮습니다.\n\n#### 4. 다음 관리 팁\n- **도징:** 계산된 도징량을 참고하여 KH, 칼슘, 마그네슘을 꾸준히 보충해주세요.\n- **관찰:** 도징 후 산호의 폴립 반응이나 색상 변화를 꾸준히 관찰하며 어항의 변화에 대응하는 것이 중요합니다.`;
-                    setAnalysisResult({ logDate: log.date, text: sampleAnalysis });
-                    setIsLoadingAnalysis(false);
-                }, 1500);
-            };
-            const handleInputChange = (e) => { const { name, value } = e.target; setNewLog({ ...newLog, [name]: value }); };
-            const toggleDosingStatus = (logId, param) => { setDosingStatus(prev => ({ ...prev, [`${logId}-${param}`]: !prev[`${logId}-${param}`] })); };
-            const handleLegendClick = (e) => { const { dataKey } = e; setHiddenLines(prev => ({ ...prev, [dataKey]: !prev[dataKey] })); };
-            const getFilteredLogs = () => {
-                const today = new Date(); const todayStr = today.toISOString().slice(0, 10);
-                switch (viewMode) {
-                    case 'latest': return logs.length > 0 ? [logs[0]] : [];
-                    case 'today': return logs.filter(log => log.date === todayStr);
-                    case 'last7days': const sevenDaysAgo = new Date(); sevenDaysAgo.setDate(today.getDate() - 7); return logs.filter(log => new Date(log.date) >= sevenDaysAgo);
-                    default: return logs;
-                }
-            };
-            const filteredLogs = getFilteredLogs();
-            const renderCustomLegend = (props) => {
-                const { payload } = props;
-                return (<div className="flex justify-center flex-wrap mt-4">{payload.map((entry, index) => {
-                        const { dataKey, color, value } = entry; const isHidden = hiddenLines[dataKey];
-                        return (<div key={`item-${index}`} onClick={() => handleLegendClick({ dataKey })} className="flex items-center mr-4 mb-2" style={{ opacity: isHidden ? 0.5 : 1, cursor: 'pointer' }}>
-                                <div style={{ width: '14px', height: '14px', backgroundColor: color, marginRight: '8px' }}></div>
-                                <span style={{ color: color, fontSize: '14px', fontWeight: 500 }}>{value}</span>
-                            </div>);
-                    })}</div>);
-            };
-            const renderChart = () => {
-                if (!window.Recharts) { return <div className="flex items-center justify-center h-full text-yellow-400">그래프 라이브러리 로딩 중...</div>; }
-                const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = window.Recharts;
-                const chartData = [...logs].sort((a, b) => new Date(a.date) - new Date(b.date));
-                return (<ResponsiveContainer width="100%" height={400}><LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#4A5568" /><XAxis dataKey="date" stroke="#A0AEC0" />
-                        <YAxis yAxisId="left" stroke="#A0AEC0" domain={['dataMin - 1', 'dataMax + 1']} />
-                        <YAxis yAxisId="right" orientation="right" stroke="#A0AEC0" domain={['dataMin - 50', 'dataMax + 50']} />
-                        <Tooltip contentStyle={{ backgroundColor: '#1A202C', border: '1px solid #4A5568' }} /><Legend content={renderCustomLegend} />
-                        {chartLines.map(line => (<Line key={line.dataKey} hide={hiddenLines[line.dataKey]} dataKey={line.dataKey} name={line.name} stroke={line.color} yAxisId={line.yAxisId} type="monotone" />))}
-                    </LineChart></ResponsiveContainer>);
-            };
-
-            if (!isReady) {
-                return (<div className="bg-gray-900 text-white min-h-screen flex flex-col justify-center items-center">
-                        <div className="loader"></div><p className="mt-4">데이터를 불러오는 중입니다...</p>
-                    </div>);
+    async function addLog() {
+        const newLog = { date: new Date().toISOString() };
+        let hasValue = false;
+        Object.keys(paramDetails).forEach(key => {
+            const value = document.getElementById(key).value;
+            if (value !== '') {
+                newLog[key] = parseFloat(value);
+                hasValue = true;
             }
+        });
 
-            return (
-                <div className="bg-gray-900 text-white min-h-screen font-sans p-4 md:p-8">
-                  <div className="container mx-auto max-w-7xl">
-                    <header className="text-center mb-8"><h1 className="text-4xl font-bold text-cyan-400">해수항 관리일지</h1></header>
-                    <div className="bg-gray-800 p-4 rounded-xl mb-8 flex items-center space-x-4">
-                      <label className="font-bold text-lg">수조 총 물량 (L):</label>
-                      {isEditingVolume ? (<>
-                          <input type="number" value={tempVolume} onChange={(e) => setTempVolume(parseInt(e.target.value, 10) || 0)} className="bg-gray-700 w-32 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500" />
-                          <button onClick={handleSaveVolume} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">저장</button>
-                          <button onClick={() => setIsEditingVolume(false)} className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg">취소</button>
-                        </>) : (<>
-                          <span className="text-lg font-semibold text-cyan-400">{waterVolume} L</span>
-                          <button onClick={() => setIsEditingVolume(true)} className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg">수정</button>
-                        </>)}
-                    </div>
-                    <div className="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700 mb-8 h-[450px]">
-                        <h2 className="text-2xl font-semibold mb-4 text-center">수질 변화 그래프</h2>{renderChart()}
-                    </div>
-                    <div className="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700 mb-8">
-                      <h2 className="text-2xl font-semibold mb-4">새 일지 작성</h2>
-                      <form onSubmit={handleAddLog} className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 items-center">
-                        <input type="date" name="date" value={newLog.date} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg" />
-                        <input type="number" step="0.1" name="temp" placeholder={`온도 (°C)`} value={newLog.temp} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg" />
-                        <input type="number" step="0.1" name="salinity" placeholder={`염도 (ppt)`} value={newLog.salinity} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg" />
-                        <input type="number" step="0.1" name="ph" placeholder={`pH`} value={newLog.ph} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg" />
-                        <input type="number" step="0.1" name="kh_am" placeholder={`KH (오전)`} value={newLog.kh_am} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg" />
-                        <input type="number" step="0.1" name="kh_pm" placeholder={`KH (오후)`} value={newLog.kh_pm} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg" />
-                        <input type="number" name="calcium" placeholder={`칼슘 (ppm)`} value={newLog.calcium} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg" />
-                        <input type="number" name="magnesium" placeholder={`마그네슘 (ppm)`} value={newLog.magnesium} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg" />
-                        <input type="number" step="0.01" name="nitrite" placeholder={`아질산 (ppm)`} value={newLog.nitrite} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg" />
-                        <input type="number" step="0.01" name="nitrate" placeholder={`질산염 (ppm)`} value={newLog.nitrate} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg" />
-                        <input type="number" step="0.01" name="phosphate" placeholder={`인산염 (ppm)`} value={newLog.phosphate} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg" />
-                        <input type="text" name="notes" placeholder="특이사항" value={newLog.notes} onChange={handleInputChange} className="bg-gray-700 p-2 rounded-lg col-span-2 lg:col-span-3" />
-                        <button type="submit" className="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 col-span-2 lg:col-span-2">일지 추가</button>
-                      </form>
-                    </div>
-                    <main>
-                      <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-2xl font-semibold">전체 기록</h2>
-                        <div className="flex space-x-2">
-                          <button onClick={() => setViewMode('latest')} className={`px-3 py-1 text-sm rounded-md ${viewMode === 'latest' ? 'bg-cyan-500' : 'bg-gray-600 hover:bg-gray-500'}`}>최근 1개</button>
-                          <button onClick={() => setViewMode('today')} className={`px-3 py-1 text-sm rounded-md ${viewMode === 'today' ? 'bg-cyan-500' : 'bg-gray-600 hover:bg-gray-500'}`}>오늘</button>
-                          <button onClick={() => setViewMode('last7days')} className={`px-3 py-1 text-sm rounded-md ${viewMode === 'last7days' ? 'bg-cyan-500' : 'bg-gray-600 hover:bg-gray-500'}`}>최근 7일</button>
-                        </div>
-                      </div>
-                      <div className="space-y-4">{filteredLogs.length > 0 ? filteredLogs.map(log => {
-                          const dosings = calculateDosing(log, waterVolume);
-                          const isKhAmOutOfRange = log.kh_am < TARGET_RANGES.kh.min || log.kh_am > TARGET_RANGES.kh.max;
-                          const isKhPmOutOfRange = log.kh_pm < TARGET_RANGES.kh.min || log.kh_pm > TARGET_RANGES.kh.max;
-                          const isOutOfRange = (param) => log[param] < TARGET_RANGES[param].min || log[param] > TARGET_RANGES[param].max;
-                          const bacterDosed = dosingStatus[`${log.id}-bacter`];
-                          return (<div key={log.id} className="bg-gray-800 p-4 rounded-lg border border-gray-700">
-                              <div className="flex justify-between items-start mb-3">
-                                <p className="font-bold text-lg text-cyan-400">{log.date}</p>
-                                <div>
-                                    <button onClick={() => handleAnalysis(log)} className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1 px-2 rounded-lg mr-2">✨ AI 분석 및 조언</button>
-                                    <button onClick={() => handleDeleteLog(log.id)} className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-1 px-2 rounded-lg">삭제</button>
-                                </div>
-                              </div>
-                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-2 text-sm mb-4">
-                                  <p className={`flex items-center ${isOutOfRange('temp') ? 'text-red-400' : 'text-gray-300'}`}>🌡️<span className="ml-2">온도: {log.temp} °C</span></p>
-                                  <p className={`flex items-center ${isOutOfRange('salinity') ? 'text-red-400' : 'text-gray-300'}`}>💧<span className="ml-2">염도: {log.salinity} ppt</span></p>
-                                  <p className={`flex items-center ${isOutOfRange('ph') ? 'text-red-400' : 'text-gray-300'}`}>🧪<span className="ml-2">pH: {log.ph}</span></p>
-                                  <p className={`flex items-center ${isKhAmOutOfRange ? 'text-red-400' : 'text-gray-300'}`}>💎<span className="ml-2">KH (오전): {log.kh_am} dKH</span></p>
-                                  <p className={`flex items-center ${isKhPmOutOfRange ? 'text-red-400' : 'text-gray-300'}`}>💎<span className="ml-2">KH (오후): {log.kh_pm} dKH</span></p>
-                                  <p className={`flex items-center ${isOutOfRange('calcium') ? 'text-red-400' : 'text-gray-300'}`}>🦴<span className="ml-2">칼슘: {log.calcium} ppm</span></p>
-                                  <p className={`flex items-center ${isOutOfRange('magnesium') ? 'text-red-400' : 'text-gray-300'}`}>🔩<span className="ml-2">마그네슘: {log.magnesium} ppm</span></p>
-                                  <p className={`flex items-center ${isOutOfRange('nitrite') ? 'text-red-400' : 'text-gray-300'}`}>🚫<span className="ml-2">아질산: {log.nitrite} ppm</span></p>
-                                  <p className={`flex items-center ${isOutOfRange('nitrate') ? 'text-red-400' : 'text-gray-300'}`}>🌿<span className="ml-2">질산염: {log.nitrate} ppm</span></p>
-                                  <p className={`flex items-center ${isOutOfRange('phosphate') ? 'text-red-400' : 'text-gray-300'}`}>🦠<span className="ml-2">인산염: {log.phosphate} ppm</span></p>
-                              </div>
-                              <div className="border-t border-gray-700 pt-3">
-                                  <h4 className="font-semibold text-md mb-2">도징 관리</h4>
-                                  <div className="flex flex-wrap gap-4">
-                                      {Object.keys(dosings).map(param => (<div key={param}><button onClick={() => toggleDosingStatus(log.id, param)} className={`py-1 px-3 rounded-lg text-xs font-bold ${dosingStatus[`${log.id}-${param}`] ? 'bg-green-600' : 'bg-yellow-500 hover:bg-yellow-600'}`}>{param.toUpperCase()}: {dosings[param]}ml {dosingStatus[`${log.id}-${param}`] ? '✔️ 도징 완료' : '❓ 도징 예정'}</button></div>))}
-                                      {Object.keys(dosings).length === 0 && <p className="text-sm text-gray-400">모든 수치가 안정적입니다. (도징 필요 없음)</p>}
-                                      <button onClick={() => toggleDosingStatus(log.id, 'bacter')} className={`py-1 px-3 rounded-lg text-xs font-bold ${dosingStatus[`${log.id}-bacter`] ? 'bg-green-600' : 'bg-purple-600 hover:bg-purple-700'}`}>{dosingStatus[`${log.id}-bacter`] ? '✔️ 박터오리진 도징완료' : '박터오리진 도징'}</button>
-                                  </div>
-                              </div>
-                              {log.notes && <p className="mt-3 text-gray-300 text-sm"><span className="font-semibold">📝 특이사항:</span> {log.notes}</p>}
-                            </div>);
-                        }) : <div className="text-center text-gray-500 py-8">해당 기간의 기록이 없습니다.</div>}
-                      </div>
-                    </main>
-                    {(isLoadingAnalysis || analysisResult) && (<div className="fixed bottom-0 right-0 m-8 w-full max-w-md bg-gray-800 border-2 border-blue-500 rounded-xl shadow-2xl z-50">
-                            <div className="p-4 border-b border-gray-700"><h3 className="text-lg font-bold text-blue-400">{analysisResult ? `${analysisResult.logDate} 기록에 대한 AI 분석` : "AI 분석"}</h3></div>
-                            <div className="p-4 h-80 overflow-y-auto">
-                                {isLoadingAnalysis ? (<div className="flex items-center justify-center h-full"><div className="loader"></div><p className="ml-4">Gemini AI가 데이터를 분석 중입니다...</p></div>) : 
-                                (<pre className="text-sm text-gray-300 whitespace-pre-wrap font-sans">{analysisResult.text}</pre>)}
-                            </div>
-                             <div className="p-2 border-t border-gray-700 text-right"><button onClick={() => setAnalysisResult(null)} className="text-xs text-gray-400 hover:text-white">닫기</button></div>
-                        </div>)}
-                  </div>
-                </div>
-            );
-        };
+        if (!hasValue) {
+            alert('하나 이상의 값을 입력해주세요.');
+            return;
+        }
 
-        const container = document.getElementById('root');
-        const root = ReactDOM.createRoot(container);
-        root.render(<StrictMode><App /></StrictMode>);
-    </script>
+        logs.push(newLog);
+        renderAll();
+        await saveDataToServer();
+        
+        Object.keys(paramDetails).forEach(key => { document.getElementById(key).value = ''; });
+    }
+
+    async function deleteLog(index) {
+        if (confirm('이 기록을 삭제하시겠습니까?')) {
+            logs.splice(index, 1);
+            renderAll();
+            await saveDataToServer();
+        }
+    }
+    
+    function filterLogs(filter) {
+        currentFilter = filter;
+        document.querySelectorAll('#log-controls button').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(`btn-${filter}`).classList.add('active');
+        renderLogs();
+    }
+
+    function renderLogs() {
+        const logList = document.getElementById('log-list');
+        logList.innerHTML = '';
+        const filteredLogs = getFilteredLogs();
+
+        filteredLogs.forEach((log) => {
+            const originalIndex = logs.findIndex(originalLog => originalLog.date === log.date);
+            const li = document.createElement('li');
+            const date = new Date(log.date);
+            const formattedDate = `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일 ${date.getHours()}시 ${date.getMinutes()}분`;
+            let content = `<div class="log-entry-content"><div class="log-entry-date">${formattedDate}</div>`;
+            Object.keys(paramDetails).forEach(key => {
+                if (log[key] !== undefined) {
+                    content += `<span>${paramDetails[key].label}: ${log[key]} ${paramDetails[key].unit}</span><br>`;
+                }
+            });
+            content += `</div>`;
+            let deleteButton = `<button class="delete-btn" onclick="deleteLog(${originalIndex})">삭제</button>`;
+            li.innerHTML = content + deleteButton;
+            logList.appendChild(li);
+        });
+    }
+    
+    function getFilteredLogs() {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const sevenDaysAgo = new Date(today);
+        sevenDaysAgo.setDate(today.getDate() - 6);
+
+        switch (currentFilter) {
+            case 'latest': return logs.slice(0, 1);
+            case 'today': return logs.filter(log => new Date(log.date) >= today);
+            case 'week': return logs.filter(log => new Date(log.date) >= sevenDaysAgo);
+            case 'all': default: return logs;
+        }
+    }
+
+    function initializeChart() {
+        const ctx = document.getElementById('logChart').getContext('2d');
+        logChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    { label: '🌡️ 온도', data: [], borderColor: '#ff6384', tension: 0.1, hidden: true },
+                    { label: '💧 염도', data: [], borderColor: '#36a2eb', tension: 0.1, hidden: true },
+                    { label: '🧪 pH', data: [], borderColor: '#cc65fe', tension: 0.1, hidden: true },
+                    { label: '💎 KH (오전)', data: [], borderColor: '#ffce56', tension: 0.1 },
+                    { label: '💎 KH (오후)', data: [], borderColor: '#ff9f40', tension: 0.1 },
+                    { label: '🦴 칼슘', data: [], borderColor: '#4bc0c0', tension: 0.1, hidden: true },
+                    { label: '🔩 마그네슘', data: [], borderColor: '#9966ff', tension: 0.1, hidden: true },
+                    { label: '🚫 아질산', data: [], borderColor: '#c9cbcf', tension: 0.1, hidden: true },
+                    { label: '🌿 질산염', data: [], borderColor: '#77dd77', tension: 0.1, hidden: true },
+                    { label: '🦠 인산염', data: [], borderColor: '#fdfd96', tension: 0.1, hidden: true }
+                ]
+            },
+            options: { responsive: true, scales: { x: { ticks: { maxRotation: 90, minRotation: 45 } }, y: { beginAtZero: false } }, plugins: { legend: { position: 'top' }, tooltip: { mode: 'index', intersect: false } } }
+        });
+    }
+
+    function updateChart() {
+        const sortedLogs = [...logs].sort((a, b) => new Date(a.date) - new Date(b.date));
+        logChart.data.labels = sortedLogs.map(log => {
+            const d = new Date(log.date);
+            return `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+        });
+        logChart.data.datasets.forEach((dataset, index) => {
+            const key = Object.keys(paramDetails)[index];
+            if (dataset.label.includes('KH (오후)')) {
+                dataset.data = sortedLogs.map(log => log['kh_pm'] !== undefined ? log['kh_pm'] : null);
+            } else {
+                dataset.data = sortedLogs.map(log => log[key] !== undefined ? log[key] : null);
+            }
+        });
+        logChart.update();
+    }
+</script>
+
 </body>
 </html>
