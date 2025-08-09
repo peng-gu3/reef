@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SPA → F4 Pro 자동도징 모의투입기 v2 (일일 재분배)</title>
+  <style>
+    :root { --gap: 10px; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans KR", sans-serif; margin: 20px; }
+    h1 { margin: 0 0 8px; }
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: var(--gap); }
+    .card { border: 1px solid #ddd; border-radius: 12px; padding: 14px; background: #fff; }
+    .muted { color: #666; font-size: 12px; }
+    label { font-size: 13px; color: #333; }
+    input { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #ccc; border-radius: 8px; text-align: right; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
+    .btn { padding: 10px 14px; border-radius: 10px; border: 1px solid #222; background: #111; color: #fff; cursor: pointer; font-weight: 600; }
+    .btn.secondary { background: #fff; color: #111; }
+    .out { background: #f7f7f8; border: 1px dashed #bbb; border-radius: 12px; padding: 12px; white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .warn { color: #b20000; font-weight: 700; }
+    .ok { color: #0a7f2e; font-weight: 700; }
+    .col-6 { grid-column: span 6; }
+    .col-4 { grid-column: span 4; }
+    .col-3 { grid-column: span 3; }
+    .col-12 { grid-column: span 12; }
+    @media (max-width: 900px) {
+      .col-6, .col-4, .col-3, .col-12 { grid-column: span 12; }
+      .row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <h1>SPA → F4 Pro 자동도징 모의투입기 v2</h1>
+  <div class="muted">일일 측정값에 따라 남은 기간에 자동 재분배. Daily / Single / Interval 추천치 계산.</div>
+
+  <div class="grid">
+    <div class="card col-6">
+      <h3>① 공통 설정</h3>
+      <div class="row">
+        <div>
+          <label>수조 용량 (L)</label>
+          <input id="volume" type="number" step="0.1" value="160" />
+        </div>
+        <div>
+          <label>총 기간 (일)</label>
+          <input id="totalDays" type="number" step="1" value="7" />
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <div>
+          <label>오늘이 몇일차인가요? (1~총기간)</label>
+          <input id="dayIndex" type="number" step="1" value="1" />
+        </div>
+        <div>
+          <label>권장 Add Interval (분)</label>
+          <input id="interval" type="number" step="1" value="30" />
+        </div>
+      </div>
+    </div>
+
+    <div class="card col-6">
+      <h3>② 채널별 펌프 제약 (선택)</h3>
+      <div class="row">
+        <div>
+          <label>Daily Max (ml/일, 공통)</label>
+          <input id="dailyMax" type="number" step="0.1" value="999" />
+        </div>
+        <div>
+          <label>Single Max (ml/회, 공통)</label>
+          <input id="singleMax" type="number" step="0.1" value="2" />
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <div>
+          <label>최소 도징 스텝 (ml, 공통)</label>
+          <input id="minStep" type="number" step="0.1" value="0.1" />
+        </div>
+        <div>
+          <label>하루 분할 횟수 (회/일)</label>
+          <input id="splits" type="number" step="1" value="2" />
+        </div>
+      </div>
+      <div class="muted" style="margin-top:6px;">※ Nitro/Phos와 달리 Ca/KH/Mg은 보통 0.1ml 단위 가능. 필요시 스텝 조정.</div>
+    </div>
+
+    <div class="card col-12">
+      <h3>③ 기준치 & 변환계수</h3>
+      <div class="grid" style="gap:10px;">
+        <div class="col-4">
+          <h4>Calcium (Ca)</h4>
+          <div class="row">
+            <div>
+              <label>현재 (ppm)</label>
+              <input id="ca_now" type="number" step="0.1" value="385" />
+            </div>
+            <div>
+              <label>목표 (ppm)</label>
+              <input id="ca_target" type="number" step="0.1" value="420" />
+            </div>
+          </div>
+          <div class="row" style="margin-top:8px;">
+            <div>
+              <label>계수: 1ml → 100L당 (ppm)</label>
+              <input id="ca_factor" type="number" step="0.01" value="2" />
+            </div>
+            <div>
+              <label>안전 상한 (목표 Max)</label>
+              <input id="ca_max" type="number" step="0.1" value="430" />
+            </div>
+          </div>
+        </div>
+        <div class="col-4">
+          <h4>Alkalinity (KH)</h4>
+          <div class="row">
+            <div>
+              <label>현재 (dKH)</label>
+              <input id="kh_now" type="number" step="0.01" value="7.4" />
+            </div>
+            <div>
+              <label>목표 (dKH)</label>
+              <input id="kh_target" type="number" step="0.01" value="7.8" />
+            </div>
+          </div>
+          <div class="row" style="margin-top:8px;">
+            <div>
+              <label>계수: 1ml → 100L당 (dKH)</label>
+              <input id="kh_factor" type="number" step="0.01" value="0.1" />
+            </div>
+            <div>
+              <label>안전 상한 (목표 Max)</label>
+              <input id="kh_max" type="number" step="0.01" value="8.0" />
+            </div>
+          </div>
+        </div>
+        <div class="col-4">
+          <h4>Magnesium (Mg)</h4>
+          <div class="row">
+            <div>
+              <label>현재 (ppm)</label>
+              <input id="mg_now" type="number" step="0.1" value="1360" />
+            </div>
+            <div>
+              <label>목표 (ppm)</label>
+              <input id="mg_target" type="number" step="0.1" value="1400" />
+            </div>
+          </div>
+          <div class="row" style="margin-top:8px;">
+            <div>
+              <label>계수: 1ml → 100L당 (ppm)</label>
+              <input id="mg_factor" type="number" step="0.01" value="1" />
+            </div>
+            <div>
+              <label>안전 상한 (목표 Max)</label>
+              <input id="mg_max" type="number" step="0.1" value="1440" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12" style="display:flex; gap:10px; align-items:center;">
+      <button class="btn" onclick="calc()">계산하기 / 오늘 재분배</button>
+      <button class="btn secondary" onclick="nextDay()">다음날로 이동 (일차 +1)</button>
+    </div>
+
+    <div class="card col-12">
+      <h3>④ 결과 (SPA/F4 Pro 입력용)</h3>
+      <div id="out" class="out">입력 후 [계산하기]를 눌러주세요.</div>
+      <div id="warn" class="muted" style="margin-top:6px;"></div>
+    </div>
+  </div>
+
+  <script>
+    const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+    const roundStep = (v, step) => Math.round(v / step) * step;
+
+    function mlTotal(volume, delta, factor) {
+      // (수조용량 × 상승폭) ÷ (100 × (1ml당 상승량))
+      return (volume * delta) / (100 * factor);
+    }
+
+    function planForRemaining(totalMl, remainingDays, dailyMax, splits, singleMax, minStep) {
+      const days = Math.max(1, remainingDays);
+      let perDay = totalMl / days;
+      // cap to dailyMax
+      if (perDay > dailyMax) perDay = dailyMax;
+      // split into doses per day
+      let perDose = perDay / Math.max(1, splits);
+      // cap to singleMax
+      if (perDose > singleMax) perDose = singleMax;
+      // round to min step
+      perDay = roundStep(perDose * splits, minStep);
+      perDose = roundStep(perDose, minStep);
+      const schedule = Array.from({ length: days }, () => ({ perDay, perDose, splits }));
+      const totalPlanned = perDay * days;
+      return { schedule, perDay, perDose, totalPlanned };
+    }
+
+    function computeChannel(name, now, target, maxSafe, factor, volume, dayIdx, totalDays, dailyMax, splits, singleMax, minStep) {
+      const remainingDays = Math.max(0, totalDays - dayIdx + 1);
+      const clampedTarget = clamp(target, -1e9, maxSafe);
+      const delta = Math.max(0, clampedTarget - now);
+      const total = mlTotal(volume, delta, factor);
+      const { schedule, perDay, perDose, totalPlanned } = planForRemaining(total, remainingDays, dailyMax, splits, singleMax, minStep);
+      return { name, now, target: clampedTarget, delta, totalMl: total, perDay, perDose, schedule, totalPlanned };
+    }
+
+    function fmt(n) { return Number(n).toFixed(2); }
+
+    function calc() {
+      const volume = parseFloat(document.getElementById('volume').value);
+      const totalDays = parseInt(document.getElementById('totalDays').value, 10);
+      const dayIndex = parseInt(document.getElementById('dayIndex').value, 10);
+      const interval = parseFloat(document.getElementById('interval').value);
+
+      const dailyMax = parseFloat(document.getElementById('dailyMax').value);
+      const singleMax = parseFloat(document.getElementById('singleMax').value);
+      const minStep = parseFloat(document.getElementById('minStep').value);
+      const splits = parseInt(document.getElementById('splits').value, 10);
+
+      const ca = computeChannel(
+        'Ca',
+        parseFloat(document.getElementById('ca_now').value),
+        parseFloat(document.getElementById('ca_target').value),
+        parseFloat(document.getElementById('ca_max').value),
+        parseFloat(document.getElementById('ca_factor').value),
+        volume, dayIndex, totalDays, dailyMax, splits, singleMax, minStep
+      );
+      const kh = computeChannel(
+        'KH',
+        parseFloat(document.getElementById('kh_now').value),
+        parseFloat(document.getElementById('kh_target').value),
+        parseFloat(document.getElementById('kh_max').value),
+        parseFloat(document.getElementById('kh_factor').value),
+        volume, dayIndex, totalDays, dailyMax, splits, singleMax, minStep
+      );
+      const mg = computeChannel(
+        'Mg',
+        parseFloat(document.getElementById('mg_now').value),
+        parseFloat(document.getElementById('mg_target').value),
+        parseFloat(document.getElementById('mg_max').value),
+        parseFloat(document.getElementById('mg_factor').value),
+        volume, dayIndex, totalDays, dailyMax, splits, singleMax, minStep
+      );
+
+      const remainingDays = Math.max(0, totalDays - dayIndex + 1);
+
+      function block(ch) {
+        const warnOver = ch.perDose > singleMax + 1e-9 || ch.perDay > dailyMax + 1e-9;
+        const status = warnOver ? '<span class="warn">⚠️ 제약 초과 가능성: 수치 낮추거나 기간 늘리세요.</span>' : '<span class="ok">✅ 제약 내에서 안전</span>';
+        let text = `[#${ch.name}] 현재 ${ch.now} → 목표 ${ch.target} (Δ ${ch.delta})\n` +
+                   `총 필요: ${fmt(ch.totalMl)} ml\n` +
+                   `남은 ${remainingDays}일 → 1일 ${fmt(ch.perDay)} ml, 회당 ${fmt(ch.perDose)} ml × ${splits}회\n` + status + `\n\n`;
+        text += `[일별 계획]\n`;
+        ch.schedule.forEach((d, i) => {
+          text += `Day ${i+1}: ${fmt(d.perDay)} ml  ( ${fmt(d.perDose)} ml × ${d.splits}회 )\n`;
+        });
+        return text + '\n';
+      }
+
+      const out = [block(ca), block(kh), block(mg)].join('');
+      document.getElementById('out').textContent = out + `권장 Add Interval: ${interval}분`;
+
+      // 종합 경고
+      const tips = [];
+      if (remainingDays <= 0) tips.push('남은 기간이 0일입니다. 총기간/일차를 확인하세요.');
+      if (singleMax < 0.1) tips.push('Single Max 값이 너무 작습니다. 최소 0.1ml 이상 권장.');
+      if (minStep > 0.3) tips.push('최소 스텝이 큼. 너무 거칠면 과/미도징 발생 가능.');
+      document.getElementById('warn').textContent = tips.join(' \u2022 ');
+    }
+
+    function nextDay() {
+      const d = document.getElementById('dayIndex');
+      d.value = Math.max(1, parseInt(d.value, 10) + 1);
+      calc();
+    }
+
+    // 초기 계산 한번
+    calc();
+  </script>
+</body>
+</html>
