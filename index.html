@@ -133,18 +133,7 @@
         </div>
         
         <div id="loading" class="text-center py-10">
-            <p id="loading-text">페이지 로딩 완료. 시스템을 시작합니다...</p>
-            <div id="diagnostic-panel" class="hidden mt-4 text-left w-full max-w-md mx-auto p-4 bg-gray-200 rounded-lg shadow-inner">
-                <h3 class="font-bold text-center mb-2">초기화 진단 정보</h3>
-                <div class="space-y-1 text-sm">
-                    <p><strong>Firebase Config:</strong> <span id="diag-firebase-config" class="font-mono p-1 bg-white rounded">확인 중...</span></p>
-                    <p><strong>App ID:</strong> <span id="diag-app-id" class="font-mono p-1 bg-white rounded">확인 중...</span></p>
-                    <p><strong>Auth Token:</strong> <span id="diag-auth-token" class="font-mono p-1 bg-white rounded">확인 중...</span></p>
-                </div>
-                <button id="retry-init-btn" class="mt-4 w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700">
-                    초기화 재시도
-                </button>
-            </div>
+            <p id="loading-text">시스템 환경 정보 수신 대기 중...</p>
         </div>
     </div>
 
@@ -393,59 +382,36 @@
         }
 
         // --- FINAL, MOST ROBUST INITIALIZATION LOGIC ---
-        const diagnosticPanel = document.getElementById('diagnostic-panel');
-        const retryBtn = document.getElementById('retry-init-btn');
-        const diagFirebase = document.getElementById('diag-firebase-config');
-        const diagAppId = document.getElementById('diag-app-id');
-        const diagAuthToken = document.getElementById('diag-auth-token');
-
-        function checkConfig() {
-            const config = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
-            const appId = typeof __app_id !== 'undefined' ? __app_id : null;
-            const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-            return { config, appId, token };
-        }
+        let initInterval;
         
-        function updateDiagnosticsAndShowPanel() {
-            const { config, appId, token } = checkConfig();
-            
-            const status = (variable) => {
-                 if (variable === null) return '❌ 찾을 수 없음 (Not Found)';
-                 return variable.trim() ? '✅ 발견됨 (Found)' : '❌ 비어있음 (Empty)';
-            };
+        function initialize() {
+            // Check if all required global variables are available and not empty
+            if (
+                typeof __firebase_config !== 'undefined' && __firebase_config?.trim() &&
+                typeof __app_id !== 'undefined' && __app_id?.trim()
+            ) {
+                // If everything is ready, stop checking
+                clearInterval(initInterval);
+                loadingText.textContent = "환경 정보 수신 완료. 시스템을 시작합니다.";
 
-            diagFirebase.textContent = status(config);
-            diagAppId.textContent = status(appId);
-            diagAuthToken.textContent = (token === null) ? '❌ 찾을 수 없음 (Not Found)' : '✅ 발견됨 (Found)';
-            
-            loadingText.textContent = "오류: 시스템 환경을 자동으로 불러오지 못했습니다.";
-            diagnosticPanel.classList.remove('hidden');
-        }
-
-        function attemptInitialization() {
-            loadingText.textContent = "환경 설정 정보 확인 중...";
-            const { config, appId, token } = checkConfig();
-
-            if (config && config.trim() && appId && appId.trim()) {
                 try {
-                    const firebaseConfig = JSON.parse(config);
-                    startApp(firebaseConfig, token, appId);
+                    const firebaseConfig = JSON.parse(__firebase_config);
+                    const authToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                    const appId = __app_id;
+
+                    // Start the main application logic
+                    startApp(firebaseConfig, authToken, appId);
                 } catch (e) {
-                    loadingText.textContent = "오류: 설정 정보(JSON) 형식이 올바르지 않습니다.";
-                    updateDiagnosticsAndShowPanel();
+                    loadingText.textContent = "오류: 수신된 환경 정보(JSON)가 올바르지 않습니다. 새로고침 해주세요.";
                     console.error("Error parsing __firebase_config:", e);
                 }
-            } else {
-                updateDiagnosticsAndShowPanel();
             }
+            // If not ready, the interval will simply call this function again with the initial message.
         }
 
-        retryBtn.addEventListener('click', attemptInitialization);
+        // Start checking for the configuration every 200 milliseconds
+        initInterval = setInterval(initialize, 200);
 
-        window.addEventListener('DOMContentLoaded', () => {
-            // Wait a brief moment for environment variables to be injected.
-            setTimeout(attemptInitialization, 500); 
-        });
     </script>
 </body>
 </html>
