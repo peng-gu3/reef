@@ -147,413 +147,330 @@
     </div>
     
     <script type="module">
-  // Firebase SDK
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-  import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-  import {
-    getFirestore,
-    doc,
-    collection,
-    onSnapshot,
-    addDoc,
-    getDocs,
-    setDoc,
-    serverTimestamp,
-    query,
-    orderBy,
-    runTransaction,
-    deleteField
-  } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, collection, onSnapshot, addDoc, getDocs, setDoc, serverTimestamp, query, orderBy, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-  document.addEventListener('DOMContentLoaded', () => {
-    const loadingEl = document.getElementById('loading');
+        const loadingEl = document.getElementById('loading');
 
-    function startApp() {
-      // --- UI Elements ---
-      const inventoryTableEl = document.getElementById('inventory-table');
-      const inventoryBodyEl = document.getElementById('inventory-body');
-      const productionForm = document.getElementById('production-form');
-      const shippingForm = document.getElementById('shipping-form');
-      const productionLogEl = document.getElementById('production-log');
-      const shippingLogEl = document.getElementById('shipping-log');
-      const modal = document.getElementById('modal');
-      const modalMessage = document.getElementById('modal-message');
-      const modalClose = document.getElementById('modal-close');
-      const filterInput = document.getElementById('filter-input');
-      const exportBtn = document.getElementById('export-csv');
+        function startApp(firebaseConfig, authToken, appId) {
+            
+            // --- UI Elements ---
+            const resetButton = document.getElementById('reset-data-btn');
+            const inventoryTableEl = document.getElementById('inventory-table');
+            const inventoryBodyEl = document.getElementById('inventory-body');
+            const productionForm = document.getElementById('production-form');
+            const shippingForm = document.getElementById('shipping-form');
+            const productionLogEl = document.getElementById('production-log');
+            const shippingLogEl = document.getElementById('shipping-log');
+            const modal = document.getElementById('modal');
+            const modalMessage = document.getElementById('modal-message');
+            const modalClose = document.getElementById('modal-close');
+            const modalConfirm = document.getElementById('modal-confirm');
 
-      // --- App State ---
-      let userId = null;
-      let localInventory = {}; // { [itemNo]: { [size]: { quantity, lot, lots: { [lotNo]: number } } } }
-      let inventoryUnsubscribe = null;
-      let productionLogUnsubscribe = null;
-      let shippingLogUnsubscribe = null;
+            let confirmCallback = null;
 
-      // appId: __app_id → URL ?app= → localStorage → default
-      const appId = (() => {
-        if (typeof __app_id !== 'undefined' && __app_id) return __app_id;
-        const q = new URLSearchParams(location.search);
-        const fromUrl = q.get('app');
-        if (fromUrl) { localStorage.setItem('app_id', fromUrl); return fromUrl; }
-        const fromLs = localStorage.getItem('app_id');
-        return fromLs || 'default-app-id';
-      })();
+            // --- App State ---
+            let userId = null;
+            let localInventory = {};
+            let inventoryUnsubscribe = null;
+            let productionLogUnsubscribe = null;
+            let shippingLogUnsubscribe = null;
 
-      // --- Firebase Initialization ---
-      let app, auth, db;
-      try {
-        const firebaseConfig = (() => {
-          const g = window.__firebase_config;
-          if (typeof g === 'string' && g.trim()) return JSON.parse(g);
-          if (g && typeof g === 'object') return g;
-
-          // <script id="firebase-config" type="application/json">{...}</script> 지원
-          const el = document.getElementById('firebase-config');
-          if (el && el.textContent.trim()) return JSON.parse(el.textContent);
-
-          // LocalStorage 지원
-          const ls = localStorage.getItem('firebase_config');
-          if (ls) return JSON.parse(ls);
-
-          // URL 매개변수 지원 (?firebase=...  또는 base64/json)
-          const p = new URLSearchParams(location.search).get('firebase');
-          if (p) {
-            try { return JSON.parse(decodeURIComponent(atob(p))); } catch {}
-            try { return JSON.parse(p); } catch {}
-          }
-          throw new Error('Firebase config not found');
-        })();
-
-        app = initializeApp(firebaseConfig);
-        auth = getAuth(app);
-        db = getFirestore(app);
-      } catch (error) {
-        console.error('Firebase Initialization Failed:', error);
-        // 설정 입력 UI 제공
-        loadingEl.innerHTML = '시스템 설정을 찾지 못했습니다. 아래에 설정(JSON)을 붙여넣고 저장하세요.' +
-          '<div class="mt-3">' +
-          '<textarea id="cfg-ta" class="w-full border rounded p-2" rows="8" placeholder="{...firebase config...}"></textarea>' +
-          '<button id="cfg-save" class="mt-2 px-3 py-1 bg-blue-600 text-white rounded">저장</button>' +
-          '</div>';
-        setTimeout(() => {
-          const btn = document.getElementById('cfg-save');
-          btn?.addEventListener('click', () => {
-            const ta = document.getElementById('cfg-ta');
+            // --- Firebase Initialization ---
+            let app, auth, db;
             try {
-              const parsed = JSON.parse(ta.value);
-              localStorage.setItem('firebase_config', JSON.stringify(parsed));
-              location.reload();
-            } catch (e) { alert('JSON 형식이 올바르지 않습니다.'); }
-          });
-        }, 0);
-        return;
-      }
-
-      // --- Utils ---
-      const showModal = (msg) => {
-        modalMessage.textContent = msg;
-        modal.classList.remove('hidden');
-        setTimeout(() => modal.classList.remove('opacity-0'), 10);
-        setTimeout(() => modal.querySelector('.modal-container').classList.remove('scale-95'), 10);
-      };
-      const hideModal = () => {
-        modal.classList.add('opacity-0');
-        modal.querySelector('.modal-container').classList.add('scale-95');
-        setTimeout(() => modal.classList.add('hidden'), 300);
-      };
-      modalClose.addEventListener('click', hideModal);
-
-      const normItem = (v) => v.trim().toUpperCase();
-      const normSize = (v) => v.trim().replace(/\s+/g, ' ');
-      const normLot   = (v) => v.trim().toUpperCase();
-
-      // --- Rendering ---
-      function renderInventory(raw) {
-        const keyword = filterInput.value.trim().toUpperCase();
-        inventoryBodyEl.innerHTML = '';
-        const items = Object.keys(raw).sort();
-        if (!items.length) {
-          inventoryBodyEl.innerHTML = `<tr><td colspan="5" class="text-center p-5">재고 데이터가 없습니다. 생산 등록을 시작해주세요.</td></tr>`;
-          return;
-        }
-        for (const itemNo of items) {
-          const sizes = raw[itemNo] || {};
-          const sizeKeys = Object.keys(sizes).sort();
-          for (const size of sizeKeys) {
-            const data = sizes[size] || {};
-            const lotPairs = Object.entries(data.lots || {})
-              .filter(([_, q]) => typeof q === 'number' && q > 0)
-              .sort(([a], [b]) => a.localeCompare(b));
-            const lotsStr = lotPairs.map(([lt, q]) => `${lt}: ${q.toFixed(1)}LB`).join(', ');
-
-            const rowText = `${itemNo} ${size} ${data.lot || ''} ${lotsStr}`.toUpperCase();
-            if (keyword && !rowText.includes(keyword)) continue;
-
-            const tr = document.createElement('tr');
-            tr.className = 'hover:bg-gray-50';
-            tr.innerHTML = `
-              <td class="p-3 font-medium">${itemNo}</td>
-              <td class="p-3">${size}</td>
-              <td class="p-3 text-right">${(data.quantity || 0).toFixed(1)}</td>
-              <td class="p-3">${data.lot || ''}</td>
-              <td class="p-3">${lotsStr || '-'}</td>
-            `;
-            inventoryBodyEl.appendChild(tr);
-          }
-        }
-      }
-
-      function renderLog(logEl, logs) {
-        logEl.innerHTML = '';
-        logs.forEach((log) => {
-          const row = document.createElement('tr');
-          row.className = 'border-b';
-          const ts = log.timestamp?.toDate?.() ? log.timestamp.toDate() : null;
-          row.innerHTML = `
-            <td class="p-2">${ts ? ts.toLocaleString('ko-KR', { year: '2-digit', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''}</td>
-            <td class="p-2">${log.itemNo}</td>
-            <td class="p-2">${log.size}</td>
-            <td class="p-2">${Number(log.quantity).toFixed(1)}</td>
-            <td class="p-2">${log.lot}</td>
-          `;
-          logEl.appendChild(row);
-        });
-      }
-
-      filterInput.addEventListener('input', () => renderInventory(localInventory));
-      exportBtn.addEventListener('click', () => {
-        // CSV Export (item,size,qty,latestLot,lotBalances)
-        const rows = [['ITEM NO', 'SIZE', 'QTY(LB)', 'LATEST LOT', 'LOT BALANCES']];
-        for (const [itemNo, sizes] of Object.entries(localInventory)) {
-          for (const [size, data] of Object.entries(sizes)) {
-            const lots = Object.entries(data.lots || {})
-              .filter(([_, q]) => typeof q === 'number' && q > 0)
-              .map(([lot, q]) => `${lot}:${q}`)
-              .join('|');
-            rows.push([itemNo, size, (data.quantity || 0).toFixed(1), data.lot || '', lots]);
-          }
-        }
-        const csv = rows.map(r => r.map(v => `"${String(v).replaceAll('"', '""')}"`).join(',')).join('\n');
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `inventory_${new Date().toISOString().slice(0,10)}.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
-      });
-
-      // --- Real-time & bootstrap ---
-      async function setupRealtimeListeners() {
-        const base = ['artifacts', appId, 'users', userId];
-        const inventoryCol = collection(db, ...base, 'inventory');
-        const prodLogCol   = collection(db, ...base, 'productionLog');
-        const shipLogCol   = collection(db, ...base, 'shippingLog');
-
-        // 초기재고 자동 생성
-        const initial = await getDocs(inventoryCol);
-        if (initial.empty) await populateInitialData();
-
-        inventoryUnsubscribe = onSnapshot(inventoryCol, (snap) => {
-          const obj = {};
-          snap.forEach((d) => { obj[d.id] = d.data(); });
-          localInventory = obj;
-          renderInventory(localInventory);
-          loadingEl.style.display = 'none';
-          inventoryTableEl.classList.remove('hidden');
-        });
-
-        productionLogUnsubscribe = onSnapshot(query(prodLogCol, orderBy('timestamp', 'desc')), (snap) => {
-          const logs = snap.docs.map(d => d.data());
-          renderLog(productionLogEl, logs);
-        });
-        shippingLogUnsubscribe = onSnapshot(query(shipLogCol, orderBy('timestamp', 'desc')), (snap) => {
-          const logs = snap.docs.map(d => d.data());
-          renderLog(shippingLogEl, logs);
-        });
-      }
-
-      async function populateInitialData() {
-        const itemNos = ["ALS910C", "ALS900G", "ALS955W", "ALS970", "ALS990", "ALS420", "ALS610", "ALS620", "ALS623S", "ALS630N", "ALS640K", "ALS350Y"];
-        const sizes = ["1/8\"", "3/16\"", "1/4\"", "5/16\"", "3/8\"", "7/16\"", "1/2\"", "9/16\"", "5/8\"", "11/16\"", "3/4\"", "13/16\"", "7/8\"", "1\"", "1-1/8\"", "1-1/4\""];
-        showModal('초기 재고 데이터를 설정합니다...');
-        const tasks = itemNos.map((itemNo) => {
-          const sizeData = {};
-          sizes.forEach((s) => { sizeData[s] = { quantity: 0, lot: '', lots: {} }; });
-          const ref = doc(db, 'artifacts', appId, 'users', userId, 'inventory', itemNo);
-          return setDoc(ref, sizeData);
-        });
-        await Promise.all(tasks);
-      }
-
-      // --- Event Handlers with TRANSACTION + FIFO ---
-      productionForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const itemNo  = normItem(document.getElementById('prod-item').value);
-        const size    = normSize(document.getElementById('prod-size').value);
-        const lot     = normLot(document.getElementById('prod-lot').value);
-        const quantity = parseFloat(document.getElementById('prod-quantity').value);
-        if (!itemNo || !size || !lot || isNaN(quantity) || quantity <= 0) {
-          showModal('모든 필드를 올바르게 입력해주세요.');
-          return;
-        }
-
-        const invRef     = doc(db, 'artifacts', appId, 'users', userId, 'inventory', itemNo);
-        const prodLogCol = collection(db, 'artifacts', appId, 'users', userId, 'productionLog');
-        try {
-          await runTransaction(db, async (tx) => {
-            const snap = await tx.get(invRef);
-            if (!snap.exists()) tx.set(invRef, {});
-            const data   = snap.data() || {};
-            const sizeObj = { quantity: 0, lot: '', lots: {}, ...(data[size] || {}) };
-            const curQty  = Number(sizeObj.quantity || 0);
-            sizeObj.quantity = +(curQty + quantity).toFixed(3);
-            sizeObj.lot = lot; // 최근 LOT 갱신
-            sizeObj.lots = { ...(sizeObj.lots || {}) };
-            const lotQty = Number(sizeObj.lots[lot] || 0);
-            sizeObj.lots[lot] = +(lotQty + quantity).toFixed(3);
-            tx.set(invRef, { [size]: sizeObj }, { merge: true });
-          });
-          await addDoc(prodLogCol, { itemNo, size, lot, quantity, timestamp: serverTimestamp() });
-          showModal('생산 등록이 완료되었습니다.');
-          productionForm.reset();
-        } catch (err) {
-          console.error(err);
-          showModal('오류가 발생했습니다: ' + err.message);
-        }
-      });
-
-      shippingForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const itemNo  = normItem(document.getElementById('ship-item').value);
-        const size    = normSize(document.getElementById('ship-size').value);
-        const lot     = normLot(document.getElementById('ship-lot').value);
-        const quantity = parseFloat(document.getElementById('ship-quantity').value);
-        if (!itemNo || !size || !lot || isNaN(quantity) || quantity <= 0) {
-          showModal('모든 필드를 올바르게 입력해주세요.');
-          return;
-        }
-
-        const invRef     = doc(db, 'artifacts', appId, 'users', userId, 'inventory', itemNo);
-        const shipLogCol = collection(db, 'artifacts', appId, 'users', userId, 'shippingLog');
-
-        try {
-          await runTransaction(db, async (tx) => {
-            const snap = await tx.get(invRef);
-            if (!snap.exists()) throw new Error('해당 ITEM의 재고 문서가 없습니다.');
-            const data   = snap.data() || {};
-            const sizeObj = { quantity: 0, lot: '', lots: {}, ...(data[size] || {}) };
-            const totalQty = Number(sizeObj.quantity || 0);
-            const lotQty   = Number((sizeObj.lots || {})[lot] || 0);
-            if (lotQty < quantity) throw new Error(`지정 LOT(${lot}) 재고 부족: ${lotQty.toFixed(1)} LB`);
-            if (totalQty < quantity) throw new Error(`총 재고 부족: ${totalQty.toFixed(1)} LB`);
-
-            // 차감
-            const newTotal = +(totalQty - quantity).toFixed(3);
-            const newLotQty = +(lotQty   - quantity).toFixed(3);
-            sizeObj.quantity = newTotal;
-            sizeObj.lots = { ...(sizeObj.lots || {}) };
-            if (newLotQty <= 0) {
-              sizeObj.lots[lot] = deleteField(); // 필드 제거 지시
-            } else {
-              sizeObj.lots[lot] = newLotQty;
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+            } catch (error) {
+                console.error("Firebase Initialization Failed:", error);
+                loadingEl.textContent = "시스템 설정 파일이 올바르지 않습니다.";
+                return;
             }
 
-            // 잔량 있는 LOT 중 하나를 대표 LOT로 유지
-            const remainLots = Object.entries(sizeObj.lots)
-              .filter(([_, v]) => typeof v === 'number' && v > 0)
-              .map(([k]) => k)
-              .sort();
-            sizeObj.lot = remainLots[remainLots.length - 1] || '';
+            // --- Utility Functions ---
+            function showModal(message, showConfirm = false, callback = null) {
+                modalMessage.textContent = message;
+                modalConfirm.classList.toggle('hidden', !showConfirm);
+                modalClose.textContent = showConfirm ? '취소' : '닫기';
+                confirmCallback = showConfirm ? callback : null;
+                
+                modal.classList.remove('hidden');
+                setTimeout(() => modal.classList.remove('opacity-0'), 10);
+                setTimeout(() => modal.querySelector('.modal-container').classList.remove('scale-95'), 10);
+            }
 
-            tx.set(invRef, { [size]: sizeObj }, { merge: true });
-          });
+            function hideModal() {
+                modal.classList.add('opacity-0');
+                modal.querySelector('.modal-container').classList.add('scale-95');
+                setTimeout(() => modal.classList.add('hidden'), 300);
+            }
+            
+            modalClose.addEventListener('click', hideModal);
+            modalConfirm.addEventListener('click', () => {
+                if (confirmCallback) {
+                    confirmCallback();
+                }
+                hideModal();
+            });
 
-          await addDoc(shipLogCol, { itemNo, size, lot, quantity, timestamp: serverTimestamp() });
-          showModal('출고 처리가 완료되었습니다.');
-          shippingForm.reset();
-        } catch (err) {
-          console.error(err);
-          showModal('오류가 발생했습니다: ' + err.message);
+            // --- Rendering Functions ---
+            function renderInventory(inventory) {
+                inventoryBodyEl.innerHTML = '';
+                if (!inventory || Object.keys(inventory).length === 0) {
+                     inventoryBodyEl.innerHTML = `<tr><td colspan="4" class="text-center p-5">재고 데이터가 없습니다. 생산 등록을 시작해주세요.</td></tr>`;
+                     return;
+                }
+                
+                const sortedItems = Object.keys(inventory).sort();
+                let hasStock = false;
+                
+                for (const itemNo of sortedItems) {
+                    const sizes = inventory[itemNo];
+                    if (!sizes) continue;
+                    
+                    const sortedSizes = Object.keys(sizes).sort((a, b) => {
+                        try {
+                            const toNum = str => {
+                                if (!str.includes('/') && !str.includes('-')) return parseFloat(str) || 0;
+                                return str.split(/[\s-]+/).reduce((acc, part) => {
+                                    const fractions = part.split('/');
+                                    return acc + (parseFloat(fractions[0]) / (parseFloat(fractions[1]) || 1));
+                                }, 0);
+                            };
+                            return toNum(a) - toNum(b);
+                        } catch (e) {
+                            return a.localeCompare(b);
+                        }
+                    });
+
+                    for (const size of sortedSizes) {
+                        const data = sizes[size];
+                        if (data && data.quantity > 0) {
+                            hasStock = true;
+                            const row = document.createElement('tr');
+                            row.className = 'hover:bg-gray-50';
+                            row.innerHTML = `
+                                <td class="font-medium">${itemNo}</td>
+                                <td>${size}</td>
+                                <td class="text-right">${(data.quantity || 0).toFixed(1)}</td>
+                                <td>${data.lot || ''}</td>
+                            `;
+                            inventoryBodyEl.appendChild(row);
+                        }
+                    }
+                }
+                if (!hasStock) {
+                    inventoryBodyEl.innerHTML = `<tr><td colspan="4" class="text-center p-5">현재 모든 품목의 재고가 없습니다.</td></tr>`;
+                }
+            }
+            
+            function renderLog(logEl, logs) {
+                logEl.innerHTML = '';
+                logs.forEach(log => {
+                    const row = document.createElement('tr');
+                    row.className = 'border-b';
+                    row.innerHTML = `
+                        <td class="p-2">${log.timestamp?.toDate().toLocaleString('ko-KR', { year:'2-digit', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) || ''}</td>
+                        <td class="p-2">${log.itemNo}</td>
+                        <td class="p-2">${log.size}</td>
+                        <td class="p-2">${log.quantity}</td>
+                        <td class="p-2">${log.lot}</td>
+                    `;
+                    logEl.appendChild(row);
+                });
+            }
+
+            // --- Data Logic ---
+            async function resetAllData() {
+                showModal("데이터를 초기화하는 중...", false);
+                try {
+                    const collectionsToDelete = ['inventory', 'productionLog', 'shippingLog'];
+                    for (const collName of collectionsToDelete) {
+                        const collRef = collection(db, 'artifacts', appId, 'users', userId, collName);
+                        const snapshot = await getDocs(collRef);
+                        const deletePromises = snapshot.docs.map(docToDelete => deleteDoc(docToDelete.ref));
+                        await Promise.all(deletePromises);
+                    }
+                    await populateInitialData();
+                    showModal("모든 데이터가 성공적으로 초기화되었습니다.");
+                } catch (error) {
+                    console.error("Error resetting data: ", error);
+                    showModal("초기화 중 오류가 발생했습니다: " + error.message);
+                }
+            }
+
+            resetButton.addEventListener('click', () => {
+                showModal("정말 모든 데이터를 삭제하고 시스템을 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다.", true, resetAllData);
+            });
+
+            async function setupRealtimeListeners() {
+                resetButton.classList.remove('hidden'); // Show reset button after auth
+                const inventoryCollectionRef = collection(db, 'artifacts', appId, 'users', userId, 'inventory');
+                const productionLogCollectionRef = collection(db, 'artifacts', appId, 'users', userId, 'productionLog');
+                const shippingLogCollectionRef = collection(db, 'artifacts', appId, 'users', userId, 'shippingLog');
+                
+                const initialCheck = await getDocs(inventoryCollectionRef);
+                if (initialCheck.empty) {
+                    await populateInitialData();
+                }
+
+                inventoryUnsubscribe = onSnapshot(inventoryCollectionRef, (snapshot) => {
+                    localInventory = {};
+                    snapshot.forEach(doc => {
+                        localInventory[doc.id] = doc.data();
+                    });
+                    renderInventory(localInventory);
+                    loadingEl.style.display = 'none';
+                    inventoryTableEl.classList.remove('hidden');
+                });
+                
+                productionLogUnsubscribe = onSnapshot(query(productionLogCollectionRef, orderBy('timestamp', 'desc')), (snapshot) => renderLog(productionLogEl, snapshot.docs.map(d => d.data())));
+                shippingLogUnsubscribe = onSnapshot(query(shippingLogCollectionRef, orderBy('timestamp', 'desc')), (snapshot) => renderLog(shippingLogEl, snapshot.docs.map(d => d.data())));
+            }
+            
+            async function populateInitialData() {
+                const itemNos = ["ALS910C", "ALS900G", "ALS955W", "ALS970", "ALS990", "ALS420", "ALS610", "ALS620", "ALS623S", "ALS630N", "ALS640K", "ALS350Y"];
+                const sizes = ["1/8\"", "3/16\"", "1/4\"", "5/16\"", "3/8\"", "7/16\"", "1/2\"", "9/16\"", "5/8\"", "11/16\"", "3/4\"", "13/16\"", "7/8\"", "1\"", "1-1/8\"", "1-1/4\""];
+                
+                showModal("초기 재고 데이터를 설정합니다...");
+
+                const promises = itemNos.map(itemNo => {
+                    const sizeData = {};
+                    sizes.forEach(size => {
+                        sizeData[size] = { quantity: 0, lot: '' };
+                    });
+                    const docRef = doc(db, 'artifacts', appId, 'users', userId, 'inventory', itemNo);
+                    return setDoc(docRef, sizeData);
+                });
+
+                await Promise.all(promises);
+            }
+
+            // --- Event Handlers ---
+            productionForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const itemNo = document.getElementById('prod-item').value.trim().toUpperCase();
+                const size = document.getElementById('prod-size').value.trim();
+                const lot = document.getElementById('prod-lot').value.trim();
+                const quantity = parseFloat(document.getElementById('prod-quantity').value);
+
+                if (!itemNo || !size || !lot || isNaN(quantity) || quantity <= 0) {
+                    showModal('모든 필드를 올바르게 입력해주세요.');
+                    return;
+                }
+
+                const inventoryDocRef = doc(db, 'artifacts', appId, 'users', userId, 'inventory', itemNo);
+                const productionLogCollectionRef = collection(db, 'artifacts', appId, 'users', userId, 'productionLog');
+
+                try {
+                    await addDoc(productionLogCollectionRef, { itemNo, size, lot, quantity, timestamp: serverTimestamp() });
+                    
+                    const currentItemData = localInventory[itemNo] || {};
+                    const currentSizeData = currentItemData[size] || { quantity: 0 };
+                    const currentQuantity = parseFloat(currentSizeData.quantity || 0);
+                    const newQuantity = currentQuantity + quantity;
+                    
+                    await setDoc(inventoryDocRef, { [size]: { quantity: newQuantity, lot: lot } }, { merge: true });
+
+                    showModal('생산 등록이 완료되었습니다.');
+                    productionForm.reset();
+                } catch (error) {
+                    console.error("Error adding production record: ", error);
+                    showModal('오류가 발생했습니다: ' + error.message);
+                }
+            });
+
+            shippingForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const itemNo = document.getElementById('ship-item').value.trim().toUpperCase();
+                const size = document.getElementById('ship-size').value.trim();
+                const lot = document.getElementById('ship-lot').value.trim();
+                const quantity = parseFloat(document.getElementById('ship-quantity').value);
+                
+                if (!itemNo || !size || !lot || isNaN(quantity) || quantity <= 0) {
+                    showModal('모든 필드를 올바르게 입력해주세요.');
+                    return;
+                }
+
+                const inventoryDocRef = doc(db, 'artifacts', appId, 'users', userId, 'inventory', itemNo);
+                const shippingLogCollectionRef = collection(db, 'artifacts', appId, 'users', userId, 'shippingLog');
+                
+                const currentItemData = localInventory[itemNo] || {};
+                const currentSizeData = currentItemData[size] || { quantity: 0 };
+                const currentQuantity = parseFloat(currentSizeData.quantity || 0);
+
+                if (currentQuantity < quantity) {
+                    showModal(`재고가 부족합니다. (현재고: ${currentQuantity.toFixed(1)} LB)`);
+                    return;
+                }
+
+                try {
+                    await addDoc(shippingLogCollectionRef, { itemNo, size, lot, quantity, timestamp: serverTimestamp() });
+                    
+                    const newQuantity = currentQuantity - quantity;
+                    const existingLot = currentSizeData.lot || '';
+                    
+                    await setDoc(inventoryDocRef, { [size]: { quantity: newQuantity, lot: existingLot } }, { merge: true });
+
+                    showModal('출고 처리가 완료되었습니다.');
+                    shippingForm.reset();
+                } catch (error) {
+                    console.error("Error processing shipping: ", error);
+                    showModal('오류가 발생했습니다: ' + error.message);
+                }
+            });
+
+            // --- App Authentication and Initialization ---
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    userId = user.uid;
+                    if (inventoryUnsubscribe) inventoryUnsubscribe();
+                    if (productionLogUnsubscribe) productionLogUnsubscribe();
+                    if (shippingLogUnsubscribe) shippingLogUnsubscribe();
+                    await setupRealtimeListeners();
+                }
+            });
+
+            async function main() {
+                try {
+                    if (authToken) {
+                        await signInWithCustomToken(auth, authToken);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                } catch (error) {
+                    console.error("Authentication failed:", error);
+                    loadingEl.textContent = "인증에 실패했습니다. 페이지를 새로고침해주세요.";
+                }
+            }
+            
+            main();
         }
-      });
 
-      // --- Auth & bootstrap ---
-      onAuthStateChanged(auth, async (user) => {
-        if (user) {
-          userId = user.uid;
-          if (inventoryUnsubscribe) inventoryUnsubscribe();
-          if (productionLogUnsubscribe) productionLogUnsubscribe();
-          if (shippingLogUnsubscribe) shippingLogUnsubscribe();
-          await setupRealtimeListeners();
-        }
-      });
-
-      async function main() {
-        try {
-          // token: __initial_auth_token → URL ?token= → localStorage → ''
-          const token = (() => {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) return __initial_auth_token;
-            const q = new URLSearchParams(location.search).get('token');
-            if (q) { localStorage.setItem('auth_token', q); return q; }
-            const fromLs = localStorage.getItem('auth_token');
-            return fromLs || '';
-          })();
-
-          if (token) {
-            await signInWithCustomToken(auth, token);
-          } else {
-            await signInAnonymously(auth);
-          }
-        } catch (error) {
-          console.error('Authentication failed:', error);
-          loadingEl.textContent = '인증에 실패했습니다. 페이지를 새로고침해주세요.';
-        }
-      }
-      main();
-    }
-
-    // --- Config 대기 로직 (객체/문자열 모두 안전) ---
-    function hasFirebaseConfig() {
-      const g = window.__firebase_config;
-      if ((typeof g === 'string' && g.trim()) || (g && typeof g === 'object')) return true;
-      const el = document.getElementById('firebase-config');
-      if (el && el.textContent.trim()) return true;
-      if (localStorage.getItem('firebase_config')) return true;
-      const p = new URLSearchParams(location.search).get('firebase');
-      return !!p;
-    }
-
-    function waitForConfig(retries = 0) {
-      if (hasFirebaseConfig()) {
-        startApp();
-      } else if (retries < 150) { // 최대 15초 대기
-        setTimeout(() => waitForConfig(retries + 1), 100);
-      } else {
-        // 마지막 안전그물: 붙여넣기 UI
-        loadingEl.innerHTML = '시스템 설정 로딩에 실패했습니다. 아래에 설정(JSON)을 붙여넣고 저장하세요.' +
-          '<div class="mt-3">' +
-          '<textarea id="cfg-ta" class="w-full border rounded p-2" rows="8" placeholder="{...firebase config...}"></textarea>' +
-          '<button id="cfg-save" class="mt-2 px-3 py-1 bg-blue-600 text-white rounded">저장</button>' +
-          '</div>';
-        setTimeout(() => {
-          const btn = document.getElementById('cfg-save');
-          btn?.addEventListener('click', () => {
-            const ta = document.getElementById('cfg-ta');
+        function waitForConfig(retries = 0) {
             try {
-              const parsed = JSON.parse(ta.value);
-              localStorage.setItem('firebase_config', JSON.stringify(parsed));
-              location.reload();
-            } catch (e) { alert('JSON 형식이 올바르지 않습니다.'); }
-          });
-        }, 0);
-      }
-    }
-
-    waitForConfig();
-  });
-</script>
-
+                if (typeof __firebase_config !== 'undefined' && __firebase_config && __firebase_config.trim() !== '' && typeof __app_id !== 'undefined') {
+                    const firebaseConfig = JSON.parse(__firebase_config); 
+                    const authToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                    const appId = __app_id;
+                    startApp(firebaseConfig, authToken, appId);
+                } else {
+                    throw new Error("Config not ready");
+                }
+            } catch (e) {
+                if (retries < 100) { // Wait up to 10 seconds
+                    setTimeout(() => waitForConfig(retries + 1), 100);
+                } else {
+                    loadingEl.textContent = "시스템 설정 로딩에 실패했습니다. 네트워크 연결을 확인하고 새로고침 해주세요.";
+                    console.error("Could not find or parse __firebase_config after 10 seconds.", e);
+                }
+            }
+        }
+        
+        window.addEventListener('DOMContentLoaded', waitForConfig);
+    </script>
 </body>
 </html>
 
