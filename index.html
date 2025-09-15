@@ -148,24 +148,6 @@
         import { getFirestore, doc, collection, onSnapshot, addDoc, getDocs, setDoc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         document.addEventListener('DOMContentLoaded', () => {
-            // --- Firebase Configuration ---
-            const firebaseConfig = typeof __firebase_config !== 'undefined' 
-                ? JSON.parse(__firebase_config) 
-                : { apiKey: "YOUR_API_KEY", authDomain: "YOUR_AUTH_DOMAIN", projectId: "YOUR_PROJECT_ID" }; // Fallback for local testing
-
-            const app = initializeApp(firebaseConfig);
-            const auth = getAuth(app);
-            const db = getFirestore(app);
-
-            // --- App State ---
-            let userId = null;
-            let localInventory = {}; // Local cache for inventory state
-            let inventoryUnsubscribe = null;
-            let productionLogUnsubscribe = null;
-            let shippingLogUnsubscribe = null;
-            
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
             // --- UI Elements ---
             const loadingEl = document.getElementById('loading');
             const inventoryTableEl = document.getElementById('inventory-table');
@@ -177,6 +159,32 @@
             const modal = document.getElementById('modal');
             const modalMessage = document.getElementById('modal-message');
             const modalClose = document.getElementById('modal-close');
+
+            // --- App State ---
+            let userId = null;
+            let localInventory = {};
+            let inventoryUnsubscribe = null;
+            let productionLogUnsubscribe = null;
+            let shippingLogUnsubscribe = null;
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+            // --- Firebase Initialization ---
+            let app, auth, db;
+            try {
+                let firebaseConfig;
+                if (typeof __firebase_config !== 'undefined' && __firebase_config.trim() !== '') {
+                    firebaseConfig = JSON.parse(__firebase_config);
+                } else {
+                    throw new Error("Firebase config is not available or empty.");
+                }
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+            } catch (error) {
+                console.error("Firebase Initialization Failed:", error);
+                loadingEl.textContent = "시스템 설정 로딩에 실패했습니다. 새로고침 해주세요.";
+                return; // Stop execution if Firebase fails to initialize
+            }
 
             // --- Utility Functions ---
             function showModal(message) {
@@ -252,11 +260,10 @@
                 }
 
                 inventoryUnsubscribe = onSnapshot(inventoryCollectionRef, (snapshot) => {
-                    const inventory = {};
+                    localInventory = {};
                     snapshot.forEach(doc => {
-                        inventory[doc.id] = doc.data();
+                        localInventory[doc.id] = doc.data();
                     });
-                    localInventory = inventory; // Update local state
                     renderInventory(localInventory);
                     loadingEl.style.display = 'none';
                     inventoryTableEl.classList.remove('hidden');
@@ -314,15 +321,9 @@
                     const currentItemData = localInventory[itemNo] || {};
                     const currentSizeData = currentItemData[size] || { quantity: 0 };
                     const currentQuantity = parseFloat(currentSizeData.quantity || 0);
-
                     const newQuantity = currentQuantity + quantity;
                     
-                    await setDoc(inventoryDocRef, {
-                        [size]: {
-                            quantity: newQuantity,
-                            lot: lot
-                        }
-                    }, { merge: true });
+                    await setDoc(inventoryDocRef, { [size]: { quantity: newQuantity, lot: lot } }, { merge: true });
 
                     showModal('생산 등록이 완료되었습니다.');
                     productionForm.reset();
@@ -362,12 +363,7 @@
                     const newQuantity = currentQuantity - quantity;
                     const existingLot = currentSizeData.lot || '';
                     
-                    await setDoc(inventoryDocRef, {
-                        [size]: {
-                            quantity: newQuantity,
-                            lot: existingLot
-                        }
-                    }, { merge: true });
+                    await setDoc(inventoryDocRef, { [size]: { quantity: newQuantity, lot: existingLot } }, { merge: true });
 
                     showModal('출고 처리가 완료되었습니다.');
                     shippingForm.reset();
@@ -377,7 +373,7 @@
                 }
             });
 
-            // --- App Initialization ---
+            // --- App Authentication and Initialization ---
             onAuthStateChanged(auth, async (user) => {
                 if (user) {
                     userId = user.uid;
