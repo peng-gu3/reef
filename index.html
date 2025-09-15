@@ -103,7 +103,13 @@
 
                 <!-- Inventory List Section -->
                 <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-md">
-                    <h2 class="text-xl font-semibold mb-4">완제품 재고 현황</h2>
+                    <div class="flex justify-between items-center mb-4">
+                         <h2 class="text-xl font-semibold">완제품 재고 현황</h2>
+                         <div class="flex gap-2">
+                             <input type="text" id="filter-inventory-item" placeholder="ITEM NO. 필터" class="border border-gray-300 rounded-md shadow-sm py-1 px-2 text-sm">
+                             <input type="text" id="filter-inventory-size" placeholder="SIZE 필터" class="border border-gray-300 rounded-md shadow-sm py-1 px-2 text-sm">
+                         </div>
+                    </div>
                     <div class="overflow-x-auto">
                         <table id="inventory-table" class="w-full table-auto text-sm text-left">
                             <thead class="bg-gray-100">
@@ -124,7 +130,10 @@
             <!-- Logs Section -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
                 <div class="bg-white p-6 rounded-xl shadow-md">
-                    <h3 class="text-lg font-semibold mb-4">생산 기록</h3>
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold">생산 기록</h3>
+                        <input type="text" id="filter-production-log" placeholder="기록 검색..." class="border border-gray-300 rounded-md shadow-sm py-1 px-2 text-sm">
+                    </div>
                     <div class="overflow-y-auto h-64">
                         <table class="w-full text-sm">
                             <thead class="sticky top-0 bg-white">
@@ -143,7 +152,10 @@
                     </div>
                 </div>
                 <div class="bg-white p-6 rounded-xl shadow-md">
-                    <h3 class="text-lg font-semibold mb-4">출고 기록</h3>
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold">출고 기록</h3>
+                        <input type="text" id="filter-shipping-log" placeholder="기록 검색..." class="border border-gray-300 rounded-md shadow-sm py-1 px-2 text-sm">
+                    </div>
                     <div class="overflow-y-auto h-64">
                         <table class="w-full text-sm">
                             <thead class="sticky top-0 bg-white">
@@ -187,6 +199,11 @@
             const modalMessage = document.getElementById('modal-message');
             const modalClose = document.getElementById('modal-close');
             const modalConfirm = document.getElementById('modal-confirm');
+            
+            const filterInventoryItemInput = document.getElementById('filter-inventory-item');
+            const filterInventorySizeInput = document.getElementById('filter-inventory-size');
+            const filterProductionLogInput = document.getElementById('filter-production-log');
+            const filterShippingLogInput = document.getElementById('filter-shipping-log');
 
             let confirmCallback = null;
             let state = {
@@ -247,12 +264,17 @@
                 hideModal();
             });
 
-            function renderAll() {
-                renderInventory();
-                renderLogs();
+            function applyFiltersAndRender() {
+                const inventoryItemFilter = filterInventoryItemInput.value.trim().toUpperCase();
+                const inventorySizeFilter = filterInventorySizeInput.value.trim().toUpperCase();
+                const productionFilter = filterProductionLogInput.value.trim().toUpperCase();
+                const shippingFilter = filterShippingLogInput.value.trim().toUpperCase();
+
+                renderInventory(inventoryItemFilter, inventorySizeFilter);
+                renderLogs(productionFilter, shippingFilter);
             }
 
-            function renderInventory() {
+            function renderInventory(itemFilter = '', sizeFilter = '') {
                 inventoryBodyEl.innerHTML = '';
                 const inventory = state.inventory;
 
@@ -261,14 +283,19 @@
                      return;
                 }
                 
-                const sortedItems = Object.keys(inventory).sort();
+                let sortedItems = Object.keys(inventory).sort();
+
+                if(itemFilter) {
+                    sortedItems = sortedItems.filter(itemNo => itemNo.toUpperCase().includes(itemFilter));
+                }
+                
                 let hasStock = false;
                 
                 for (const itemNo of sortedItems) {
                     const sizes = inventory[itemNo];
                     if (!sizes) continue;
                     
-                    const sortedSizes = Object.keys(sizes).sort((a, b) => {
+                    let sortedSizes = Object.keys(sizes).sort((a, b) => {
                         try {
                             const toNum = str => {
                                 if (!str.includes('/') && !str.includes('-')) return parseFloat(str) || 0;
@@ -280,6 +307,10 @@
                             return toNum(a) - toNum(b);
                         } catch (e) { return a.localeCompare(b); }
                     });
+
+                    if(sizeFilter) {
+                        sortedSizes = sortedSizes.filter(size => size.toUpperCase().includes(sizeFilter));
+                    }
 
                     for (const size of sortedSizes) {
                         const data = sizes[size];
@@ -298,21 +329,43 @@
                     }
                 }
                 if (!hasStock) {
-                    inventoryBodyEl.innerHTML = `<tr><td colspan="4" class="text-center p-5">현재 모든 품목의 재고가 없습니다.</td></tr>`;
+                    inventoryBodyEl.innerHTML = `<tr><td colspan="4" class="text-center p-5">일치하는 재고가 없습니다.</td></tr>`;
                 }
             }
             
-            function renderLogs() {
+            function renderLogs(productionFilter = '', shippingFilter = '') {
+                // Production Log
                 productionLogEl.innerHTML = '';
-                state.productionLog.slice().reverse().forEach(log => {
+                let filteredProductionLogs = state.productionLog;
+                if(productionFilter) {
+                    filteredProductionLogs = state.productionLog.filter(log => 
+                        log.itemNo.toUpperCase().includes(productionFilter) ||
+                        log.size.toUpperCase().includes(productionFilter) ||
+                        log.lot.toUpperCase().includes(productionFilter) ||
+                        (log.rawMaterialLot && log.rawMaterialLot.toUpperCase().includes(productionFilter))
+                    );
+                }
+
+                filteredProductionLogs.slice().reverse().forEach(log => {
                     const row = document.createElement('tr');
                     row.className = 'border-b';
                     row.innerHTML = `<td class="p-2">${new Date(log.timestamp).toLocaleString('ko-KR')}</td><td class="p-2">${log.itemNo}</td><td class="p-2">${log.size}</td><td class="p-2">${log.quantity}</td><td class="p-2">${log.weightG || ''}</td><td class="p-2">${log.lot}</td><td class="p-2">${log.rawMaterialLot || ''}</td>`;
                     productionLogEl.appendChild(row);
                 });
 
+                // Shipping Log
                 shippingLogEl.innerHTML = '';
-                state.shippingLog.slice().reverse().forEach(log => {
+                let filteredShippingLogs = state.shippingLog;
+                if(shippingFilter) {
+                    filteredShippingLogs = state.shippingLog.filter(log => 
+                        log.itemNo.toUpperCase().includes(shippingFilter) ||
+                        log.size.toUpperCase().includes(shippingFilter) ||
+                        log.lot.toUpperCase().includes(shippingFilter) ||
+                        (log.client && log.client.toUpperCase().includes(shippingFilter))
+                    );
+                }
+
+                filteredShippingLogs.slice().reverse().forEach(log => {
                     const row = document.createElement('tr');
                     row.className = 'border-b';
                     row.innerHTML = `<td class="p-2">${new Date(log.timestamp).toLocaleString('ko-KR')}</td><td class="p-2">${log.itemNo}</td><td class="p-2">${log.size}</td><td class="p-2">${log.client || ''}</td><td class="p-2">${log.quantity}</td><td class="p-2">${log.lot}</td>`;
@@ -323,7 +376,7 @@
             function resetAllData() {
                 showModal("데이터를 초기화하는 중...", false);
                 populateInitialData();
-                renderAll();
+                applyFiltersAndRender();
                 showModal("모든 데이터가 성공적으로 초기화되었습니다.");
             }
 
@@ -349,7 +402,7 @@
                 state.productionLog.push({ itemNo, size, lot, rawMaterialLot, quantity, weightG: isNaN(weightG) ? '' : weightG, timestamp: new Date().toISOString() });
                 
                 saveState();
-                renderAll();
+                applyFiltersAndRender();
                 productionForm.reset();
                 showModal('생산 등록 완료.');
             });
@@ -371,14 +424,20 @@
                 state.shippingLog.push({ itemNo, size, lot, quantity, client, timestamp: new Date().toISOString() });
                 
                 saveState();
-                renderAll();
+                applyFiltersAndRender();
                 shippingForm.reset();
                 showModal('출고 처리 완료.');
             });
             
+            // Event Listeners for filters
+            filterInventoryItemInput.addEventListener('input', applyFiltersAndRender);
+            filterInventorySizeInput.addEventListener('input', applyFiltersAndRender);
+            filterProductionLogInput.addEventListener('input', applyFiltersAndRender);
+            filterShippingLogInput.addEventListener('input', applyFiltersAndRender);
+
             // Initial Load
             loadState();
-            renderAll();
+            applyFiltersAndRender();
         });
     </script>
 </body>
