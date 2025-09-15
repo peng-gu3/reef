@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>실시간 완제품 재고 관리 시스템</title>
+    <title>간편 재고 관리 시스템</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
@@ -29,14 +29,14 @@
 
     <div id="app" class="container mx-auto p-4 md:p-8">
         <header class="text-center mb-8 relative">
-            <h1 class="text-3xl md:text-4xl font-bold text-gray-900">실시간 완제품 재고 관리 시스템</h1>
-            <p class="text-gray-600 mt-2">생산 및 출고 내역을 입력하면 재고가 자동으로 업데이트됩니다.</p>
-            <button id="reset-data-btn" class="absolute top-0 right-0 bg-red-500 text-white text-xs font-bold py-1 px-3 rounded-full hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition duration-150 hidden">
-                강제 초기화
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-900">간편 재고 관리 시스템 (오프라인)</h1>
+            <p class="text-gray-600 mt-2">모든 데이터는 현재 브라우저에만 저장됩니다.</p>
+            <button id="reset-data-btn" class="absolute top-0 right-0 bg-red-500 text-white text-xs font-bold py-1 px-3 rounded-full hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition duration-150">
+                전체 초기화
             </button>
         </header>
 
-        <div id="main-content" class="hidden">
+        <div id="main-content">
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <!-- Input Forms Section -->
                 <div class="lg:col-span-1 flex flex-col gap-8">
@@ -131,10 +131,6 @@
                 </div>
             </div>
         </div>
-        
-        <div id="loading" class="text-center py-10">
-            <p id="loading-text">시스템 환경 정보 수신 대기 중...</p>
-        </div>
     </div>
 
     <!-- Modal for notifications -->
@@ -148,17 +144,8 @@
         </div>
     </div>
     
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, collection, onSnapshot, addDoc, getDocs, setDoc, serverTimestamp, query, orderBy, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        const loadingEl = document.getElementById('loading');
-        const loadingText = document.getElementById('loading-text');
-        const mainContent = document.getElementById('main-content');
-
-        function startApp(firebaseConfig, authToken, appId) {
-            
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
             const resetButton = document.getElementById('reset-data-btn');
             const inventoryBodyEl = document.getElementById('inventory-body');
             const productionForm = document.getElementById('production-form');
@@ -171,22 +158,42 @@
             const modalConfirm = document.getElementById('modal-confirm');
 
             let confirmCallback = null;
-            let userId = null;
-            let localInventory = {};
-            let inventoryUnsubscribe = null;
-            let productionLogUnsubscribe = null;
-            let shippingLogUnsubscribe = null;
+            let state = {
+                inventory: {},
+                productionLog: [],
+                shippingLog: [],
+            };
 
-            let app, auth, db;
-            try {
-                loadingText.textContent = "데이터베이스 연결 중...";
-                app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
-            } catch (error) {
-                loadingText.textContent = "오류: 데이터베이스 연결 실패. 설정을 확인해주세요.";
-                console.error("Firebase Initialization Failed:", error);
-                return;
+            const DB_KEY = 'simpleInventoryDB';
+
+            function loadState() {
+                const savedState = localStorage.getItem(DB_KEY);
+                if (savedState) {
+                    state = JSON.parse(savedState);
+                } else {
+                    populateInitialData();
+                }
+            }
+
+            function saveState() {
+                localStorage.setItem(DB_KEY, JSON.stringify(state));
+            }
+            
+            function populateInitialData() {
+                const itemNos = ["ALS910C", "ALS900G", "ALS955W", "ALS970", "ALS990", "ALS420", "ALS610", "ALS620", "ALS623S", "ALS630N", "ALS640K", "ALS350Y"];
+                const sizes = ["1/8\"", "3/16\"", "1/4\"", "5/16\"", "3/8\"", "7/16\"", "1/2\"", "9/16\"", "5/8\"", "11/16\"", "3/4\"", "13/16\"", "7/8\"", "1\"", "1-1/8\"", "1-1/4\""];
+                
+                state.inventory = {};
+                itemNos.forEach(itemNo => {
+                    state.inventory[itemNo] = {};
+                    sizes.forEach(size => {
+                        state.inventory[itemNo][size] = { quantity: 0, lot: '' };
+                    });
+                });
+                
+                state.productionLog = [];
+                state.shippingLog = [];
+                saveState();
             }
 
             function showModal(message, showConfirm = false, callback = null) {
@@ -209,8 +216,15 @@
                 hideModal();
             });
 
-            function renderInventory(inventory) {
+            function renderAll() {
+                renderInventory();
+                renderLogs();
+            }
+
+            function renderInventory() {
                 inventoryBodyEl.innerHTML = '';
+                const inventory = state.inventory;
+
                 if (!inventory || Object.keys(inventory).length === 0) {
                      inventoryBodyEl.innerHTML = `<tr><td colspan="4" class="text-center p-5">재고 데이터가 없습니다.</td></tr>`;
                      return;
@@ -257,69 +271,34 @@
                 }
             }
             
-            function renderLog(logEl, logs) {
-                logEl.innerHTML = '';
-                logs.forEach(log => {
+            function renderLogs() {
+                productionLogEl.innerHTML = '';
+                state.productionLog.slice().reverse().forEach(log => {
                     const row = document.createElement('tr');
                     row.className = 'border-b';
-                    row.innerHTML = `<td class="p-2">${log.timestamp?.toDate().toLocaleString('ko-KR',{timeZone:'Asia/Seoul'}) || ''}</td><td class="p-2">${log.itemNo}</td><td class="p-2">${log.size}</td><td class="p-2">${log.quantity}</td><td class="p-2">${log.lot}</td>`;
-                    logEl.appendChild(row);
+                    row.innerHTML = `<td class="p-2">${new Date(log.timestamp).toLocaleString('ko-KR')}</td><td class="p-2">${log.itemNo}</td><td class="p-2">${log.size}</td><td class="p-2">${log.quantity}</td><td class="p-2">${log.lot}</td>`;
+                    productionLogEl.appendChild(row);
+                });
+
+                shippingLogEl.innerHTML = '';
+                state.shippingLog.slice().reverse().forEach(log => {
+                    const row = document.createElement('tr');
+                    row.className = 'border-b';
+                    row.innerHTML = `<td class="p-2">${new Date(log.timestamp).toLocaleString('ko-KR')}</td><td class="p-2">${log.itemNo}</td><td class="p-2">${log.size}</td><td class="p-2">${log.quantity}</td><td class="p-2">${log.lot}</td>`;
+                    shippingLogEl.appendChild(row);
                 });
             }
 
-            async function resetAllData() {
+            function resetAllData() {
                 showModal("데이터를 초기화하는 중...", false);
-                try {
-                    const collectionsToDelete = ['inventory', 'productionLog', 'shippingLog'];
-                    for (const collName of collectionsToDelete) {
-                        const collRef = collection(db, 'artifacts', appId, 'users', userId, collName);
-                        const snapshot = await getDocs(collRef);
-                        await Promise.all(snapshot.docs.map(docToDelete => deleteDoc(docToDelete.ref)));
-                    }
-                    await populateInitialData();
-                    showModal("모든 데이터가 성공적으로 초기화되었습니다.");
-                } catch (error) {
-                    showModal("초기화 중 오류가 발생했습니다: " + error.message);
-                }
+                populateInitialData();
+                renderAll();
+                showModal("모든 데이터가 성공적으로 초기화되었습니다.");
             }
 
             resetButton.addEventListener('click', () => showModal("정말 모든 데이터를 삭제하고 시스템을 초기화하시겠습니까?", true, resetAllData));
 
-            async function setupRealtimeListeners() {
-                loadingText.textContent = "데이터 동기화 시작...";
-                mainContent.classList.remove('hidden');
-                loadingEl.classList.add('hidden');
-                resetButton.classList.remove('hidden');
-
-                const inventoryColl = collection(db, 'artifacts', appId, 'users', userId, 'inventory');
-                if ((await getDocs(inventoryColl)).empty) {
-                    await populateInitialData();
-                }
-
-                inventoryUnsubscribe = onSnapshot(inventoryColl, snap => {
-                    localInventory = {};
-                    snap.forEach(doc => { localInventory[doc.id] = doc.data(); });
-                    renderInventory(localInventory);
-                });
-                
-                productionLogUnsubscribe = onSnapshot(query(collection(db, 'artifacts', appId, 'users', userId, 'productionLog'), orderBy('timestamp', 'desc')), snap => renderLog(productionLogEl, snap.docs.map(d => d.data())));
-                shippingLogUnsubscribe = onSnapshot(query(collection(db, 'artifacts', appId, 'users', userId, 'shippingLog'), orderBy('timestamp', 'desc')), snap => renderLog(shippingLogEl, snap.docs.map(d => d.data())));
-            }
-            
-            async function populateInitialData() {
-                const itemNos = ["ALS910C", "ALS900G", "ALS955W", "ALS970", "ALS990", "ALS420", "ALS610", "ALS620", "ALS623S", "ALS630N", "ALS640K", "ALS350Y"];
-                const sizes = ["1/8\"", "3/16\"", "1/4\"", "5/16\"", "3/8\"", "7/16\"", "1/2\"", "9/16\"", "5/8\"", "11/16\"", "3/4\"", "13/16\"", "7/8\"", "1\"", "1-1/8\"", "1-1/4\""];
-                showModal("초기 재고 데이터를 설정합니다...");
-                const promises = itemNos.map(itemNo => {
-                    const sizeData = {};
-                    sizes.forEach(size => { sizeData[size] = { quantity: 0, lot: '' }; });
-                    return setDoc(doc(db, 'artifacts', appId, 'users', userId, 'inventory', itemNo), sizeData);
-                });
-                await Promise.all(promises);
-            }
-
-            // --- Event Handlers (Forms) ---
-            productionForm.addEventListener('submit', async e => {
+            productionForm.addEventListener('submit', e => {
                 e.preventDefault();
                 const itemNo = document.getElementById('prod-item').value.trim().toUpperCase();
                 const size = document.getElementById('prod-size').value.trim();
@@ -328,16 +307,21 @@
 
                 if (!itemNo || !size || !lot || isNaN(quantity) || quantity <= 0) return showModal('모든 필드를 올바르게 입력해주세요.');
 
-                try {
-                    await addDoc(collection(db, 'artifacts', appId, 'users', userId, 'productionLog'), { itemNo, size, lot, quantity, timestamp: serverTimestamp() });
-                    const currentQuantity = parseFloat(localInventory[itemNo]?.[size]?.quantity || 0);
-                    await setDoc(doc(db, 'artifacts', appId, 'users', userId, 'inventory', itemNo), { [size]: { quantity: currentQuantity + quantity, lot: lot } }, { merge: true });
-                    showModal('생산 등록 완료.');
-                    productionForm.reset();
-                } catch (error) { showModal('오류: ' + error.message); }
+                if (!state.inventory[itemNo]) state.inventory[itemNo] = {};
+                if (!state.inventory[itemNo][size]) state.inventory[itemNo][size] = { quantity: 0, lot: '' };
+                
+                state.inventory[itemNo][size].quantity += quantity;
+                state.inventory[itemNo][size].lot = lot;
+
+                state.productionLog.push({ itemNo, size, lot, quantity, timestamp: new Date().toISOString() });
+                
+                saveState();
+                renderAll();
+                productionForm.reset();
+                showModal('생산 등록 완료.');
             });
 
-            shippingForm.addEventListener('submit', async e => {
+            shippingForm.addEventListener('submit', e => {
                 e.preventDefault();
                 const itemNo = document.getElementById('ship-item').value.trim().toUpperCase();
                 const size = document.getElementById('ship-size').value.trim();
@@ -346,72 +330,22 @@
 
                 if (!itemNo || !size || !lot || isNaN(quantity) || quantity <= 0) return showModal('모든 필드를 올바르게 입력해주세요.');
 
-                const currentQuantity = parseFloat(localInventory[itemNo]?.[size]?.quantity || 0);
-                if (currentQuantity < quantity) return showModal(`재고 부족. (현재고: ${currentQuantity.toFixed(1)} LB)`);
+                const currentStock = state.inventory[itemNo]?.[size]?.quantity || 0;
+                if (currentStock < quantity) return showModal(`재고 부족. (현재고: ${currentStock.toFixed(1)} LB)`);
 
-                try {
-                    await addDoc(collection(db, 'artifacts', appId, 'users', userId, 'shippingLog'), { itemNo, size, lot, quantity, timestamp: serverTimestamp() });
-                    const existingLot = localInventory[itemNo]?.[size]?.lot || '';
-                    await setDoc(doc(db, 'artifacts', appId, 'users', userId, 'inventory', itemNo), { [size]: { quantity: currentQuantity - quantity, lot: existingLot } }, { merge: true });
-                    showModal('출고 처리 완료.');
-                    shippingForm.reset();
-                } catch (error) { showModal('오류: ' + error.message); }
+                state.inventory[itemNo][size].quantity -= quantity;
+                state.shippingLog.push({ itemNo, size, lot, quantity, timestamp: new Date().toISOString() });
+                
+                saveState();
+                renderAll();
+                shippingForm.reset();
+                showModal('출고 처리 완료.');
             });
-
-            // --- App Authentication and Initialization ---
-            onAuthStateChanged(auth, user => {
-                if (user) {
-                    userId = user.uid;
-                    if (inventoryUnsubscribe) inventoryUnsubscribe();
-                    if (productionLogUnsubscribe) productionLogUnsubscribe();
-                    if (shippingLogUnsubscribe) shippingLogUnsubscribe();
-                    setupRealtimeListeners();
-                }
-            });
-
-            (async function main() {
-                try {
-                    loadingText.textContent = "사용자 인증 중...";
-                    if (authToken) await signInWithCustomToken(auth, authToken);
-                    else await signInAnonymously(auth);
-                } catch (error) {
-                    loadingText.textContent = "인증 실패. 새로고침 후 다시 시도해주세요.";
-                    console.error("Authentication failed:", error);
-                }
-            })();
-        }
-
-        // --- FINAL, MOST ROBUST INITIALIZATION LOGIC ---
-        let initInterval;
-        
-        function initialize() {
-            // Check if all required global variables are available and not empty
-            if (
-                typeof __firebase_config !== 'undefined' && __firebase_config?.trim() &&
-                typeof __app_id !== 'undefined' && __app_id?.trim()
-            ) {
-                // If everything is ready, stop checking
-                clearInterval(initInterval);
-                loadingText.textContent = "환경 정보 수신 완료. 시스템을 시작합니다.";
-
-                try {
-                    const firebaseConfig = JSON.parse(__firebase_config);
-                    const authToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-                    const appId = __app_id;
-
-                    // Start the main application logic
-                    startApp(firebaseConfig, authToken, appId);
-                } catch (e) {
-                    loadingText.textContent = "오류: 수신된 환경 정보(JSON)가 올바르지 않습니다. 새로고침 해주세요.";
-                    console.error("Error parsing __firebase_config:", e);
-                }
-            }
-            // If not ready, the interval will simply call this function again with the initial message.
-        }
-
-        // Start checking for the configuration every 200 milliseconds
-        initInterval = setInterval(initialize, 200);
-
+            
+            // Initial Load
+            loadState();
+            renderAll();
+        });
     </script>
 </body>
 </html>
