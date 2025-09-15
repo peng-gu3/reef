@@ -36,103 +36,108 @@
             </button>
         </header>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- Input Forms Section -->
-            <div class="lg:col-span-1 flex flex-col gap-8">
-                <!-- Production Form -->
-                <div class="bg-white p-6 rounded-xl shadow-md">
-                    <h2 class="text-xl font-semibold mb-4 border-b pb-2 text-blue-600">생산 등록</h2>
-                    <form id="production-form" class="space-y-4">
-                        <div>
-                            <label for="prod-item" class="block text-sm font-medium text-gray-700">ITEM NO.</label>
-                            <input type="text" id="prod-item" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="예: ALS910C" required>
-                        </div>
-                        <div>
-                            <label for="prod-size" class="block text-sm font-medium text-gray-700">SIZE</label>
-                            <input type="text" id="prod-size" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="예: 1/8&quot;" required>
-                        </div>
-                        <div>
-                            <label for="prod-lot" class="block text-sm font-medium text-gray-700">LOT NO.</label>
-                            <input type="text" id="prod-lot" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="예: 2501C321" required>
-                        </div>
-                        <div>
-                            <label for="prod-quantity" class="block text-sm font-medium text-gray-700">수량 (LB)</label>
-                            <input type="number" id="prod-quantity" min="0.1" step="0.1" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
-                        </div>
-                        <button type="submit" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150">생산 추가</button>
-                    </form>
+        <div id="main-content" class="hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Input Forms Section -->
+                <div class="lg:col-span-1 flex flex-col gap-8">
+                    <!-- Production Form -->
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h2 class="text-xl font-semibold mb-4 border-b pb-2 text-blue-600">생산 등록</h2>
+                        <form id="production-form" class="space-y-4">
+                            <div>
+                                <label for="prod-item" class="block text-sm font-medium text-gray-700">ITEM NO.</label>
+                                <input type="text" id="prod-item" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="예: ALS910C" required>
+                            </div>
+                            <div>
+                                <label for="prod-size" class="block text-sm font-medium text-gray-700">SIZE</label>
+                                <input type="text" id="prod-size" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="예: 1/8&quot;" required>
+                            </div>
+                            <div>
+                                <label for="prod-lot" class="block text-sm font-medium text-gray-700">LOT NO.</label>
+                                <input type="text" id="prod-lot" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="예: 2501C321" required>
+                            </div>
+                            <div>
+                                <label for="prod-quantity" class="block text-sm font-medium text-gray-700">수량 (LB)</label>
+                                <input type="number" id="prod-quantity" min="0.1" step="0.1" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
+                            </div>
+                            <button type="submit" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150">생산 추가</button>
+                        </form>
+                    </div>
+
+                    <!-- Shipping Form -->
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <h2 class="text-xl font-semibold mb-4 border-b pb-2 text-red-600">출고 등록</h2>
+                        <form id="shipping-form" class="space-y-4">
+                            <div>
+                                <label for="ship-item" class="block text-sm font-medium text-gray-700">ITEM NO.</label>
+                                 <input type="text" id="ship-item" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="예: ALS910C" required>
+                            </div>
+                            <div>
+                                <label for="ship-size" class="block text-sm font-medium text-gray-700">SIZE</label>
+                                <input type="text" id="ship-size" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="예: 1/8&quot;" required>
+                            </div>
+                            <div>
+                                <label for="ship-lot" class="block text-sm font-medium text-gray-700">LOT NO.</label>
+                                <input type="text" id="ship-lot" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="출고되는 제품 Lot No." required>
+                            </div>
+                            <div>
+                                <label for="ship-quantity" class="block text-sm font-medium text-gray-700">수량 (LB)</label>
+                                <input type="number" id="ship-quantity" min="0.1" step="0.1" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-red-500 focus:border-red-500" required>
+                            </div>
+                            <button type="submit" class="w-full bg-red-600 text-white font-bold py-2 px-4 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition duration-150">출고 처리</button>
+                        </form>
+                    </div>
                 </div>
 
-                <!-- Shipping Form -->
-                <div class="bg-white p-6 rounded-xl shadow-md">
-                    <h2 class="text-xl font-semibold mb-4 border-b pb-2 text-red-600">출고 등록</h2>
-                    <form id="shipping-form" class="space-y-4">
-                        <div>
-                            <label for="ship-item" class="block text-sm font-medium text-gray-700">ITEM NO.</label>
-                             <input type="text" id="ship-item" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="예: ALS910C" required>
-                        </div>
-                        <div>
-                            <label for="ship-size" class="block text-sm font-medium text-gray-700">SIZE</label>
-                            <input type="text" id="ship-size" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="예: 1/8&quot;" required>
-                        </div>
-                        <div>
-                            <label for="ship-lot" class="block text-sm font-medium text-gray-700">LOT NO.</label>
-                            <input type="text" id="ship-lot" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="출고되는 제품 Lot No." required>
-                        </div>
-                        <div>
-                            <label for="ship-quantity" class="block text-sm font-medium text-gray-700">수량 (LB)</label>
-                            <input type="number" id="ship-quantity" min="0.1" step="0.1" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-red-500 focus:border-red-500" required>
-                        </div>
-                        <button type="submit" class="w-full bg-red-600 text-white font-bold py-2 px-4 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition duration-150">출고 처리</button>
-                    </form>
+                <!-- Inventory List Section -->
+                <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-md">
+                    <h2 class="text-xl font-semibold mb-4">완제품 재고 현황</h2>
+                    <div class="overflow-x-auto">
+                        <table id="inventory-table" class="w-full table-auto text-sm text-left">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="p-3">ITEM NO.</th>
+                                    <th class="p-3">SIZE</th>
+                                    <th class="p-3 text-right">현재고 (LB)</th>
+                                    <th class="p-3">최근 LOT NO.</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inventory-body">
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
-
-            <!-- Inventory List Section -->
-            <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-md">
-                <h2 class="text-xl font-semibold mb-4">완제품 재고 현황</h2>
-                 <div id="loading" class="text-center py-10">
-                    <p>시스템 초기화 중...</p>
+            
+            <!-- Logs Section -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h3 class="text-lg font-semibold mb-4">생산 기록</h3>
+                    <div class="overflow-y-auto h-64">
+                        <table class="w-full text-sm">
+                            <thead class="sticky top-0 bg-white"><tr><th>일시</th><th>ITEM</th><th>SIZE</th><th>수량</th><th>LOT</th></tr></thead>
+                            <tbody id="production-log"></tbody>
+                        </table>
+                    </div>
                 </div>
-                <div class="overflow-x-auto">
-                    <table id="inventory-table" class="w-full table-auto text-sm text-left hidden">
-                        <thead class="bg-gray-100">
-                            <tr>
-                                <th class="p-3">ITEM NO.</th>
-                                <th class="p-3">SIZE</th>
-                                <th class="p-3 text-right">현재고 (LB)</th>
-                                <th class="p-3">최근 LOT NO.</th>
-                            </tr>
-                        </thead>
-                        <tbody id="inventory-body">
-                        </tbody>
-                    </table>
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h3 class="text-lg font-semibold mb-4">출고 기록</h3>
+                    <div class="overflow-y-auto h-64">
+                        <table class="w-full text-sm">
+                            <thead class="sticky top-0 bg-white"><tr><th>일시</th><th>ITEM</th><th>SIZE</th><th>수량</th><th>LOT</th></tr></thead>
+                            <tbody id="shipping-log"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
         
-        <!-- Logs Section -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
-            <div class="bg-white p-6 rounded-xl shadow-md">
-                <h3 class="text-lg font-semibold mb-4">생산 기록</h3>
-                <div class="overflow-y-auto h-64">
-                    <table class="w-full text-sm">
-                        <thead class="sticky top-0 bg-white"><tr><th>일시</th><th>ITEM</th><th>SIZE</th><th>수량</th><th>LOT</th></tr></thead>
-                        <tbody id="production-log"></tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="bg-white p-6 rounded-xl shadow-md">
-                <h3 class="text-lg font-semibold mb-4">출고 기록</h3>
-                <div class="overflow-y-auto h-64">
-                    <table class="w-full text-sm">
-                        <thead class="sticky top-0 bg-white"><tr><th>일시</th><th>ITEM</th><th>SIZE</th><th>수량</th><th>LOT</th></tr></thead>
-                        <tbody id="shipping-log"></tbody>
-                    </table>
-                </div>
-            </div>
+        <div id="loading" class="text-center py-10">
+            <p id="loading-text">시스템 초기화 대기 중...</p>
+            <button id="manual-start-btn" class="hidden mt-4 bg-gray-600 text-white font-bold py-2 px-4 rounded-md hover:bg-gray-700">
+                수동 시작
+            </button>
         </div>
-
     </div>
 
     <!-- Modal for notifications -->
@@ -152,12 +157,15 @@
         import { getFirestore, doc, collection, onSnapshot, addDoc, getDocs, setDoc, serverTimestamp, query, orderBy, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const loadingEl = document.getElementById('loading');
+        const loadingText = document.getElementById('loading-text');
+        const manualStartBtn = document.getElementById('manual-start-btn');
+        const mainContent = document.getElementById('main-content');
 
         function startApp(firebaseConfig, authToken, appId) {
             
-            // --- UI Elements ---
+            loadingText.textContent = "설정 확인 완료. 앱 시작 중...";
+            
             const resetButton = document.getElementById('reset-data-btn');
-            const inventoryTableEl = document.getElementById('inventory-table');
             const inventoryBodyEl = document.getElementById('inventory-body');
             const productionForm = document.getElementById('production-form');
             const shippingForm = document.getElementById('shipping-form');
@@ -169,57 +177,48 @@
             const modalConfirm = document.getElementById('modal-confirm');
 
             let confirmCallback = null;
-
-            // --- App State ---
             let userId = null;
             let localInventory = {};
             let inventoryUnsubscribe = null;
             let productionLogUnsubscribe = null;
             let shippingLogUnsubscribe = null;
 
-            // --- Firebase Initialization ---
             let app, auth, db;
             try {
+                loadingText.textContent = "데이터베이스 연결 중...";
                 app = initializeApp(firebaseConfig);
                 auth = getAuth(app);
                 db = getFirestore(app);
             } catch (error) {
+                loadingText.textContent = "오류: 데이터베이스 연결에 실패했습니다. 설정을 확인해주세요.";
                 console.error("Firebase Initialization Failed:", error);
-                loadingEl.textContent = "시스템 설정 파일이 올바르지 않습니다.";
                 return;
             }
 
-            // --- Utility Functions ---
             function showModal(message, showConfirm = false, callback = null) {
                 modalMessage.textContent = message;
                 modalConfirm.classList.toggle('hidden', !showConfirm);
                 modalClose.textContent = showConfirm ? '취소' : '닫기';
                 confirmCallback = showConfirm ? callback : null;
-                
                 modal.classList.remove('hidden');
                 setTimeout(() => modal.classList.remove('opacity-0'), 10);
-                setTimeout(() => modal.querySelector('.modal-container').classList.remove('scale-95'), 10);
             }
 
             function hideModal() {
                 modal.classList.add('opacity-0');
-                modal.querySelector('.modal-container').classList.add('scale-95');
                 setTimeout(() => modal.classList.add('hidden'), 300);
             }
             
             modalClose.addEventListener('click', hideModal);
             modalConfirm.addEventListener('click', () => {
-                if (confirmCallback) {
-                    confirmCallback();
-                }
+                if (confirmCallback) confirmCallback();
                 hideModal();
             });
 
-            // --- Rendering Functions ---
             function renderInventory(inventory) {
                 inventoryBodyEl.innerHTML = '';
                 if (!inventory || Object.keys(inventory).length === 0) {
-                     inventoryBodyEl.innerHTML = `<tr><td colspan="4" class="text-center p-5">재고 데이터가 없습니다. 생산 등록을 시작해주세요.</td></tr>`;
+                     inventoryBodyEl.innerHTML = `<tr><td colspan="4" class="text-center p-5">재고 데이터가 없습니다.</td></tr>`;
                      return;
                 }
                 
@@ -240,9 +239,7 @@
                                 }, 0);
                             };
                             return toNum(a) - toNum(b);
-                        } catch (e) {
-                            return a.localeCompare(b);
-                        }
+                        } catch (e) { return a.localeCompare(b); }
                     });
 
                     for (const size of sortedSizes) {
@@ -271,18 +268,11 @@
                 logs.forEach(log => {
                     const row = document.createElement('tr');
                     row.className = 'border-b';
-                    row.innerHTML = `
-                        <td class="p-2">${log.timestamp?.toDate().toLocaleString('ko-KR', { year:'2-digit', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) || ''}</td>
-                        <td class="p-2">${log.itemNo}</td>
-                        <td class="p-2">${log.size}</td>
-                        <td class="p-2">${log.quantity}</td>
-                        <td class="p-2">${log.lot}</td>
-                    `;
+                    row.innerHTML = `<td class="p-2">${log.timestamp?.toDate().toLocaleString('ko-KR',{timeZone:'Asia/Seoul'}) || ''}</td><td class="p-2">${log.itemNo}</td><td class="p-2">${log.size}</td><td class="p-2">${log.quantity}</td><td class="p-2">${log.lot}</td>`;
                     logEl.appendChild(row);
                 });
             }
 
-            // --- Data Logic ---
             async function resetAllData() {
                 showModal("데이터를 초기화하는 중...", false);
                 try {
@@ -290,172 +280,120 @@
                     for (const collName of collectionsToDelete) {
                         const collRef = collection(db, 'artifacts', appId, 'users', userId, collName);
                         const snapshot = await getDocs(collRef);
-                        const deletePromises = snapshot.docs.map(docToDelete => deleteDoc(docToDelete.ref));
-                        await Promise.all(deletePromises);
+                        await Promise.all(snapshot.docs.map(docToDelete => deleteDoc(docToDelete.ref)));
                     }
                     await populateInitialData();
                     showModal("모든 데이터가 성공적으로 초기화되었습니다.");
                 } catch (error) {
-                    console.error("Error resetting data: ", error);
                     showModal("초기화 중 오류가 발생했습니다: " + error.message);
                 }
             }
 
-            resetButton.addEventListener('click', () => {
-                showModal("정말 모든 데이터를 삭제하고 시스템을 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다.", true, resetAllData);
-            });
+            resetButton.addEventListener('click', () => showModal("정말 모든 데이터를 삭제하고 시스템을 초기화하시겠습니까?", true, resetAllData));
 
             async function setupRealtimeListeners() {
-                resetButton.classList.remove('hidden'); // Show reset button after auth
-                const inventoryCollectionRef = collection(db, 'artifacts', appId, 'users', userId, 'inventory');
-                const productionLogCollectionRef = collection(db, 'artifacts', appId, 'users', userId, 'productionLog');
-                const shippingLogCollectionRef = collection(db, 'artifacts', appId, 'users', userId, 'shippingLog');
-                
-                const initialCheck = await getDocs(inventoryCollectionRef);
-                if (initialCheck.empty) {
+                loadingText.textContent = "데이터 동기화 시작...";
+                mainContent.classList.remove('hidden');
+                loadingEl.classList.add('hidden');
+                resetButton.classList.remove('hidden');
+
+                const inventoryColl = collection(db, 'artifacts', appId, 'users', userId, 'inventory');
+                if ((await getDocs(inventoryColl)).empty) {
                     await populateInitialData();
                 }
 
-                inventoryUnsubscribe = onSnapshot(inventoryCollectionRef, (snapshot) => {
+                inventoryUnsubscribe = onSnapshot(inventoryColl, snap => {
                     localInventory = {};
-                    snapshot.forEach(doc => {
-                        localInventory[doc.id] = doc.data();
-                    });
+                    snap.forEach(doc => { localInventory[doc.id] = doc.data(); });
                     renderInventory(localInventory);
-                    loadingEl.style.display = 'none';
-                    inventoryTableEl.classList.remove('hidden');
                 });
                 
-                productionLogUnsubscribe = onSnapshot(query(productionLogCollectionRef, orderBy('timestamp', 'desc')), (snapshot) => renderLog(productionLogEl, snapshot.docs.map(d => d.data())));
-                shippingLogUnsubscribe = onSnapshot(query(shippingLogCollectionRef, orderBy('timestamp', 'desc')), (snapshot) => renderLog(shippingLogEl, snapshot.docs.map(d => d.data())));
+                productionLogUnsubscribe = onSnapshot(query(collection(db, 'artifacts', appId, 'users', userId, 'productionLog'), orderBy('timestamp', 'desc')), snap => renderLog(productionLogEl, snap.docs.map(d => d.data())));
+                shippingLogUnsubscribe = onSnapshot(query(collection(db, 'artifacts', appId, 'users', userId, 'shippingLog'), orderBy('timestamp', 'desc')), snap => renderLog(shippingLogEl, snap.docs.map(d => d.data())));
             }
             
             async function populateInitialData() {
                 const itemNos = ["ALS910C", "ALS900G", "ALS955W", "ALS970", "ALS990", "ALS420", "ALS610", "ALS620", "ALS623S", "ALS630N", "ALS640K", "ALS350Y"];
                 const sizes = ["1/8\"", "3/16\"", "1/4\"", "5/16\"", "3/8\"", "7/16\"", "1/2\"", "9/16\"", "5/8\"", "11/16\"", "3/4\"", "13/16\"", "7/8\"", "1\"", "1-1/8\"", "1-1/4\""];
-                
                 showModal("초기 재고 데이터를 설정합니다...");
-
                 const promises = itemNos.map(itemNo => {
                     const sizeData = {};
-                    sizes.forEach(size => {
-                        sizeData[size] = { quantity: 0, lot: '' };
-                    });
-                    const docRef = doc(db, 'artifacts', appId, 'users', userId, 'inventory', itemNo);
-                    return setDoc(docRef, sizeData);
+                    sizes.forEach(size => { sizeData[size] = { quantity: 0, lot: '' }; });
+                    return setDoc(doc(db, 'artifacts', appId, 'users', userId, 'inventory', itemNo), sizeData);
                 });
-
                 await Promise.all(promises);
             }
 
-            // --- Event Handlers ---
-            productionForm.addEventListener('submit', async (e) => {
+            // --- Event Handlers (Forms) ---
+            productionForm.addEventListener('submit', async e => {
                 e.preventDefault();
                 const itemNo = document.getElementById('prod-item').value.trim().toUpperCase();
                 const size = document.getElementById('prod-size').value.trim();
                 const lot = document.getElementById('prod-lot').value.trim();
                 const quantity = parseFloat(document.getElementById('prod-quantity').value);
 
-                if (!itemNo || !size || !lot || isNaN(quantity) || quantity <= 0) {
-                    showModal('모든 필드를 올바르게 입력해주세요.');
-                    return;
-                }
-
-                const inventoryDocRef = doc(db, 'artifacts', appId, 'users', userId, 'inventory', itemNo);
-                const productionLogCollectionRef = collection(db, 'artifacts', appId, 'users', userId, 'productionLog');
+                if (!itemNo || !size || !lot || isNaN(quantity) || quantity <= 0) return showModal('모든 필드를 올바르게 입력해주세요.');
 
                 try {
-                    await addDoc(productionLogCollectionRef, { itemNo, size, lot, quantity, timestamp: serverTimestamp() });
-                    
-                    const currentItemData = localInventory[itemNo] || {};
-                    const currentSizeData = currentItemData[size] || { quantity: 0 };
-                    const currentQuantity = parseFloat(currentSizeData.quantity || 0);
-                    const newQuantity = currentQuantity + quantity;
-                    
-                    await setDoc(inventoryDocRef, { [size]: { quantity: newQuantity, lot: lot } }, { merge: true });
-
-                    showModal('생산 등록이 완료되었습니다.');
+                    await addDoc(collection(db, 'artifacts', appId, 'users', userId, 'productionLog'), { itemNo, size, lot, quantity, timestamp: serverTimestamp() });
+                    const currentQuantity = parseFloat(localInventory[itemNo]?.[size]?.quantity || 0);
+                    await setDoc(doc(db, 'artifacts', appId, 'users', userId, 'inventory', itemNo), { [size]: { quantity: currentQuantity + quantity, lot: lot } }, { merge: true });
+                    showModal('생산 등록 완료.');
                     productionForm.reset();
-                } catch (error) {
-                    console.error("Error adding production record: ", error);
-                    showModal('오류가 발생했습니다: ' + error.message);
-                }
+                } catch (error) { showModal('오류: ' + error.message); }
             });
 
-            shippingForm.addEventListener('submit', async (e) => {
+            shippingForm.addEventListener('submit', async e => {
                 e.preventDefault();
                 const itemNo = document.getElementById('ship-item').value.trim().toUpperCase();
                 const size = document.getElementById('ship-size').value.trim();
                 const lot = document.getElementById('ship-lot').value.trim();
                 const quantity = parseFloat(document.getElementById('ship-quantity').value);
-                
-                if (!itemNo || !size || !lot || isNaN(quantity) || quantity <= 0) {
-                    showModal('모든 필드를 올바르게 입력해주세요.');
-                    return;
-                }
 
-                const inventoryDocRef = doc(db, 'artifacts', appId, 'users', userId, 'inventory', itemNo);
-                const shippingLogCollectionRef = collection(db, 'artifacts', appId, 'users', userId, 'shippingLog');
-                
-                const currentItemData = localInventory[itemNo] || {};
-                const currentSizeData = currentItemData[size] || { quantity: 0 };
-                const currentQuantity = parseFloat(currentSizeData.quantity || 0);
+                if (!itemNo || !size || !lot || isNaN(quantity) || quantity <= 0) return showModal('모든 필드를 올바르게 입력해주세요.');
 
-                if (currentQuantity < quantity) {
-                    showModal(`재고가 부족합니다. (현재고: ${currentQuantity.toFixed(1)} LB)`);
-                    return;
-                }
+                const currentQuantity = parseFloat(localInventory[itemNo]?.[size]?.quantity || 0);
+                if (currentQuantity < quantity) return showModal(`재고 부족. (현재고: ${currentQuantity.toFixed(1)} LB)`);
 
                 try {
-                    await addDoc(shippingLogCollectionRef, { itemNo, size, lot, quantity, timestamp: serverTimestamp() });
-                    
-                    const newQuantity = currentQuantity - quantity;
-                    const existingLot = currentSizeData.lot || '';
-                    
-                    await setDoc(inventoryDocRef, { [size]: { quantity: newQuantity, lot: existingLot } }, { merge: true });
-
-                    showModal('출고 처리가 완료되었습니다.');
+                    await addDoc(collection(db, 'artifacts', appId, 'users', userId, 'shippingLog'), { itemNo, size, lot, quantity, timestamp: serverTimestamp() });
+                    const existingLot = localInventory[itemNo]?.[size]?.lot || '';
+                    await setDoc(doc(db, 'artifacts', appId, 'users', userId, 'inventory', itemNo), { [size]: { quantity: currentQuantity - quantity, lot: existingLot } }, { merge: true });
+                    showModal('출고 처리 완료.');
                     shippingForm.reset();
-                } catch (error) {
-                    console.error("Error processing shipping: ", error);
-                    showModal('오류가 발생했습니다: ' + error.message);
-                }
+                } catch (error) { showModal('오류: ' + error.message); }
             });
 
             // --- App Authentication and Initialization ---
-            onAuthStateChanged(auth, async (user) => {
+            onAuthStateChanged(auth, user => {
                 if (user) {
                     userId = user.uid;
                     if (inventoryUnsubscribe) inventoryUnsubscribe();
                     if (productionLogUnsubscribe) productionLogUnsubscribe();
                     if (shippingLogUnsubscribe) shippingLogUnsubscribe();
-                    await setupRealtimeListeners();
+                    setupRealtimeListeners();
                 }
             });
 
-            async function main() {
+            (async function main() {
                 try {
-                    if (authToken) {
-                        await signInWithCustomToken(auth, authToken);
-                    } else {
-                        await signInAnonymously(auth);
-                    }
+                    loadingText.textContent = "사용자 인증 중...";
+                    if (authToken) await signInWithCustomToken(auth, authToken);
+                    else await signInAnonymously(auth);
                 } catch (error) {
+                    loadingText.textContent = "인증 실패. 새로고침 후 다시 시도해주세요.";
                     console.error("Authentication failed:", error);
-                    loadingEl.textContent = "인증에 실패했습니다. 페이지를 새로고침해주세요.";
                 }
-            }
-            
-            main();
+            })();
         }
 
         function waitForConfig(retries = 0) {
+            loadingText.textContent = `설정 정보 확인 중... (시도 ${retries + 1})`;
             try {
-                if (typeof __firebase_config !== 'undefined' && __firebase_config && __firebase_config.trim() !== '' && typeof __app_id !== 'undefined') {
+                if (typeof __firebase_config !== 'undefined' && __firebase_config?.trim() && typeof __app_id !== 'undefined') {
                     const firebaseConfig = JSON.parse(__firebase_config); 
                     const authToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-                    const appId = __app_id;
-                    startApp(firebaseConfig, authToken, appId);
+                    startApp(firebaseConfig, authToken, __app_id);
                 } else {
                     throw new Error("Config not ready");
                 }
@@ -463,12 +401,14 @@
                 if (retries < 100) { // Wait up to 10 seconds
                     setTimeout(() => waitForConfig(retries + 1), 100);
                 } else {
-                    loadingEl.textContent = "시스템 설정 로딩에 실패했습니다. 네트워크 연결을 확인하고 새로고침 해주세요.";
-                    console.error("Could not find or parse __firebase_config after 10 seconds.", e);
+                    loadingText.textContent = "자동 설정 로딩 실패. 네트워크 연결을 확인하고 '수동 시작'을 눌러주세요.";
+                    manualStartBtn.classList.remove('hidden');
+                    console.error("Could not find/parse config after 10 seconds.", e);
                 }
             }
         }
         
+        manualStartBtn.addEventListener('click', () => waitForConfig());
         window.addEventListener('DOMContentLoaded', waitForConfig);
     </script>
 </body>
