@@ -48,7 +48,8 @@
     <!-- 중요: 이 부분에 1단계에서 복사한 본인의 Firebase 설정값을 붙여넣으세요. -->
     <script>
       const firebaseConfig = {
-        apiKey: "AIzaSyA5__GOcjGtGdCivk1mVH5Vt_Z_C_uo80M", // <--- 여기에 붙여넣기
+        apiKey: "
+AIzaSyA5__GOcjGtGdCivk1mVH5Vt_Z_C_uo80M", // <--- 여기에 붙여넣기
         authDomain: "YOUR_AUTH_DOMAIN", // <--- 여기에 붙여넣기
         projectId: "YOUR_PROJECT_ID", // <--- 여기에 붙여넣기
         storageBucket: "YOUR_STORAGE_BUCKET", // <--- 여기에 붙여넣기
@@ -78,7 +79,6 @@
         const userIdSpan = document.getElementById('user-id');
         
         // --- 뷰 렌더링 함수 ---
-        // (렌더링 함수 코드는 이전과 동일하며 변경사항 없음)
         const renderInventoryDashboard = () => {
             const shippedLotNos = new Set(shipments.map(s => s.productionLotNo));
             const currentStock = productions.filter(p => !shippedLotNos.has(p.lotNo));
@@ -271,8 +271,32 @@
                         userId = user.uid;
                         userIdSpan.textContent = "연결 성공";
                         
-                        onSnapshot(query(collection(db, 'productions')), (snapshot) => { productions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); render(); }, (error) => { console.error("Productions snapshot error: ", error); });
-                        onSnapshot(query(collection(db, 'shipments')), (snapshot) => { shipments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); render(); }, (error) => { console.error("Shipments snapshot error: ", error); });
+                        onSnapshot(query(collection(db, 'productions')), 
+                            (snapshot) => { 
+                                productions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
+                                render(); 
+                            }, 
+                            (error) => { 
+                                console.error("Productions snapshot error: ", error); 
+                                mainContent.innerHTML = `<div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md" role="alert">
+                                                            <p class="font-bold">데이터 읽기 오류</p>
+                                                            <p>데이터베이스에서 생산 목록을 불러오는 데 실패했습니다. Firebase '규칙' 탭에서 데이터 읽기 권한이 올바르게 설정되었는지 확인하세요. (오류 메시지: ${error.code})</p>
+                                                         </div>`;
+                            }
+                        );
+                        onSnapshot(query(collection(db, 'shipments')), 
+                            (snapshot) => { 
+                                shipments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
+                                render(); 
+                            }, 
+                            (error) => { 
+                                console.error("Shipments snapshot error: ", error); 
+                                 mainContent.innerHTML = `<div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md" role="alert">
+                                                            <p class="font-bold">데이터 읽기 오류</p>
+                                                            <p>데이터베이스에서 출고 목록을 불러오는 데 실패했습니다. Firebase '규칙' 탭에서 데이터 읽기 권한이 올바르게 설정되었는지 확인하세요. (오류 메시지: ${error.code})</p>
+                                                         </div>`;
+                            }
+                        );
 
                     } else { userIdSpan.textContent = "인증 실패"; }
                 });
@@ -295,17 +319,25 @@
 </html>
 ```
 
-### **3단계: 코드에 '보안 카드(API 키)' 붙여넣기 및 업로드**
+### **2단계: Firebase 보안 규칙 업데이트**
 
-1.  수정된 `inventory_app.html` 파일을 엽니다.
-2.  아래와 같이 생긴 `<script>` 블록을 찾습니다.
-    ```html
-    <script>
-      const firebaseConfig = {
-        apiKey: "YOUR_API_KEY", // <--- 여기에 붙여넣기
-        authDomain: "YOUR_AUTH_DOMAIN", // <--- 여기에 붙여넣기
-        // ...
-      };
-    </script>
+가장 확실한 해결 방법입니다. 아래 순서대로 본인의 Firebase 프로젝트에 새로운 규칙을 적용해 주세요.
+
+1.  **[Firebase 콘솔](https://console.firebase.google.com/)**로 이동하여 본인의 프로젝트를 엽니다.
+2.  왼쪽 메뉴에서 **빌드 > Firestore Database**로 이동합니다.
+3.  상단 탭에서 **'규칙'(Rules)**을 클릭합니다.
+4.  기존에 있던 모든 내용을 지우고, 아래의 새로운 규칙 코드를 그대로 복사하여 붙여넣습니다.
+
+    ```javascript
+    rules_version = '2';
+    service cloud.firestore {
+      match /databases/{database}/documents {
+        // productions와 shipments 컬렉션에 대해
+        // 인증된 모든 사용자(익명 사용자 포함)의 읽기, 쓰기를 허용합니다.
+        match /{collection}/{document} {
+          allow read, write: if request.auth != null;
+        }
+      }
+    }
     
 
