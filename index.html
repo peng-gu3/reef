@@ -50,14 +50,6 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- Firebase 설정 ---
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_AUTH_DOMAIN",
-            projectId: "YOUR_PROJECT_ID",
-        };
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
         // --- 앱 상태 변수 ---
         let view = '재고관리대장';
         let productions = [];
@@ -73,6 +65,17 @@
         const userIdSpan = document.getElementById('user-id');
         
         // --- 뷰 렌더링 함수 ---
+        const renderApiKeyError = () => {
+            mainContent.innerHTML = `
+                <div class="bg-red-100 border-l-4 border-red-500 text-red-800 p-6 rounded-lg shadow-lg max-w-3xl mx-auto">
+                    <h2 class="text-xl font-bold mb-2">Firebase 연결 설정 오류</h2>
+                    <p class="font-semibold">오류 코드: auth/api-key-not-valid</p>
+                    <p class="mt-2">앱을 실행하는 데 필요한 Firebase API 키가 제공되지 않았거나 유효하지 않습니다.</p>
+                    <p class="mt-2">이 앱은 API 키가 자동으로 제공되는 Canvas 환경에서 실행되도록 설계되었습니다. 현재 환경에서는 데이터베이스에 연결할 수 없습니다.</p>
+                </div>`;
+            userIdSpan.textContent = '연결 설정 오류';
+            document.getElementById('nav-buttons').querySelectorAll('button').forEach(b => b.disabled = true);
+        };
 
         // 1. 재고관리대장 렌더링
         const renderInventoryDashboard = () => {
@@ -321,6 +324,7 @@
 
         // --- 메인 렌더링 및 이벤트 핸들러 ---
         const render = () => {
+            if (!userId) return; // 사용자가 없으면 렌더링하지 않음
             mainContent.innerHTML = `<div class="text-center p-8">데이터를 불러오는 중입니다...</div>`;
             switch(view) {
                 case '재고관리대장': renderInventoryDashboard(); break;
@@ -343,51 +347,65 @@
         });
         
         // --- 앱 초기화 ---
-        try {
-            const app = initializeApp(firebaseConfig);
-            const auth = getAuth(app);
-            db = getFirestore(app);
+        const initialize = () => {
+            // 1. Firebase 설정 변수 확인
+            if (typeof __firebase_config === 'undefined') {
+                renderApiKeyError();
+                return;
+            }
+            const firebaseConfig = JSON.parse(__firebase_config);
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-            onAuthStateChanged(auth, (user) => {
-                if (user) {
-                    userId = user.uid;
-                    userIdSpan.textContent = userId;
-                    
-                    // 데이터 구독 시작
-                    const collectionPath = (name) => `/artifacts/${appId}/users/${userId}/${name}`;
-                    
-                    onSnapshot(query(collection(db, collectionPath('productions'))), (snapshot) => {
-                        productions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        render();
-                    });
-                    
-                    onSnapshot(query(collection(db, collectionPath('shipments'))), (snapshot) => {
-                        shipments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        render();
-                    });
+            // 2. Firebase 앱 초기화
+            try {
+                const app = initializeApp(firebaseConfig);
+                const auth = getAuth(app);
+                db = getFirestore(app);
 
-                } else {
-                    userIdSpan.textContent = "연결 실패";
-                }
-            });
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        userIdSpan.textContent = userId;
+                        
+                        const collectionPath = (name) => `/artifacts/${appId}/users/${userId}/${name}`;
+                        
+                        onSnapshot(query(collection(db, collectionPath('productions'))), (snapshot) => {
+                            productions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                            render();
+                        }, (error) => { console.error("Productions snapshot error: ", error); });
+                        
+                        onSnapshot(query(collection(db, collectionPath('shipments'))), (snapshot) => {
+                            shipments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                            render();
+                        }, (error) => { console.error("Shipments snapshot error: ", error); });
 
-            (async () => {
-                try {
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await signInWithCustomToken(auth, __initial_auth_token);
                     } else {
-                        await signInAnonymously(auth);
+                        userIdSpan.textContent = "연결 실패";
                     }
-                } catch (authError) {
-                    console.error("Firebase Authentication Error:", authError);
-                    userIdSpan.textContent = `인증 오류: ${authError.code}`;
-                }
-            })();
+                });
 
-        } catch(e) {
-            console.error("앱 초기화 오류:", e);
-            mainContent.innerHTML = `<div class="text-center p-8 text-red-500">앱 초기화 오류: ${e.message}</div>`;
-        }
+                (async () => {
+                    try {
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await signInWithCustomToken(auth, __initial_auth_token);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    } catch (authError) {
+                        console.error("Firebase Authentication Error:", authError);
+                        userIdSpan.textContent = `인증 오류: ${authError.code}`;
+                        renderApiKeyError(); // 인증 오류 시에도 명확한 안내 표시
+                    }
+                })();
+
+            } catch(e) {
+                console.error("앱 초기화 오류:", e);
+                mainContent.innerHTML = `<div class="text-center p-8 text-red-500">앱 초기화 오류: ${e.message}</div>`;
+            }
+        };
+
+        // 앱 실행
+        initialize();
     </script>
 </body>
 </html>
