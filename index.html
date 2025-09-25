@@ -1,475 +1,478 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>간편 재고 관리 시스템</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Noto Sans KR', sans-serif;
-        }
-        .table-auto th, .table-auto td {
-            border: 1px solid #e2e8f0;
-            padding: 8px;
-            vertical-align: top;
-        }
-        .table-auto thead th {
-            background-color: #f8fafc;
-            position: sticky;
-            top: 0;
-        }
-        .table-auto tbody td:first-child {
-            position: sticky;
-            left: 0;
-            background-color: #f8fafc;
-            font-weight: 500;
-        }
-        .modal-overlay {
-            transition: opacity 0.3s ease;
-        }
-        .modal-container {
-            transition: transform 0.3s ease;
-        }
-    </style>
-</head>
-<body class="bg-gray-100 text-gray-800">
+import React, { useState, useEffect, useMemo } from 'react';
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
+import { getFirestore, collection, addDoc, onSnapshot, query, doc, setDoc } from 'firebase/firestore';
 
-    <div id="app" class="container mx-auto p-4 md:p-8">
-        <header class="text-center mb-8 relative">
-            <h1 class="text-3xl md:text-4xl font-bold text-gray-900">간편 재고 관리 시스템 (오프라인)</h1>
-            <p class="text-gray-600 mt-2">모든 데이터는 현재 브라우저에만 저장됩니다.</p>
-            <button id="reset-data-btn" class="absolute top-0 right-0 bg-red-500 text-white text-xs font-bold py-1 px-3 rounded-full hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition duration-150">
-                전체 초기화
-            </button>
-        </header>
+// --- Firebase 설정 (실제 환경에서는 제공된 변수 사용) ---
+const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+    apiKey: "YOUR_API_KEY", // 로컬 테스트용
+    authDomain: "YOUR_AUTH_DOMAIN",
+    projectId: "YOUR_PROJECT_ID",
+};
 
-        <div id="main-content">
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <!-- Input Forms Section -->
-                <div class="lg:col-span-1 flex flex-col gap-8">
-                    <!-- Production Form -->
-                    <div class="bg-white p-6 rounded-xl shadow-md">
-                        <h2 class="text-xl font-semibold mb-4 border-b pb-2 text-blue-600">생산 등록</h2>
-                        <form id="production-form" class="space-y-4">
-                            <div>
-                                <label for="prod-item" class="block text-sm font-medium text-gray-700">ITEM NO.</label>
-                                <input type="text" id="prod-item" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="예: ALS910C" required>
-                            </div>
-                            <div>
-                                <label for="prod-size" class="block text-sm font-medium text-gray-700">SIZE</label>
-                                <input type="text" id="prod-size" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="예: 1/8&quot;" required>
-                            </div>
-                            <div>
-                                <label for="prod-lot" class="block text-sm font-medium text-gray-700">시작 LOT NO.</label>
-                                <input type="text" id="prod-lot" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="예: 2501C321" required>
-                            </div>
-                             <div>
-                                <label for="prod-raw-lot" class="block text-sm font-medium text-gray-700">원자재 LOT</label>
-                                <input type="text" id="prod-raw-lot" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="예: YC-TX220303">
-                            </div>
-                            <div>
-                                <label for="prod-quantity" class="block text-sm font-medium text-gray-700">총 수량 (LB)</label>
-                                <input type="number" id="prod-quantity" min="0.1" step="0.1" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
-                            </div>
-                            <div>
-                                <label for="prod-unit-quantity" class="block text-sm font-medium text-gray-700">단위당 수량 (LB)</label>
-                                <input type="number" id="prod-unit-quantity" value="10" min="0.1" step="0.1" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
-                            </div>
-                            <div>
-                                <label for="prod-weight" class="block text-sm font-medium text-gray-700">총 무게 (g)</label>
-                                <input type="number" id="prod-weight" min="0" step="0.1" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="예: 5200">
-                            </div>
-                            <button type="submit" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150">생산 추가</button>
-                        </form>
-                    </div>
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-                    <!-- Shipping Form -->
-                    <div class="bg-white p-6 rounded-xl shadow-md">
-                        <h2 class="text-xl font-semibold mb-4 border-b pb-2 text-red-600">출고 등록</h2>
-                        <form id="shipping-form" class="space-y-4">
-                            <div>
-                                <label for="ship-item" class="block text-sm font-medium text-gray-700">ITEM NO.</label>
-                                 <input type="text" id="ship-item" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="예: ALS910C" required>
-                            </div>
-                            <div>
-                                <label for="ship-size" class="block text-sm font-medium text-gray-700">SIZE</label>
-                                <input type="text" id="ship-size" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="예: 1/8&quot;" required>
-                            </div>
-                             <div>
-                                <label for="ship-client" class="block text-sm font-medium text-gray-700">납품처</label>
-                                <input type="text" id="ship-client" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="예: DFR">
-                            </div>
-                            <div>
-                                <label for="ship-lot" class="block text-sm font-medium text-gray-700">LOT NO.</label>
-                                <input type="text" id="ship-lot" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="출고되는 제품 Lot No." required>
-                            </div>
-                            <div>
-                                <label for="ship-quantity" class="block text-sm font-medium text-gray-700">수량 (LB)</label>
-                                <input type="number" id="ship-quantity" min="0.1" step="0.1" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-red-500 focus:border-red-500" required>
-                            </div>
-                            <button type="submit" class="w-full bg-red-600 text-white font-bold py-2 px-4 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition duration-150">출고 처리</button>
-                        </form>
-                    </div>
-                </div>
-
-                <!-- Inventory List Section -->
-                <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-md">
-                     <h2 class="text-xl font-semibold mb-4">완제품 재고 현황</h2>
-                    <div class="overflow-auto h-[80vh]">
-                        <table id="inventory-table" class="w-full table-auto text-sm text-left">
-                            <thead id="inventory-head">
-                                <!-- Header generated by JS -->
-                            </thead>
-                            <tbody id="inventory-body">
-                                <!-- Body generated by JS -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Logs Section -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
-                <div class="bg-white p-6 rounded-xl shadow-md">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-lg font-semibold">생산 기록</h3>
-                        <input type="text" id="filter-production-log" placeholder="기록 검색..." class="border border-gray-300 rounded-md shadow-sm py-1 px-2 text-sm">
-                    </div>
-                    <div class="overflow-y-auto h-64">
-                        <table class="w-full text-sm">
-                            <thead class="sticky top-0 bg-white">
-                                <tr>
-                                    <th>일시</th>
-                                    <th>ITEM</th>
-                                    <th>SIZE</th>
-                                    <th>수량(LB)</th>
-                                    <th>무게(g)</th>
-                                    <th>LOT NO.</th>
-                                    <th>원자재 LOT</th>
-                                </tr>
-                            </thead>
-                            <tbody id="production-log"></tbody>
-                        </table>
-                    </div>
-                </div>
-                <div class="bg-white p-6 rounded-xl shadow-md">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-lg font-semibold">출고 기록</h3>
-                        <input type="text" id="filter-shipping-log" placeholder="기록 검색..." class="border border-gray-300 rounded-md shadow-sm py-1 px-2 text-sm">
-                    </div>
-                    <div class="overflow-y-auto h-64">
-                        <table class="w-full text-sm">
-                            <thead class="sticky top-0 bg-white">
-                                <tr>
-                                    <th>일시</th>
-                                    <th>ITEM</th>
-                                    <th>SIZE</th>
-                                    <th>납품처</th>
-                                    <th>수량(LB)</th>
-                                    <th>LOT NO.</th>
-                                </tr>
-                            </thead>
-                            <tbody id="shipping-log"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal for notifications -->
-    <div id="modal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0">
-        <div class="modal-container bg-white w-full max-w-sm rounded-lg shadow-xl p-6 text-center transform scale-95">
-            <p id="modal-message" class="text-lg"></p>
-            <div class="mt-6 space-x-4">
-                <button id="modal-confirm" class="bg-red-600 text-white font-bold py-2 px-6 rounded-md hover:bg-red-700 transition duration-150 hidden">확인</button>
-                <button id="modal-close" class="bg-gray-800 text-white font-bold py-2 px-6 rounded-md hover:bg-gray-900 transition duration-150">닫기</button>
-            </div>
-        </div>
-    </div>
+// --- 주요 컴포넌트 ---
+const App = () => {
+    // --- 상태 관리 ---
+    const [view, setView] = useState('재고관리대장'); // 현재 보여줄 뷰
+    const [productions, setProductions] = useState([]); // 생산 리스트
+    const [shipments, setShipments] = useState([]); // 출고 리스트
+    const [loading, setLoading] = useState(true); // 데이터 로딩 상태
+    const [error, setError] = useState(null); // 에러 메시지
     
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const resetButton = document.getElementById('reset-data-btn');
-            const inventoryHeadEl = document.getElementById('inventory-head');
-            const inventoryBodyEl = document.getElementById('inventory-body');
-            const productionForm = document.getElementById('production-form');
-            const shippingForm = document.getElementById('shipping-form');
-            const productionLogEl = document.getElementById('production-log');
-            const shippingLogEl = document.getElementById('shipping-log');
-            const modal = document.getElementById('modal');
-            const modalMessage = document.getElementById('modal-message');
-            const modalClose = document.getElementById('modal-close');
-            const modalConfirm = document.getElementById('modal-confirm');
-            
-            const filterProductionLogInput = document.getElementById('filter-production-log');
-            const filterShippingLogInput = document.getElementById('filter-shipping-log');
+    // --- Firebase 인스턴스 ---
+    const [db, setDb] = useState(null);
+    const [auth, setAuth] = useState(null);
+    const [userId, setUserId] = useState(null);
 
-            let confirmCallback = null;
-            let state = {
-                productionLog: [],
-                shippingLog: [],
-            };
+    // --- 고정 데이터 (품목 및 사이즈) ---
+    const ITEM_LIST = ['ALS910C', 'ALS900G', 'ALS955W', 'ALS970', 'ALS990', 'ALS420', 'ALS610', 'ALS620', 'ALS623S', 'ALS630N', 'ALS640K', 'ALS350Y'];
+    const SIZE_LIST = ['1/8"', '3/16"', '1/4"', '5/16"', '3/8"', '7/16"', '1/2"', '9/16"', '5/8"', '11/16"', '3/4"', '13/16" (20.6)', '7/8"', '1"', '1-1/4"'];
 
-            const DB_KEY = 'simpleInventoryDB';
+    // --- Firebase 초기화 및 인증 ---
+    useEffect(() => {
+        try {
+            const app = initializeApp(firebaseConfig);
+            const authInstance = getAuth(app);
+            const dbInstance = getFirestore(app);
+            setDb(dbInstance);
+            setAuth(authInstance);
 
-            const ALL_ITEMS = ["ALS910C", "ALS900G", "ALS955W", "ALS970", "ALS990", "ALS420", "ALS610", "ALS620", "ALS623S", "ALS630N", "ALS640K", "ALS350Y"];
-            const ALL_SIZES = ["1/8\"", "3/16\"", "1/4\"", "5/16\"", "3/8\"", "7/16\"", "1/2\"", "9/16\"", "5/8\"", "11/16\"", "3/4\"", "13/16\"", "7/8\"", "1\"", "1-1/8\"", "1-1/4\""];
-            const UNIQUE_SIZES = [...new Set(ALL_SIZES)].sort((a, b) => {
-                try {
-                    const toNum = str => {
-                        if (!str.includes('/') && !str.includes('-')) return parseFloat(str) || 0;
-                        return str.split(/[\s-]+/).reduce((acc, part) => {
-                            const fractions = part.split('/');
-                            return acc + (parseFloat(fractions[0]) / (parseFloat(fractions[1]) || 1));
-                        }, 0);
-                    };
-                    return toNum(a) - toNum(b);
-                } catch (e) { return a.localeCompare(b); }
-            });
-
-
-            function loadState() {
-                const savedState = localStorage.getItem(DB_KEY);
-                if (savedState) {
-                    state = JSON.parse(savedState);
+            const authCheck = async () => {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(authInstance, __initial_auth_token);
                 } else {
-                    state.productionLog = [];
-                    state.shippingLog = [];
-                    saveState();
+                    await signInAnonymously(authInstance);
                 }
-            }
+            };
+            authCheck();
 
-            function saveState() {
-                localStorage.setItem(DB_KEY, JSON.stringify(state));
-            }
-            
-            function populateInitialData() {
-                state.productionLog = [];
-                state.shippingLog = [];
-                saveState();
-            }
-
-            function showModal(message, showConfirm = false, callback = null) {
-                modalMessage.textContent = message;
-                modalConfirm.classList.toggle('hidden', !showConfirm);
-                modalClose.textContent = showConfirm ? '취소' : '닫기';
-                confirmCallback = showConfirm ? callback : null;
-                modal.classList.remove('hidden');
-                setTimeout(() => modal.classList.remove('opacity-0'), 10);
-            }
-
-            function hideModal() {
-                modal.classList.add('opacity-0');
-                setTimeout(() => modal.classList.add('hidden'), 300);
-            }
-            
-            modalClose.addEventListener('click', hideModal);
-            modalConfirm.addEventListener('click', () => {
-                if (confirmCallback) confirmCallback();
-                hideModal();
+            const unsubscribe = onAuthStateChanged(authInstance, (user) => {
+                if (user) {
+                    setUserId(user.uid);
+                } else {
+                    setUserId(null);
+                }
+                setLoading(false);
             });
 
-            function applyFiltersAndRender() {
-                const productionFilter = filterProductionLogInput.value.trim().toUpperCase();
-                const shippingFilter = filterShippingLogInput.value.trim().toUpperCase();
+            return () => unsubscribe();
+        } catch (e) {
+            console.error("Firebase 초기화 오류:", e);
+            setError("앱을 초기화하는 중 오류가 발생했습니다.");
+            setLoading(false);
+        }
+    }, []);
+    
+    // --- Firestore 데이터 실시간 구독 ---
+    useEffect(() => {
+        if (!db || !userId) return;
 
-                renderInventory();
-                renderLogs(productionFilter, shippingFilter);
-            }
+        setLoading(true);
+        const getCollectionPath = (collectionName) => `/artifacts/${appId}/users/${userId}/${collectionName}`;
 
-            function calculateLiveInventory() {
-                const lotStock = {};
-                state.productionLog.forEach(log => {
-                    const key = log.lot;
-                    if (!lotStock[key]) {
-                        lotStock[key] = { ...log };
-                    } else {
-                        lotStock[key].quantity += log.quantity;
-                    }
-                });
-
-                state.shippingLog.forEach(log => {
-                    const key = log.lot;
-                    if (lotStock[key]) {
-                        lotStock[key].quantity -= log.quantity;
-                    }
-                });
-
-                return Object.values(lotStock).filter(lot => lot.quantity > 0.01);
-            }
-
-            function renderInventory() {
-                inventoryBodyEl.innerHTML = '';
-                inventoryHeadEl.innerHTML = '';
-                const liveInventory = calculateLiveInventory();
-
-                // Create header row
-                const headerRow = document.createElement('tr');
-                headerRow.innerHTML = `<th class="p-3 sticky left-0 top-0 bg-gray-200 z-10">SIZE</th>`;
-                ALL_ITEMS.forEach(item => {
-                    const th = document.createElement('th');
-                    th.className = 'p-3';
-                    th.textContent = item;
-                    headerRow.appendChild(th);
-                });
-                inventoryHeadEl.appendChild(headerRow);
-
-                // Create body rows
-                UNIQUE_SIZES.forEach(size => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `<td class="p-3 sticky left-0 bg-white">${size}</td>`;
-
-                    ALL_ITEMS.forEach(item => {
-                        const cell = document.createElement('td');
-                        cell.className = 'p-1 align-top min-w-[150px]';
-                        
-                        const lotsForCell = liveInventory.filter(lot => lot.itemNo === item && lot.size === size);
-
-                        if (lotsForCell.length > 0) {
-                            cell.innerHTML = lotsForCell.map(lot => 
-                                `<div class="text-xs p-1 my-1 bg-green-100 rounded border border-green-200 flex justify-between">
-                                    <span>${lot.lot}</span>
-                                    <span class="font-bold">${lot.quantity.toFixed(1)}</span>
-                                 </div>`
-                            ).join('');
-                        }
-                        row.appendChild(cell);
-                    });
-                    inventoryBodyEl.appendChild(row);
-                });
-            }
-
-            function renderLogs(productionFilter = '', shippingFilter = '') {
-                // Production Log
-                productionLogEl.innerHTML = '';
-                let filteredProductionLogs = state.productionLog;
-                if(productionFilter) {
-                    filteredProductionLogs = state.productionLog.filter(log => 
-                        Object.values(log).some(val => String(val).toUpperCase().includes(productionFilter))
-                    );
-                }
-
-                filteredProductionLogs.slice().reverse().forEach(log => {
-                    const row = document.createElement('tr');
-                    row.className = 'border-b';
-                    row.innerHTML = `<td class="p-2">${new Date(log.timestamp).toLocaleString('ko-KR')}</td><td class="p-2">${log.itemNo}</td><td class="p-2">${log.size}</td><td class="p-2">${log.quantity}</td><td class="p-2">${log.weightG || ''}</td><td class="p-2">${log.lot}</td><td class="p-2">${log.rawMaterialLot || ''}</td>`;
-                    productionLogEl.appendChild(row);
-                });
-
-                // Shipping Log
-                shippingLogEl.innerHTML = '';
-                let filteredShippingLogs = state.shippingLog;
-                if(shippingFilter) {
-                     filteredShippingLogs = state.shippingLog.filter(log => 
-                        Object.values(log).some(val => String(val).toUpperCase().includes(shippingFilter))
-                    );
-                }
-
-                filteredShippingLogs.slice().reverse().forEach(log => {
-                    const row = document.createElement('tr');
-                    row.className = 'border-b';
-                    row.innerHTML = `<td class="p-2">${new Date(log.timestamp).toLocaleString('ko-KR')}</td><td class="p-2">${log.itemNo}</td><td class="p-2">${log.size}</td><td class="p-2">${log.client || ''}</td><td class="p-2">${log.quantity}</td><td class="p-2">${log.lot}</td>`;
-                    shippingLogEl.appendChild(row);
-                });
-            }
-
-            function resetAllData() {
-                showModal("데이터를 초기화하는 중...", false);
-                populateInitialData();
-                applyFiltersAndRender();
-                showModal("모든 데이터가 성공적으로 초기화되었습니다.");
-            }
-
-            resetButton.addEventListener('click', () => showModal("정말 모든 데이터를 삭제하고 시스템을 초기화하시겠습니까?", true, resetAllData));
-
-            productionForm.addEventListener('submit', e => {
-                e.preventDefault();
-                const itemNo = document.getElementById('prod-item').value.trim().toUpperCase();
-                const size = document.getElementById('prod-size').value.trim();
-                const startLot = document.getElementById('prod-lot').value.trim();
-                const rawMaterialLot = document.getElementById('prod-raw-lot').value.trim();
-                const totalQuantity = parseFloat(document.getElementById('prod-quantity').value);
-                const unitQuantity = parseFloat(document.getElementById('prod-unit-quantity').value);
-                const totalWeightG = parseFloat(document.getElementById('prod-weight').value);
-
-                if (!itemNo || !size || !startLot || isNaN(totalQuantity) || totalQuantity <= 0 || isNaN(unitQuantity) || unitQuantity <= 0) {
-                    return showModal('필수 항목(ITEM NO, SIZE, 시작 LOT, 총 수량, 단위 수량)을 모두 입력해주세요.');
-                }
-
-                const lotMatch = startLot.match(/(.*?)(\d+)$/);
-                if (!lotMatch) {
-                    return showModal('LOT 번호는 숫자로 끝나야 합니다. 예: 2505S1271');
-                }
-
-                const lotPrefix = lotMatch[1];
-                const startNumber = parseInt(lotMatch[2], 10);
-                
-                const numberOfUnits = Math.ceil(totalQuantity / unitQuantity);
-                const weightPerUnit = !isNaN(totalWeightG) && totalWeightG > 0 ? (totalWeightG / numberOfUnits) : null;
-                
-                for (let i = 0; i < numberOfUnits; i++) {
-                    const remainingQuantity = totalQuantity - (i * unitQuantity);
-                    const currentUnitQuantity = Math.min(unitQuantity, remainingQuantity);
-                    const currentLotNumber = lotPrefix + (startNumber + i);
-                    
-                    state.productionLog.push({
-                        itemNo,
-                        size,
-                        lot: currentLotNumber,
-                        rawMaterialLot,
-                        quantity: currentUnitQuantity,
-                        weightG: weightPerUnit ? parseFloat(weightPerUnit.toFixed(1)) : '',
-                        timestamp: new Date().toISOString()
-                    });
-                }
-                
-                saveState();
-                applyFiltersAndRender();
-                productionForm.reset();
-                showModal(`${numberOfUnits}개의 LOT가 등록되었습니다. (총 ${totalQuantity} LB)`);
-            });
-
-            shippingForm.addEventListener('submit', e => {
-                e.preventDefault();
-                const itemNo = document.getElementById('ship-item').value.trim().toUpperCase();
-                const size = document.getElementById('ship-size').value.trim();
-                const client = document.getElementById('ship-client').value.trim();
-                const lot = document.getElementById('ship-lot').value.trim();
-                const quantity = parseFloat(document.getElementById('ship-quantity').value);
-
-                if (!itemNo || !size || !lot || isNaN(quantity) || quantity <= 0) return showModal('ITEM NO, SIZE, LOT NO, 수량(LB)은 필수 항목입니다.');
-                
-                const liveInventory = calculateLiveInventory();
-                const lotToShip = liveInventory.find(invLot => invLot.lot === lot);
-
-                if (!lotToShip) {
-                     return showModal(`재고에 없는 LOT 번호입니다: ${lot}`);
-                }
-                
-                if (lotToShip.quantity < quantity) {
-                    return showModal(`LOT(${lot})의 재고가 부족합니다. (현재고: ${lotToShip.quantity.toFixed(1)} LB)`);
-                }
-
-                state.shippingLog.push({ itemNo, size, lot, quantity, client, timestamp: new Date().toISOString() });
-                
-                saveState();
-                applyFiltersAndRender();
-                shippingForm.reset();
-                showModal('출고 처리 완료.');
-            });
-            
-            // Event Listeners for filters
-            filterProductionLogInput.addEventListener('input', applyFiltersAndRender);
-            filterShippingLogInput.addEventListener('input', applyFiltersAndRender);
-
-            // Initial Load
-            loadState();
-            applyFiltersAndRender();
+        const prodQuery = query(collection(db, getCollectionPath('productions')));
+        const prodUnsubscribe = onSnapshot(prodQuery, (querySnapshot) => {
+            const prods = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setProductions(prods);
+            setLoading(false);
+        }, (err) => {
+            console.error("생산 데이터 로딩 오류:", err);
+            setError("생산 데이터를 불러오는데 실패했습니다.");
+            setLoading(false);
         });
-    </script>
-</body>
-</html>
 
+        const shipQuery = query(collection(db, getCollectionPath('shipments')));
+        const shipUnsubscribe = onSnapshot(shipQuery, (querySnapshot) => {
+            const ships = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setShipments(ships);
+        }, (err) => {
+            console.error("출고 데이터 로딩 오류:", err);
+            setError("출고 데이터를 불러오는데 실패했습니다.");
+        });
+
+        return () => {
+            prodUnsubscribe();
+            shipUnsubscribe();
+        };
+    }, [db, userId]);
+
+    // --- 현재 재고 계산 (출고된 제품 제외) ---
+    const currentStock = useMemo(() => {
+        const shippedLotNos = new Set(shipments.map(s => s.productionLotNo));
+        return productions.filter(p => !shippedLotNos.has(p.lotNo));
+    }, [productions, shipments]);
+
+    // --- 뷰 렌더링 함수 ---
+    const renderView = () => {
+        if (loading) return <div className="text-center p-8">데이터를 불러오는 중입니다...</div>;
+        if (error) return <div className="text-center p-8 text-red-500">{error}</div>;
+
+        switch (view) {
+            case '재고관리대장':
+                return <InventoryDashboard stock={currentStock} items={ITEM_LIST} sizes={SIZE_LIST} />;
+            case '생산리스트':
+                return <ProductionForm db={db} userId={userId} items={ITEM_LIST} sizes={SIZE_LIST} />;
+            case '출고리스트':
+                return <ShipmentForm db={db} userId={userId} productions={productions} />;
+            case '재고현황':
+                return <InventorySummary productions={productions} shipments={shipments} items={ITEM_LIST} sizes={SIZE_LIST} />;
+            default:
+                return <div>뷰를 선택해주세요.</div>;
+        }
+    };
+
+    return (
+        <div className="bg-gray-100 min-h-screen font-sans">
+            <header className="bg-white shadow-md">
+                <nav className="container mx-auto px-4 py-3">
+                    <div className="flex flex-col sm:flex-row justify-between items-center">
+                        <h1 className="text-2xl font-bold text-gray-800 mb-2 sm:mb-0">실시간 재고 관리 시스템</h1>
+                        <div className="flex flex-wrap justify-center gap-2">
+                            {['재고관리대장', '생산리스트', '출고리스트', '재고현황'].map(v => (
+                                <button
+                                    key={v}
+                                    onClick={() => setView(v)}
+                                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                                        view === v ? 'bg-blue-600 text-white shadow' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    }`}
+                                >
+                                    {v}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </nav>
+            </header>
+            <main className="container mx-auto p-4">
+                {renderView()}
+            </main>
+            <footer className="text-center text-sm text-gray-500 py-4">
+                <p>현재 사용자 ID: {userId || "연결 중..."}</p>
+            </footer>
+        </div>
+    );
+};
+
+// --- 1. 재고관리대장 컴포넌트 ---
+const InventoryDashboard = ({ stock, items, sizes }) => {
+    const stockMap = useMemo(() => {
+        const map = new Map();
+        stock.forEach(item => {
+            const key = `${item.itemNo}-${item.size}`;
+            if (!map.has(key)) {
+                map.set(key, []);
+            }
+            map.get(key).push(item);
+        });
+        return map;
+    }, [stock]);
+
+    return (
+        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-lg overflow-x-auto">
+            <h2 className="text-xl font-bold mb-4 text-gray-700">재고 현황판 (실시간)</h2>
+            <div className="overflow-x-auto">
+                <table className="min-w-full border-collapse">
+                    <thead>
+                        <tr className="bg-gray-200">
+                            <th className="p-3 font-semibold text-left text-sm text-gray-600 border border-gray-300 sticky left-0 bg-gray-200 z-10">SIZE \ ITEM</th>
+                            {items.map(item => <th key={item} className="p-3 font-semibold text-center text-sm text-gray-600 border border-gray-300 min-w-[120px]">{item}</th>)}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {sizes.map(size => (
+                            <tr key={size} className="even:bg-gray-50">
+                                <td className="p-2 font-medium text-sm text-gray-800 border border-gray-300 sticky left-0 bg-white sm:bg-inherit z-10">{size}</td>
+                                {items.map(item => {
+                                    const key = `${item}-${size}`;
+                                    const cellStock = stockMap.get(key) || [];
+                                    return (
+                                        <td key={item} className="p-2 text-xs border border-gray-300 align-top h-24">
+                                            {cellStock.length > 0 ? (
+                                                <div className="flex flex-col gap-1">
+                                                    {cellStock.map(s => (
+                                                         <div key={s.id} className="bg-blue-100 text-blue-800 p-1 rounded-md text-center">
+                                                             {s.weightLb} lb <span className="font-mono text-gray-600">({s.lotNo})</span>
+                                                         </div>
+                                                    ))}
+                                                </div>
+                                            ) : null}
+                                        </td>
+                                    );
+                                })}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};
+
+// --- 2. 생산리스트 입력 폼 컴포넌트 ---
+const ProductionForm = ({ db, userId, items, sizes }) => {
+    const [formData, setFormData] = useState({
+        lotNo: '',
+        prodDate: new Date().toISOString().slice(0, 10),
+        itemNo: items[0],
+        size: sizes[0],
+        weightLb: '10',
+        worker: '',
+    });
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [message, setMessage] = useState('');
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!formData.lotNo || !formData.prodDate || !formData.weightLb || !formData.worker) {
+            setMessage('모든 필수 항목을 입력해주세요.');
+            return;
+        }
+        setIsSubmitting(true);
+        setMessage('');
+
+        try {
+            const collectionPath = `/artifacts/${appId}/users/${userId}/productions`;
+            await addDoc(collection(db, collectionPath), {
+                ...formData,
+                createdAt: new Date(),
+            });
+
+            setMessage('성공적으로 생산 등록되었습니다.');
+            setFormData({
+                lotNo: '',
+                prodDate: new Date().toISOString().slice(0, 10),
+                itemNo: items[0],
+                size: sizes[0],
+                weightLb: '10',
+                worker: '',
+            });
+        } catch (error) {
+            console.error("생산 등록 오류:", error);
+            setMessage('등록 중 오류가 발생했습니다. 다시 시도해주세요.');
+        } finally {
+            setIsSubmitting(false);
+            setTimeout(() => setMessage(''), 3000);
+        }
+    };
+    
+    return (
+        <div className="bg-white p-6 rounded-lg shadow-lg max-w-2xl mx-auto">
+            <h2 className="text-xl font-bold mb-4 text-gray-700">생산 리스트 입력</h2>
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1">LOT. NO</label>
+                        <input type="text" name="lotNo" value={formData.lotNo} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" required />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1">생산일자</label>
+                        <input type="date" name="prodDate" value={formData.prodDate} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" required />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1">ITEM NO.</label>
+                        <select name="itemNo" value={formData.itemNo} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            {items.map(i => <option key={i} value={i}>{i}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1">SIZE</label>
+                         <select name="size" value={formData.size} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            {sizes.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1">포장 (LB)</label>
+                        <input type="number" name="weightLb" value={formData.weightLb} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" required />
+                    </div>
+                     <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1">작업자</label>
+                        <input type="text" name="worker" value={formData.worker} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" required />
+                    </div>
+                </div>
+                <div className="text-right">
+                    <button type="submit" disabled={isSubmitting} className="px-6 py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700 disabled:bg-blue-300 transition-colors">
+                        {isSubmitting ? '등록 중...' : '생산 등록'}
+                    </button>
+                </div>
+                {message && <p className="text-center mt-4 text-sm text-green-600">{message}</p>}
+            </form>
+        </div>
+    );
+};
+
+// --- 3. 출고리스트 입력 폼 컴포넌트 ---
+const ShipmentForm = ({ db, userId, productions }) => {
+    const [lotNoInput, setLotNoInput] = useState('');
+    const [selectedProduction, setSelectedProduction] = useState(null);
+    const [shipmentData, setShipmentData] = useState({ orderNo: '', client: '', worker: '' });
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [message, setMessage] = useState('');
+
+    useEffect(() => {
+        const found = productions.find(p => p.lotNo === lotNoInput);
+        setSelectedProduction(found || null);
+    }, [lotNoInput, productions]);
+    
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setShipmentData(prev => ({...prev, [name]: value}));
+    };
+    
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!selectedProduction || !shipmentData.orderNo || !shipmentData.client || !shipmentData.worker) {
+            setMessage('LOT 번호를 포함한 모든 출고 정보를 입력해주세요.');
+            return;
+        }
+        setIsSubmitting(true);
+        setMessage('');
+
+        try {
+            const collectionPath = `/artifacts/${appId}/users/${userId}/shipments`;
+            await addDoc(collection(db, collectionPath), {
+                shipmentDate: new Date().toISOString().slice(0, 10),
+                orderNo: shipmentData.orderNo,
+                client: shipmentData.client,
+                worker: shipmentData.worker,
+                productionLotNo: selectedProduction.lotNo,
+                itemNo: selectedProduction.itemNo,
+                size: selectedProduction.size,
+                weightLb: selectedProduction.weightLb,
+                createdAt: new Date(),
+            });
+            setMessage('성공적으로 출고 처리되었습니다.');
+            setLotNoInput('');
+            setSelectedProduction(null);
+            setShipmentData({ orderNo: '', client: '', worker: '' });
+
+        } catch(error) {
+            console.error("출고 등록 오류:", error);
+            setMessage('출고 처리 중 오류가 발생했습니다.');
+        } finally {
+            setIsSubmitting(false);
+            setTimeout(() => setMessage(''), 3000);
+        }
+    };
+
+    return (
+        <div className="bg-white p-6 rounded-lg shadow-lg max-w-3xl mx-auto">
+            <h2 className="text-xl font-bold mb-4 text-gray-700">출고 리스트 입력</h2>
+            <form onSubmit={handleSubmit} className="space-y-4">
+                 <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">생산 제품 Lot No.</label>
+                    <input type="text" value={lotNoInput} onChange={(e) => setLotNoInput(e.target.value)} placeholder="LOT 번호를 입력하여 검색" className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" required />
+                </div>
+                
+                {selectedProduction && (
+                    <div className="bg-gray-100 p-4 rounded-md border border-gray-200 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div><span className="font-semibold">생산일자:</span> {selectedProduction.prodDate}</div>
+                        <div><span className="font-semibold">ITEM NO:</span> {selectedProduction.itemNo}</div>
+                        <div><span className="font-semibold">SIZE:</span> {selectedProduction.size}</div>
+                        <div><span className="font-semibold">포장(LB):</span> {selectedProduction.weightLb}</div>
+                    </div>
+                )}
+                
+                <hr/>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1">Order No.</label>
+                        <input type="text" name="orderNo" value={shipmentData.orderNo} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-md shadow-sm" required />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1">발전소명 (거래처)</label>
+                        <input type="text" name="client" value={shipmentData.client} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-md shadow-sm" required />
+                    </div>
+                     <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1">출고 작업자</label>
+                        <input type="text" name="worker" value={shipmentData.worker} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-md shadow-sm" required />
+                    </div>
+                </div>
+                 <div className="text-right">
+                    <button type="submit" disabled={isSubmitting || !selectedProduction} className="px-6 py-2 bg-green-600 text-white rounded-md font-semibold hover:bg-green-700 disabled:bg-gray-400 transition-colors">
+                        {isSubmitting ? '처리 중...' : '출고 처리'}
+                    </button>
+                </div>
+                 {message && <p className="text-center mt-4 text-sm text-green-600">{message}</p>}
+            </form>
+        </div>
+    );
+};
+
+// --- 4. 재고현황 요약 컴포넌트 ---
+const InventorySummary = ({ productions, shipments, items, sizes }) => {
+    const summaryData = useMemo(() => {
+        const data = {};
+        
+        // 총 생산량 집계
+        productions.forEach(p => {
+            const key = `${p.itemNo}-${p.size}`;
+            if(!data[key]) data[key] = { itemNo: p.itemNo, size: p.size, totalProd: 0, totalShip: 0 };
+            data[key].totalProd += parseFloat(p.weightLb) || 0;
+        });
+
+        // 총 출고량 집계
+        shipments.forEach(s => {
+            const key = `${s.itemNo}-${s.size}`;
+            if(!data[key]) data[key] = { itemNo: s.itemNo, size: s.size, totalProd: 0, totalShip: 0 };
+            data[key].totalShip += parseFloat(s.weightLb) || 0;
+        });
+
+        // 모든 품목/사이즈 조합에 대해 기본값 설정
+        items.forEach(item => {
+            sizes.forEach(size => {
+                const key = `${item}-${size}`;
+                if (!data[key]) {
+                    data[key] = { itemNo: item, size: size, totalProd: 0, totalShip: 0 };
+                }
+            });
+        });
+
+        return Object.values(data).sort((a,b) => a.itemNo.localeCompare(b.itemNo) || a.size.localeCompare(b.size));
+    }, [productions, shipments, items, sizes]);
+
+    return (
+        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-lg overflow-x-auto">
+             <h2 className="text-xl font-bold mb-4 text-gray-700">재고 수량 요약</h2>
+             <div className="overflow-x-auto">
+                <table className="min-w-full border-collapse">
+                    <thead>
+                        <tr className="bg-gray-200">
+                             <th className="p-3 font-semibold text-left text-sm text-gray-600 border border-gray-300">ITEM NO.</th>
+                             <th className="p-3 font-semibold text-left text-sm text-gray-600 border border-gray-300">SIZE</th>
+                             <th className="p-3 font-semibold text-right text-sm text-gray-600 border border-gray-300">총 생산량 (LB)</th>
+                             <th className="p-3 font-semibold text-right text-sm text-gray-600 border border-gray-300">총 출고량 (LB)</th>
+                             <th className="p-3 font-semibold text-right text-sm text-gray-600 border border-gray-300">현재고 (LB)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {summaryData.map(({ itemNo, size, totalProd, totalShip }, index) => {
+                            const currentStock = totalProd - totalShip;
+                            if (totalProd === 0 && totalShip === 0) return null; // 데이터 없는 항목은 숨김
+                            return (
+                                <tr key={index} className="even:bg-gray-50">
+                                    <td className="p-2 text-sm text-gray-800 border border-gray-300">{itemNo}</td>
+                                    <td className="p-2 text-sm text-gray-800 border border-gray-300">{size}</td>
+                                    <td className="p-2 text-sm text-gray-800 border border-gray-300 text-right">{totalProd.toFixed(2)}</td>
+                                    <td className="p-2 text-sm text-gray-800 border border-gray-300 text-right">{totalShip.toFixed(2)}</td>
+                                    <td className={`p-2 text-sm font-bold border border-gray-300 text-right ${currentStock > 0 ? 'text-blue-600' : 'text-red-500'}`}>
+                                        {currentStock.toFixed(2)}
+                                    </td>
+                                </tr>
+                            )
+                        })}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};
+
+export default App;
