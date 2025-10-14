@@ -28,11 +28,17 @@
     .empty { text-align: center; color: #94a3b8; padding: 14px 0; font-size: 13px; }
     .button-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
     .button-row button { min-width: 150px; }
-    .layout-split { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); align-items: stretch; }
     .card.table-card { display: flex; flex-direction: column; }
     .table-scroll { overflow-x: auto; }
     .card.table-card .table-scroll { margin-top: 12px; flex: 1; }
     .card.table-card .table-scroll table { margin-top: 0; }
+    .matrix-card .table-scroll { overflow: auto; }
+    .matrix-card table th, .matrix-card table td { white-space: nowrap; }
+    .history-card { padding: 0; overflow: hidden; }
+    .history-card .history-pane { padding: 18px; display: flex; flex-direction: column; }
+    .history-card .history-pane + .history-pane { border-top: 1px solid #e5e7eb; }
+    .history-card .history-pane h2 { margin-top: 0; }
+    .history-card .table-scroll { margin-top: 12px; flex: 1; }
     @media (max-width: 640px) { body { padding: 18px; } }
   </style>
 </head>
@@ -49,19 +55,19 @@
     </ul>
   </section>
 
-  <div class="layout-split">
-    <section class="card table-card">
-      <h2>재고 매트릭스</h2>
-      <p class="muted">SIZE와 ITEM 조합별 잔량과 LOT를 빠르게 확인하세요.</p>
-      <div class="table-scroll">
-        <table id="matrixTable">
-          <thead></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
+  <section class="card table-card matrix-card">
+    <h2>재고 매트릭스</h2>
+    <p class="muted">SIZE와 ITEM 조합별 잔량과 LOT를 빠르게 확인하세요.</p>
+    <div class="table-scroll">
+      <table id="matrixTable">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
 
-    <section class="card table-card">
+  <section class="card history-card">
+    <div class="history-pane">
       <h2>생산 내역</h2>
       <p class="muted">최근 3일치 내역만 표시되며, 검색이나 필터를 사용하면 전체 기록에서 조회합니다.</p>
       <div class="filters">
@@ -108,8 +114,8 @@
           <tbody id="prodBody"></tbody>
         </table>
       </div>
-    </section>
-    <section class="card table-card">
+    </div>
+    <div class="history-pane">
       <h2>출고 내역</h2>
       <p class="muted">최근 3일치 내역만 표시되며, 검색이나 필터를 사용하면 전체 기록에서 조회합니다.</p>
       <div class="filters">
@@ -158,8 +164,8 @@
           <tbody id="outBody"></tbody>
         </table>
       </div>
-    </section>
-  </div>
+    </div>
+  </section>
 
   <section class="card">
     <h2>생산 데이터 입력</h2>
