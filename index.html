@@ -285,6 +285,7 @@
     ];
 
     const STORAGE_KEY = "inventory-ledger-v1";
+    const PACK_UNIT_LB = 10;
     const sampleData = {
       prod: [
         { lot: "LOT-2301", date: "2025-01-03", item: "ALS910C", size: '1/4"', packLB: 120, rawLot: "RM-202", worker: "홍길동" },
@@ -495,10 +496,33 @@
         matrix[size] = Object.fromEntries(ITEMS.map((item) => [item, []]));
       });
       rows.forEach((row) => {
-        const remain = toNumber(row.remain);
+        let remain = toNumber(row.remain);
         if (remain <= 0) return;
         if (!matrix[row.size] || !matrix[row.size][row.item]) return;
-        matrix[row.size][row.item].push({ lot: row.lot, remain });
+        const fullChunks = Math.floor(remain / PACK_UNIT_LB);
+        const remainder = Number((remain % PACK_UNIT_LB).toFixed(4));
+        const totalChunks = fullChunks + (remainder > 0 ? 1 : 0);
+        for (let index = 0; index < fullChunks; index += 1) {
+          matrix[row.size][row.item].push({
+            lot: row.lot,
+            remain: PACK_UNIT_LB,
+            chunkIndex: index + 1,
+            chunkCount: totalChunks
+          });
+        }
+        if (remainder > 0) {
+          matrix[row.size][row.item].push({
+            lot: row.lot,
+            remain: remainder,
+            chunkIndex: totalChunks,
+            chunkCount: totalChunks
+          });
+        }
+        if (fullChunks === 0 && remainder > 0) {
+          // totalChunks will be 1 here; ensure consistent metadata
+          matrix[row.size][row.item][matrix[row.size][row.item].length - 1].chunkIndex = 1;
+          matrix[row.size][row.item][matrix[row.size][row.item].length - 1].chunkCount = 1;
+        }
       });
       return matrix;
     };
@@ -532,11 +556,18 @@
           } else {
             const wrap = document.createElement("div");
             wrap.className = "pill-list";
-            list.sort((a, b) => a.lot.localeCompare(b.lot));
+            list.sort((a, b) => {
+              const lotCompare = a.lot.localeCompare(b.lot);
+              if (lotCompare !== 0) return lotCompare;
+              return (a.chunkIndex || 0) - (b.chunkIndex || 0);
+            });
             list.forEach((info) => {
               const pill = document.createElement("div");
               pill.className = "pill";
-              pill.innerHTML = `<span>${info.remain.toLocaleString()} LB</span><span>${info.lot}</span>`;
+              const chunkLabel = info.chunkCount && info.chunkCount > 1
+                ? `${info.lot}-${String(info.chunkIndex || 1).padStart(2, "0")}`
+                : info.lot;
+              pill.innerHTML = `<span>${toNumber(info.remain).toLocaleString()} LB</span><span>${chunkLabel}</span>`;
               wrap.appendChild(pill);
             });
             td.appendChild(wrap);
