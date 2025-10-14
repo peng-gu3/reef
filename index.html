@@ -1,3 +1,59 @@
+import React, { useState, useMemo, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, Trash2 } from "lucide-react";
+
+const ITEMS = [
+  "ALS910C","ALS900G","ALS955W","ALS970","ALS990","ALS420","ALS610","ALS620","ALS623S","ALS630N","ALS640K","ALS350Y"
+];
+const SIZES = [
+  '1/8"','3/16"','1/4"','5/16"','3/8"','7/16"','1/2"','9/16"','5/8"','11/16"','3/4"','13/16"','(20.6)"','7/8"','1"','1-1/4"'
+];
+
+// ===== Helpers =====
+const uid = () => Math.random().toString(36).slice(2,9);
+const ALL = "__ALL__"; // placeholder value for SelectItem (non-empty)
+const mapAllToEmpty = (v) => (v === ALL ? "" : v);
+
+// Pure helper for tests and state derivations
+function computeRemainingRows(prodRows, outRows){
+  return prodRows.map(p=>{
+    const used = outRows
+      .filter(o=>o.prodLot===p.lot)
+      .reduce((s,o)=>s+(Number(o.outLB)||0),0);
+    const remain = (Number(p.packLB)||0) - used;
+    return { ...p, remain };
+  });
+}
+
+export default function InventoryDashboard(){
+  // data states
+  const [prodRows, setProdRows] = useState([]);
+  const [outRows, setOutRows] = useState([]);
+
+  // single-line input states
+  const [prodInput, setProdInput] = useState({lot:"", date:"", item:ITEMS[0], size:SIZES[0], packLB:"", rawLot:"", dim:"", worker:""});
+  const [outInput, setOutInput] = useState({date:"", orderNo:"", power:"", unit:"", useName:"", item:ITEMS[0], size:SIZES[0], outLB:"", prodLot:"", worker:""});
+
+  // filter states (검색/필터)
+  const [prodFilter, setProdFilter] = useState({q:"", lot:"", item:"", size:"", from:"", to:""});
+  const [outFilter, setOutFilter] = useState({q:"", lot:"", item:"", size:"", from:"", to:"", order:""});
+
+  // 출고 반영 잔량 계산 (LOT 기준 차감)
+  const remainingRows = useMemo(()=> computeRemainingRows(prodRows, outRows), [prodRows, outRows]);
+
+  // ====== 재고 현황판(실시간)용 셀 매트릭스 ======
+  function buildCellMatrix(rows){
+    // size -> item -> [{lot, remain, date}]
+    const m = {};
+    for(const s of SIZES){ m[s] = Object.fromEntries(ITEMS.map(i=>[i,[]])); }
+    for(const r of rows){
+      const remain = Number(r.remain ?? r.packLB) || 0;
+      if(remain <= 0) continue; // 0 이하는 표시 안함
+      if(!m[r.size] || !m[r.size][r.item]) continue;
+      m[r.size][r.item].push({ lot: r.lot, remain, date: r.date || "" });
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -14,14 +70,20 @@
     table { width: 100%; border-collapse: collapse; margin-top: 12px; background: #fff; }
     th, td { border: 1px solid #e2e8f0; padding: 8px 10px; font-size: 14px; text-align: left; }
     thead { background: #eef2ff; }
-    button { border: none; border-radius: 8px; padding: 10px 14px; font-weight: 600; cursor: pointer; }
+    button { border: none; border-radius: 8px; padding: 10px 14px; font-weight: 600; cursor: pointer; transition: transform 0.1s ease, box-shadow 0.1s ease; }
     button.primary { background: #2563eb; color: #fff; }
+    button.secondary { background: #fff; color: #2563eb; border: 1px solid #bfdbfe; }
+    button.danger { background: #fee2e2; color: #b91c1c; }
+    button:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(37, 99, 235, 0.12); }
+    button:active { transform: translateY(0); box-shadow: none; }
     button.ghost { background: transparent; color: #dc2626; }
     .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-top: 12px; }
     .pill-list { display: flex; flex-direction: column; gap: 4px; }
     .pill { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; border-radius: 999px; background: #e0f2fe; font-weight: 600; font-size: 13px; }
     .muted { color: #6b7280; font-size: 13px; margin-top: 6px; }
     .empty { text-align: center; color: #94a3b8; padding: 14px 0; font-size: 13px; }
+    .button-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+    .button-row button { min-width: 150px; }
     @media (max-width: 640px) { body { padding: 18px; } }
   </style>
 </head>
@@ -29,12 +91,6 @@
   <h1>자동 재고관리 대장</h1>
   <p class="muted">생산과 출고 데이터를 입력하면 LOT 별 잔량과 SIZE × ITEM 매트릭스를 자동 계산합니다.</p>
 
-const ITEMS = [
-  "ALS910C","ALS900G","ALS955W","ALS970","ALS990","ALS420","ALS610","ALS620","ALS623S","ALS630N","ALS640K","ALS350Y"
-];
-const SIZES = [
-  '1/8"','3/16"','1/4"','5/16"','3/8"','7/16"','1/2"','9/16"','5/8"','11/16"','3/4"','13/16"','(20.6)"','7/8"','1"','1-1/4"'
-];
   <section class="card">
     <h2>재고 매트릭스</h2>
     <p class="muted">SIZE와 ITEM 조합별 잔량과 LOT를 빠르게 확인하세요.</p>
@@ -46,10 +102,6 @@ const SIZES = [
     </div>
   </section>
 
-// ===== Helpers =====
-const uid = () => Math.random().toString(36).slice(2,9);
-const ALL = "__ALL__"; // placeholder value for SelectItem (non-empty)
-const mapAllToEmpty = (v) => (v === ALL ? "" : v);
   <section class="card">
     <h2>생산 내역</h2>
     <div class="filters">
@@ -96,16 +148,6 @@ const mapAllToEmpty = (v) => (v === ALL ? "" : v);
     </table>
   </section>
 
-// Pure helper for tests and state derivations
-function computeRemainingRows(prodRows, outRows){
-  return prodRows.map(p=>{
-    const used = outRows
-      .filter(o=>o.prodLot===p.lot)
-      .reduce((s,o)=>s+(Number(o.outLB)||0),0);
-    const remain = (Number(p.packLB)||0) - used;
-    return { ...p, remain };
-  });
-}
   <section class="card">
     <h2>생산 데이터 입력</h2>
     <form id="prodForm" class="filters">
@@ -144,10 +186,6 @@ function computeRemainingRows(prodRows, outRows){
     </form>
   </section>
 
-export default function InventoryDashboard(){
-  // data states
-  const [prodRows, setProdRows] = useState([]);
-  const [outRows, setOutRows] = useState([]);
   <section class="card">
     <h2>출고 내역</h2>
     <div class="filters">
@@ -196,9 +234,6 @@ export default function InventoryDashboard(){
     </table>
   </section>
 
-  // single-line input states
-  const [prodInput, setProdInput] = useState({lot:"", date:"", item:ITEMS[0], size:SIZES[0], packLB:"", rawLot:"", dim:"", worker:""});
-  const [outInput, setOutInput] = useState({date:"", orderNo:"", power:"", unit:"", useName:"", item:ITEMS[0], size:SIZES[0], outLB:"", prodLot:"", worker:""});
   <section class="card">
     <h2>출고 데이터 입력</h2>
     <form id="outForm" class="filters">
@@ -249,9 +284,18 @@ export default function InventoryDashboard(){
     </form>
   </section>
 
-  // filter states (검색/필터)
-  const [prodFilter, setProdFilter] = useState({q:"", lot:"", item:"", size:"", from:"", to:""});
-  const [outFilter, setOutFilter] = useState({q:"", lot:"", item:"", size:"", from:"", to:"", order:""});
+  <section class="card">
+    <h2>데이터 관리</h2>
+    <p id="storageHint" class="muted">입력한 내용은 브라우저에 자동 저장됩니다. 필요하면 아래 버튼으로 백업하거나 복원하세요.</p>
+    <div class="button-row">
+      <button id="loadSample" type="button" class="secondary">샘플 데이터 불러오기</button>
+      <button id="exportData" type="button" class="secondary">백업 다운로드</button>
+      <button id="importTrigger" type="button" class="secondary">백업 불러오기</button>
+      <button id="resetData" type="button" class="danger">전체 초기화</button>
+    </div>
+    <input id="importInput" type="file" accept="application/json" hidden />
+  </section>
+
   <script>
     const ITEMS = [
       "ALS910C",
@@ -268,8 +312,6 @@ export default function InventoryDashboard(){
       "ALS350Y"
     ];
 
-  // 출고 반영 잔량 계산 (LOT 기준 차감)
-  const remainingRows = useMemo(()=> computeRemainingRows(prodRows, outRows), [prodRows, outRows]);
     const SIZES = [
       '1/8"',
       '3/16"',
@@ -289,40 +331,23 @@ export default function InventoryDashboard(){
       '1-1/4"'
     ];
 
-  // ====== 재고 현황판(실시간)용 셀 매트릭스 ======
-  function buildCellMatrix(rows){
-    // size -> item -> [{lot, remain, date}]
-    const m = {};
-    for(const s of SIZES){ m[s] = Object.fromEntries(ITEMS.map(i=>[i,[]])); }
-    for(const r of rows){
-      const remain = Number(r.remain ?? r.packLB) || 0;
-      if(remain <= 0) continue; // 0 이하는 표시 안함
-      if(!m[r.size] || !m[r.size][r.item]) continue;
-      m[r.size][r.item].push({ lot: r.lot, remain, date: r.date || "" });
-    }
-    // 정렬: 날짜 오름차순 -> LOT 문자열
-    for(const s of SIZES){
-      for(const it of ITEMS){
-        m[s][it].sort((a,b)=>{
-          const da = new Date(a.date||0).getTime();
-          const db = new Date(b.date||0).getTime();
-          if(da!==db) return da-db; return a.lot.localeCompare(b.lot);
-        });
-      }
-    }
-    return m;
-  }
-  const cellMatrix = useMemo(()=>buildCellMatrix(remainingRows),[remainingRows]);
+    const STORAGE_KEY = "inventory-ledger-v1";
+    const sampleData = {
+      prod: [
+        { lot: "LOT-2301", date: "2025-01-03", item: "ALS910C", size: '1/4"', packLB: 120, rawLot: "RM-202", worker: "홍길동" },
+        { lot: "LOT-2302", date: "2025-01-04", item: "ALS955W", size: '3/8"', packLB: 90, rawLot: "RM-208", worker: "이영희" },
+        { lot: "LOT-2303", date: "2025-01-06", item: "ALS970", size: '1/2"', packLB: 150, rawLot: "RM-212", worker: "박민수" }
+      ],
+      out: [
+        { date: "2025-01-07", orderNo: "ORD-501", plant: "한빛", unit: "1호기", use: "정기점검", item: "ALS910C", size: '1/4"', outLB: 40, prodLot: "LOT-2301", worker: "정우성" },
+        { date: "2025-01-08", orderNo: "ORD-502", plant: "당진", unit: "2호기", use: "긴급보수", item: "ALS955W", size: '3/8"', outLB: 35, prodLot: "LOT-2302", worker: "김서연" }
+      ]
+    };
+
     const prodRows = [];
     const outRows = [];
+    let storageAvailable = true;
 
-  // ===== Filters =====
-  const matchDate = (d, from, to) => {
-    if(!d) return false; // 빈 날짜는 기본적으로 검색에서 제외
-    if(from && d < from) return false;
-    if(to && d > to) return false;
-    return true;
-  };
     const selects = [
       "prodFilterItem",
       "prodFilterSize",
@@ -334,16 +359,6 @@ export default function InventoryDashboard(){
       "outSize"
     ];
 
-  const prodFiltered = useMemo(()=>{
-    return remainingRows.filter(r=>{
-      const q = prodFilter.q.trim().toLowerCase();
-      const text = `${r.lot||""} ${r.rawLot||""} ${r.worker||""} ${r.dim||""}`.toLowerCase();
-      if(q && !text.includes(q)) return false;
-      if(prodFilter.lot && (r.lot||"") !== prodFilter.lot) return false;
-      if(prodFilter.item && r.item !== prodFilter.item) return false;
-      if(prodFilter.size && r.size !== prodFilter.size) return false;
-      if(prodFilter.from || prodFilter.to){
-        if(!matchDate(r.date, prodFilter.from, prodFilter.to)) return false;
     selects.forEach((id) => {
       const el = document.getElementById(id);
       if (!el) return;
@@ -353,6 +368,7 @@ export default function InventoryDashboard(){
         const opt = document.createElement("option");
         opt.value = "";
         opt.textContent = "(전체)";
+        opt.defaultSelected = true;
         el.appendChild(opt);
       } else {
         const opt = document.createElement("option");
@@ -360,10 +376,10 @@ export default function InventoryDashboard(){
         opt.textContent = "선택";
         opt.disabled = true;
         opt.selected = true;
+        opt.defaultSelected = true;
         opt.hidden = true;
         el.appendChild(opt);
       }
-      return true;
       const source = id.toLowerCase().includes("item") ? ITEMS : SIZES;
       source.forEach((value) => {
         const opt = document.createElement("option");
@@ -372,24 +388,31 @@ export default function InventoryDashboard(){
         el.appendChild(opt);
       });
     });
-  },[remainingRows, prodFilter]);
 
-  const outFiltered = useMemo(()=>{
-    return outRows.filter(r=>{
-      const q = outFilter.q.trim().toLowerCase();
-      const text = `${r.orderNo||""} ${r.power||""} ${r.unit||""} ${r.useName||""} ${r.worker||""} ${r.prodLot||""}`.toLowerCase();
-      if(q && !text.includes(q)) return false;
-      if(outFilter.order && r.orderNo !== outFilter.order) return false;
-      if(outFilter.lot && r.prodLot !== outFilter.lot) return false;
-      if(outFilter.item && r.item !== outFilter.item) return false;
-      if(outFilter.size && r.size !== outFilter.size) return false;
-      if(outFilter.from || outFilter.to){
-        if(!matchDate(r.date, outFilter.from, outFilter.to)) return false;
-      }
     const matrixHead = document.querySelector("#matrixTable thead");
     const matrixBody = document.querySelector("#matrixTable tbody");
     const prodBody = document.getElementById("prodBody");
     const outBody = document.getElementById("outBody");
+    const storageHint = document.getElementById("storageHint");
+
+    try {
+      const testKey = "inventory-ledger-check";
+      localStorage.setItem(testKey, "ok");
+      localStorage.removeItem(testKey);
+    } catch (error) {
+      storageAvailable = false;
+      console.warn("로컬 저장소에 접근할 수 없습니다.", error);
+      if (storageHint) {
+        storageHint.textContent = "브라우저 저장소를 사용할 수 없어 새로고침하면 데이터가 초기화됩니다.";
+      }
+    }
+    // 정렬: 날짜 오름차순 -> LOT 문자열
+    for(const s of SIZES){
+      for(const it of ITEMS){
+        m[s][it].sort((a,b)=>{
+          const da = new Date(a.date||0).getTime();
+          const db = new Date(b.date||0).getTime();
+          if(da!==db) return da-db; return a.lot.localeCompare(b.lot);
 
     const prodFilter = { q: "", item: "", size: "", from: "", to: "" };
     const outFilter = { q: "", item: "", size: "", from: "", to: "" };
@@ -406,16 +429,111 @@ export default function InventoryDashboard(){
       if (from && date < from) return false;
       if (to && date > to) return false;
       return true;
-    });
-  },[outRows, outFilter]);
     };
 
-  // ===== Actions =====
-  const addProd = () => {
-    setProdRows(v=>[...v,{id:uid(),...prodInput}]);
-    setProdInput({lot:"", date:"", item:ITEMS[0], size:SIZES[0], packLB:"", rawLot:"", dim:"", worker:""});
-  };
-  const delProd = (id) => setProdRows(v=>v.filter(r=>r.id!==id));
+    const normalizeProd = (row = {}) => {
+      if (!row.lot) return null;
+      if (!ITEMS.includes(row.item) || !SIZES.includes(row.size)) return null;
+      return {
+        id: row.id || uid(),
+        lot: row.lot,
+        date: row.date || "",
+        item: row.item,
+        size: row.size,
+        packLB: toNumber(row.packLB),
+        rawLot: row.rawLot || "",
+        worker: row.worker || ""
+      };
+    };
+
+    const normalizeOut = (row = {}) => {
+      if (!row.prodLot) return null;
+      if (!ITEMS.includes(row.item) || !SIZES.includes(row.size)) return null;
+      return {
+        id: row.id || uid(),
+        date: row.date || "",
+        orderNo: row.orderNo || "",
+        plant: row.plant || "",
+        unit: row.unit || "",
+        use: row.use || "",
+        item: row.item,
+        size: row.size,
+        outLB: toNumber(row.outLB),
+        prodLot: row.prodLot,
+        worker: row.worker || ""
+      };
+    };
+
+    const applyDataset = (dataset = {}) => {
+      const prod = Array.isArray(dataset.prod) ? dataset.prod : [];
+      const out = Array.isArray(dataset.out) ? dataset.out : [];
+      const normalizedProd = prod.map(normalizeProd).filter(Boolean);
+      const normalizedOut = out.map(normalizeOut).filter(Boolean);
+      const dropped = {
+        prod: prod.length - normalizedProd.length,
+        out: out.length - normalizedOut.length
+      };
+      prodRows.splice(0, prodRows.length, ...normalizedProd);
+      outRows.splice(0, outRows.length, ...normalizedOut);
+      return dropped;
+    };
+
+    const saveToStorage = () => {
+      if (!storageAvailable) return;
+      try {
+        if (prodRows.length === 0 && outRows.length === 0) {
+          localStorage.removeItem(STORAGE_KEY);
+          return;
+        }
+        const payload = {
+          prod: prodRows.map(({ id, lot, date, item, size, packLB, rawLot, worker }) => ({ id, lot, date, item, size, packLB, rawLot, worker })),
+          out: outRows.map(({ id, date, orderNo, plant, unit, use, item, size, outLB, prodLot, worker }) => ({ id, date, orderNo, plant, unit, use, item, size, outLB, prodLot, worker }))
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      } catch (error) {
+        console.error("데이터 저장에 실패했습니다.", error);
+      }
+    };
+
+    const loadFromStorage = () => {
+      if (!storageAvailable) return false;
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return false;
+        const parsed = JSON.parse(raw);
+        applyDataset(parsed);
+        return true;
+      } catch (error) {
+        console.error("저장된 데이터를 불러오는 데 실패했습니다.", error);
+        return false;
+      }
+    };
+
+    const downloadBackup = () => {
+      const payload = {
+        prod: prodRows.map(({ id, lot, date, item, size, packLB, rawLot, worker }) => ({ id, lot, date, item, size, packLB, rawLot, worker })),
+        out: outRows.map(({ id, date, orderNo, plant, unit, use, item, size, outLB, prodLot, worker }) => ({ id, date, orderNo, plant, unit, use, item, size, outLB, prodLot, worker }))
+      };
+      const text = JSON.stringify(payload, null, 2);
+      const blob = new Blob([text], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const today = new Date().toISOString().slice(0, 10);
+      link.href = url;
+      link.download = `inventory-ledger-${today}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    };
+
+    const clearAllData = () => {
+      prodRows.splice(0, prodRows.length);
+      outRows.splice(0, outRows.length);
+      saveToStorage();
+      renderAll();
+    };
+
     const computeRemaining = () => {
       return prodRows.map((row) => {
         const used = outRows
@@ -425,11 +543,6 @@ export default function InventoryDashboard(){
       });
     };
 
-  const addOut = () => {
-    setOutRows(v=>[...v,{id:uid(),...outInput}]);
-    setOutInput({date:"", orderNo:"", power:"", unit:"", useName:"", item:ITEMS[0], size:SIZES[0], outLB:"", prodLot:"", worker:""});
-  };
-  const delOut = (id) => setOutRows(v=>v.filter(r=>r.id!==id));
     const buildMatrix = (rows) => {
       const matrix = {};
       SIZES.forEach((size) => {
@@ -444,34 +557,11 @@ export default function InventoryDashboard(){
       return matrix;
     };
 
-  const resetProdFilter = () => setProdFilter({q:"", lot:"", item:"", size:"", from:"", to:""});
-  const resetOutFilter = () => setOutFilter({q:"", lot:"", item:"", size:"", from:"", to:"", order:""});
     const renderMatrix = (rows) => {
       const matrix = buildMatrix(rows);
       matrixHead.innerHTML = "";
       matrixBody.innerHTML = "";
 
-  // ===== Lightweight tests (pure, no state mutation) =====
-  useEffect(()=>{
-    console.assert(mapAllToEmpty(ALL)==="", "TEST FAIL: mapAllToEmpty(ALL) !== ''");
-    console.assert(mapAllToEmpty("ALS910C")==="ALS910C", "TEST FAIL: mapAllToEmpty passthrough failed");
-    const p = [
-      {id:"p1", lot:"L1", packLB:10, item:"ALS910C", size:'1/2"', date:"2025-09-20"},
-      {id:"p2", lot:"L2", packLB:5, item:"ALS910C", size:'1/2"', date:"2025-09-21"},
-      {id:"p3", lot:"L3", packLB:8, item:"ALS900G", size:'3/4"', date:"2025-09-19"},
-    ];
-    const o = [
-      {id:"o1", prodLot:"L1", outLB:7, date:"2025-09-22"},
-      {id:"o2", prodLot:"L2", outLB:3, date:"2025-09-23"},
-    ];
-    const res = computeRemainingRows(p,o);
-    console.assert(res.find(r=>r.lot==="L1").remain===3, "TEST FAIL: L1 remain !== 3");
-    console.assert(res.find(r=>r.lot==="L2").remain===2, "TEST FAIL: L2 remain !== 2");
-    console.assert(res.find(r=>r.lot==="L3").remain===8, "TEST FAIL: L3 remain !== 8");
-    const m = buildCellMatrix(res);
-    console.assert(Array.isArray(m['1/2"']["ALS910C"]) && m['1/2"']["ALS910C"].length===2, "TEST FAIL: cellMatrix count for 1/2 × ALS910C");
-    console.log("✅ TESTS PASSED (mapping, remaining, date, matrix)");
-  },[]);
       const headRow = document.createElement("tr");
       const first = document.createElement("th");
       first.textContent = "SIZE \\ ITEM";
@@ -483,9 +573,6 @@ export default function InventoryDashboard(){
       });
       matrixHead.appendChild(headRow);
 
-  return (
-    <div className="min-h-screen p-6 grid gap-6 bg-gray-50">
-      <h1 className="text-2xl font-semibold">예스폼 스타일 재고관리 대시보드</h1>
       SIZES.forEach((size) => {
         const tr = document.createElement("tr");
         const tdSize = document.createElement("td");
@@ -513,6 +600,257 @@ export default function InventoryDashboard(){
         matrixBody.appendChild(tr);
       });
     };
+
+    const renderProd = (rows) => {
+      prodBody.innerHTML = "";
+      if (rows.length === 0) {
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = 9;
+        td.className = "empty";
+        td.textContent = "생산 데이터가 없습니다.";
+        tr.appendChild(td);
+        prodBody.appendChild(tr);
+        return;
+      }
+    }
+    return m;
+  }
+  const cellMatrix = useMemo(()=>buildCellMatrix(remainingRows),[remainingRows]);
+
+  // ===== Filters =====
+  const matchDate = (d, from, to) => {
+    if(!d) return false; // 빈 날짜는 기본적으로 검색에서 제외
+    if(from && d < from) return false;
+    if(to && d > to) return false;
+    return true;
+  };
+
+  const prodFiltered = useMemo(()=>{
+    return remainingRows.filter(r=>{
+      const q = prodFilter.q.trim().toLowerCase();
+      const text = `${r.lot||""} ${r.rawLot||""} ${r.worker||""} ${r.dim||""}`.toLowerCase();
+      if(q && !text.includes(q)) return false;
+      if(prodFilter.lot && (r.lot||"") !== prodFilter.lot) return false;
+      if(prodFilter.item && r.item !== prodFilter.item) return false;
+      if(prodFilter.size && r.size !== prodFilter.size) return false;
+      if(prodFilter.from || prodFilter.to){
+        if(!matchDate(r.date, prodFilter.from, prodFilter.to)) return false;
+      rows.forEach((row) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${row.lot}</td>
+          <td>${row.date || ""}</td>
+          <td>${row.item}</td>
+          <td>${row.size}</td>
+          <td style="text-align:right;">${toNumber(row.packLB).toLocaleString()}</td>
+          <td style="text-align:right;">${toNumber(row.remain).toLocaleString()}</td>
+          <td>${row.rawLot || ""}</td>
+          <td>${row.worker || ""}</td>
+          <td style="text-align:center;"><button class="ghost" data-id="${row.id}" data-type="prod">삭제</button></td>
+        `;
+        prodBody.appendChild(tr);
+      });
+    };
+
+    const renderOut = (rows) => {
+      outBody.innerHTML = "";
+      if (rows.length === 0) {
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = 11;
+        td.className = "empty";
+        td.textContent = "출고 데이터가 없습니다.";
+        tr.appendChild(td);
+        outBody.appendChild(tr);
+        return;
+      }
+      rows.forEach((row) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${row.date || ""}</td>
+          <td>${row.orderNo || ""}</td>
+          <td>${row.plant || ""}</td>
+          <td>${row.unit || ""}</td>
+          <td>${row.use || ""}</td>
+          <td>${row.item}</td>
+          <td>${row.size}</td>
+          <td style="text-align:right;">${toNumber(row.outLB).toLocaleString()}</td>
+          <td>${row.prodLot}</td>
+          <td>${row.worker || ""}</td>
+          <td style="text-align:center;"><button class="ghost" data-id="${row.id}" data-type="out">삭제</button></td>
+        `;
+        outBody.appendChild(tr);
+      });
+    };
+
+    const applyProdFilter = (row, filter) => {
+      const text = `${row.lot} ${row.rawLot || ""} ${row.worker || ""}`.toLowerCase();
+      const q = filter.q.trim().toLowerCase();
+      if (q && !text.includes(q)) return false;
+      if (filter.item && row.item !== filter.item) return false;
+      if (filter.size && row.size !== filter.size) return false;
+      if ((filter.from || filter.to) && !withinRange(row.date, filter.from, filter.to)) return false;
+      return true;
+    };
+
+    const applyOutFilter = (row, filter) => {
+      const text = `${row.orderNo || ""} ${row.plant || ""} ${row.prodLot}`.toLowerCase();
+      const q = filter.q.trim().toLowerCase();
+      if (q && !text.includes(q)) return false;
+      if (filter.item && row.item !== filter.item) return false;
+      if (filter.size && row.size !== filter.size) return false;
+      if ((filter.from || filter.to) && !withinRange(row.date, filter.from, filter.to)) return false;
+      return true;
+    };
+
+    const renderAll = () => {
+      const remaining = computeRemaining();
+      const prodFiltered = remaining.filter((row) => applyProdFilter(row, prodFilter));
+      const outFiltered = outRows.filter((row) => applyOutFilter(row, outFilter));
+      renderMatrix(remaining);
+      renderProd(prodFiltered);
+      renderOut(outFiltered);
+    };
+
+    document.getElementById("prodSearch").addEventListener("input", (event) => {
+      prodFilter.q = event.target.value;
+      renderAll();
+    });
+    document.getElementById("prodFilterItem").addEventListener("change", (event) => {
+      prodFilter.item = event.target.value;
+      renderAll();
+    });
+    document.getElementById("prodFilterSize").addEventListener("change", (event) => {
+      prodFilter.size = event.target.value;
+      renderAll();
+    });
+    document.getElementById("prodFilterFrom").addEventListener("change", (event) => {
+      prodFilter.from = event.target.value;
+      renderAll();
+    });
+    document.getElementById("prodFilterTo").addEventListener("change", (event) => {
+      prodFilter.to = event.target.value;
+      renderAll();
+    });
+    document.getElementById("prodReset").addEventListener("click", () => {
+      prodFilter.q = prodFilter.item = prodFilter.size = prodFilter.from = prodFilter.to = "";
+      document.getElementById("prodSearch").value = "";
+      document.getElementById("prodFilterItem").value = "";
+      document.getElementById("prodFilterSize").value = "";
+      document.getElementById("prodFilterFrom").value = "";
+      document.getElementById("prodFilterTo").value = "";
+      renderAll();
+    });
+
+    document.getElementById("outSearch").addEventListener("input", (event) => {
+      outFilter.q = event.target.value;
+      renderAll();
+    });
+  },[remainingRows, prodFilter]);
+
+  const outFiltered = useMemo(()=>{
+    return outRows.filter(r=>{
+      const q = outFilter.q.trim().toLowerCase();
+      const text = `${r.orderNo||""} ${r.power||""} ${r.unit||""} ${r.useName||""} ${r.worker||""} ${r.prodLot||""}`.toLowerCase();
+      if(q && !text.includes(q)) return false;
+      if(outFilter.order && r.orderNo !== outFilter.order) return false;
+      if(outFilter.lot && r.prodLot !== outFilter.lot) return false;
+      if(outFilter.item && r.item !== outFilter.item) return false;
+      if(outFilter.size && r.size !== outFilter.size) return false;
+      if(outFilter.from || outFilter.to){
+        if(!matchDate(r.date, outFilter.from, outFilter.to)) return false;
+    document.getElementById("outFilterItem").addEventListener("change", (event) => {
+      outFilter.item = event.target.value;
+      renderAll();
+    });
+    document.getElementById("outFilterSize").addEventListener("change", (event) => {
+      outFilter.size = event.target.value;
+      renderAll();
+    });
+    document.getElementById("outFilterFrom").addEventListener("change", (event) => {
+      outFilter.from = event.target.value;
+      renderAll();
+    });
+    document.getElementById("outFilterTo").addEventListener("change", (event) => {
+      outFilter.to = event.target.value;
+      renderAll();
+    });
+    document.getElementById("outReset").addEventListener("click", () => {
+      outFilter.q = outFilter.item = outFilter.size = outFilter.from = outFilter.to = "";
+      document.getElementById("outSearch").value = "";
+      document.getElementById("outFilterItem").value = "";
+      document.getElementById("outFilterSize").value = "";
+      document.getElementById("outFilterFrom").value = "";
+      document.getElementById("outFilterTo").value = "";
+      renderAll();
+    });
+
+    document.getElementById("prodForm").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const row = {
+        id: uid(),
+        lot: document.getElementById("prodLot").value.trim(),
+        date: document.getElementById("prodDate").value,
+        item: document.getElementById("prodItem").value,
+        size: document.getElementById("prodSize").value,
+        packLB: toNumber(document.getElementById("prodPack").value),
+        rawLot: document.getElementById("prodRaw").value.trim(),
+        worker: document.getElementById("prodWorker").value.trim()
+      };
+      if (!row.lot) {
+        alert("LOT 번호를 입력해주세요.");
+        return;
+      }
+      return true;
+      prodRows.push(row);
+      event.target.reset();
+      saveToStorage();
+      renderAll();
+    });
+  },[outRows, outFilter]);
+
+  // ===== Actions =====
+  const addProd = () => {
+    setProdRows(v=>[...v,{id:uid(),...prodInput}]);
+    setProdInput({lot:"", date:"", item:ITEMS[0], size:SIZES[0], packLB:"", rawLot:"", dim:"", worker:""});
+  };
+  const delProd = (id) => setProdRows(v=>v.filter(r=>r.id!==id));
+
+  const addOut = () => {
+    setOutRows(v=>[...v,{id:uid(),...outInput}]);
+    setOutInput({date:"", orderNo:"", power:"", unit:"", useName:"", item:ITEMS[0], size:SIZES[0], outLB:"", prodLot:"", worker:""});
+  };
+  const delOut = (id) => setOutRows(v=>v.filter(r=>r.id!==id));
+
+  const resetProdFilter = () => setProdFilter({q:"", lot:"", item:"", size:"", from:"", to:""});
+  const resetOutFilter = () => setOutFilter({q:"", lot:"", item:"", size:"", from:"", to:"", order:""});
+
+  // ===== Lightweight tests (pure, no state mutation) =====
+  useEffect(()=>{
+    console.assert(mapAllToEmpty(ALL)==="", "TEST FAIL: mapAllToEmpty(ALL) !== ''");
+    console.assert(mapAllToEmpty("ALS910C")==="ALS910C", "TEST FAIL: mapAllToEmpty passthrough failed");
+    const p = [
+      {id:"p1", lot:"L1", packLB:10, item:"ALS910C", size:'1/2"', date:"2025-09-20"},
+      {id:"p2", lot:"L2", packLB:5, item:"ALS910C", size:'1/2"', date:"2025-09-21"},
+      {id:"p3", lot:"L3", packLB:8, item:"ALS900G", size:'3/4"', date:"2025-09-19"},
+    ];
+    const o = [
+      {id:"o1", prodLot:"L1", outLB:7, date:"2025-09-22"},
+      {id:"o2", prodLot:"L2", outLB:3, date:"2025-09-23"},
+    ];
+    const res = computeRemainingRows(p,o);
+    console.assert(res.find(r=>r.lot==="L1").remain===3, "TEST FAIL: L1 remain !== 3");
+    console.assert(res.find(r=>r.lot==="L2").remain===2, "TEST FAIL: L2 remain !== 2");
+    console.assert(res.find(r=>r.lot==="L3").remain===8, "TEST FAIL: L3 remain !== 8");
+    const m = buildCellMatrix(res);
+    console.assert(Array.isArray(m['1/2"']["ALS910C"]) && m['1/2"']["ALS910C"].length===2, "TEST FAIL: cellMatrix count for 1/2 × ALS910C");
+    console.log("✅ TESTS PASSED (mapping, remaining, date, matrix)");
+  },[]);
+
+  return (
+    <div className="min-h-screen p-6 grid gap-6 bg-gray-50">
+      <h1 className="text-2xl font-semibold">예스폼 스타일 재고관리 대시보드</h1>
 
       {/* 재고 현황판 (실시간) : SIZE × ITEM, 각 셀에 LOT별 잔량 개별 표시 */}
 <Card className="shadow">
@@ -555,34 +893,6 @@ export default function InventoryDashboard(){
     </div>
   </CardContent>
 </Card>
-    const renderProd = (rows) => {
-      prodBody.innerHTML = "";
-      if (rows.length === 0) {
-        const tr = document.createElement("tr");
-        const td = document.createElement("td");
-        td.colSpan = 9;
-        td.className = "empty";
-        td.textContent = "생산 데이터가 없습니다.";
-        tr.appendChild(td);
-        prodBody.appendChild(tr);
-        return;
-      }
-      rows.forEach((row) => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${row.lot}</td>
-          <td>${row.date || ""}</td>
-          <td>${row.item}</td>
-          <td>${row.size}</td>
-          <td style="text-align:right;">${toNumber(row.packLB).toLocaleString()}</td>
-          <td style="text-align:right;">${toNumber(row.remain).toLocaleString()}</td>
-          <td>${row.rawLot || ""}</td>
-          <td>${row.worker || ""}</td>
-          <td style="text-align:center;"><button class="ghost" data-id="${row.id}" data-type="prod">삭제</button></td>
-        `;
-        prodBody.appendChild(tr);
-      });
-    };
 
 {/* 재고관리대장 (생산 내역 + 출고 반영 잔량) */}
 <Card className="shadow">
@@ -590,36 +900,6 @@ export default function InventoryDashboard(){
     <div className="flex items-center justify-between">
       <div className="text-lg font-medium">재고관리대장 (검색/필터 가능)</div>
     </div>
-    const renderOut = (rows) => {
-      outBody.innerHTML = "";
-      if (rows.length === 0) {
-        const tr = document.createElement("tr");
-        const td = document.createElement("td");
-        td.colSpan = 11;
-        td.className = "empty";
-        td.textContent = "출고 데이터가 없습니다.";
-        tr.appendChild(td);
-        outBody.appendChild(tr);
-        return;
-      }
-      rows.forEach((row) => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${row.date || ""}</td>
-          <td>${row.orderNo || ""}</td>
-          <td>${row.plant || ""}</td>
-          <td>${row.unit || ""}</td>
-          <td>${row.use || ""}</td>
-          <td>${row.item}</td>
-          <td>${row.size}</td>
-          <td style="text-align:right;">${toNumber(row.outLB).toLocaleString()}</td>
-          <td>${row.prodLot}</td>
-          <td>${row.worker || ""}</td>
-          <td style="text-align:center;"><button class="ghost" data-id="${row.id}" data-type="out">삭제</button></td>
-        `;
-        outBody.appendChild(tr);
-      });
-    };
 
     {/* 생산 내역 검색바 */}
     <div className="grid grid-cols-12 gap-2">
@@ -643,15 +923,30 @@ export default function InventoryDashboard(){
       <Input type="date" className="col-span-1" value={prodFilter.to} onChange={e=>setProdFilter({...prodFilter,to:e.target.value})}/>
       <Button variant="secondary" className="col-span-1" onClick={resetProdFilter}>초기화</Button>
     </div>
-    const applyProdFilter = (row, filter) => {
-      const text = `${row.lot} ${row.rawLot || ""} ${row.worker || ""}`.toLowerCase();
-      const q = filter.q.trim().toLowerCase();
-      if (q && !text.includes(q)) return false;
-      if (filter.item && row.item !== filter.item) return false;
-      if (filter.size && row.size !== filter.size) return false;
-      if ((filter.from || filter.to) && !withinRange(row.date, filter.from, filter.to)) return false;
-      return true;
-    };
+    document.getElementById("outForm").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const row = {
+        id: uid(),
+        date: document.getElementById("outDate").value,
+        orderNo: document.getElementById("outOrder").value.trim(),
+        plant: document.getElementById("outPlant").value.trim(),
+        unit: document.getElementById("outUnit").value.trim(),
+        use: document.getElementById("outUse").value.trim(),
+        item: document.getElementById("outItem").value,
+        size: document.getElementById("outSize").value,
+        outLB: toNumber(document.getElementById("outLb").value),
+        prodLot: document.getElementById("outLot").value.trim(),
+        worker: document.getElementById("outWorker").value.trim()
+      };
+      if (!row.prodLot) {
+        alert("생산 LOT을 입력해주세요.");
+        return;
+      }
+      outRows.push(row);
+      event.target.reset();
+      saveToStorage();
+      renderAll();
+    });
 
     {/* 생산 내역 표 (잔량 반영) */}
     <div className="overflow-auto">
@@ -690,15 +985,6 @@ export default function InventoryDashboard(){
     </div>
   </CardContent>
 </Card>
-    const applyOutFilter = (row, filter) => {
-      const text = `${row.orderNo || ""} ${row.plant || ""} ${row.prodLot}`.toLowerCase();
-      const q = filter.q.trim().toLowerCase();
-      if (q && !text.includes(q)) return false;
-      if (filter.item && row.item !== filter.item) return false;
-      if (filter.size && row.size !== filter.size) return false;
-      if ((filter.from || filter.to) && !withinRange(row.date, filter.from, filter.to)) return false;
-      return true;
-    };
 
       {/* 생산리스트 입력 (단일 입력줄) */}
       <Card className="shadow">
@@ -723,14 +1009,6 @@ export default function InventoryDashboard(){
           </div>
         </CardContent>
       </Card>
-    const renderAll = () => {
-      const remaining = computeRemaining();
-      const prodFiltered = remaining.filter((row) => applyProdFilter(row, prodFilter));
-      const outFiltered = outRows.filter((row) => applyOutFilter(row, outFilter));
-      renderMatrix(remaining);
-      renderProd(prodFiltered);
-      renderOut(outFiltered);
-    };
 
       {/* 출고리스트 입력 (단일 입력줄) + 검색/필터 + 내역표 */}
       <Card className="shadow">
@@ -755,35 +1033,6 @@ export default function InventoryDashboard(){
             <Input className="col-span-2" placeholder="출고자" value={outInput.worker} onChange={e=>setOutInput({...outInput,worker:e.target.value})}/>
             <Button onClick={addOut}><Plus className="w-4 h-4 mr-1"/>저장</Button>
           </div>
-    document.getElementById("prodSearch").addEventListener("input", (event) => {
-      prodFilter.q = event.target.value;
-      renderAll();
-    });
-    document.getElementById("prodFilterItem").addEventListener("change", (event) => {
-      prodFilter.item = event.target.value;
-      renderAll();
-    });
-    document.getElementById("prodFilterSize").addEventListener("change", (event) => {
-      prodFilter.size = event.target.value;
-      renderAll();
-    });
-    document.getElementById("prodFilterFrom").addEventListener("change", (event) => {
-      prodFilter.from = event.target.value;
-      renderAll();
-    });
-    document.getElementById("prodFilterTo").addEventListener("change", (event) => {
-      prodFilter.to = event.target.value;
-      renderAll();
-    });
-    document.getElementById("prodReset").addEventListener("click", () => {
-      prodFilter.q = prodFilter.item = prodFilter.size = prodFilter.from = prodFilter.to = "";
-      document.getElementById("prodSearch").value = "";
-      document.getElementById("prodFilterItem").value = "";
-      document.getElementById("prodFilterSize").value = "";
-      document.getElementById("prodFilterFrom").value = "";
-      document.getElementById("prodFilterTo").value = "";
-      renderAll();
-    });
 
           {/* 출고 검색바 */}
           <div className="grid grid-cols-12 gap-2">
@@ -808,35 +1057,6 @@ export default function InventoryDashboard(){
             <Input type="date" className="col-span-1" value={outFilter.to} onChange={e=>setOutFilter({...outFilter,to:e.target.value})}/>
             <Button variant="secondary" className="col-span-1" onClick={resetOutFilter}>초기화</Button>
           </div>
-    document.getElementById("outSearch").addEventListener("input", (event) => {
-      outFilter.q = event.target.value;
-      renderAll();
-    });
-    document.getElementById("outFilterItem").addEventListener("change", (event) => {
-      outFilter.item = event.target.value;
-      renderAll();
-    });
-    document.getElementById("outFilterSize").addEventListener("change", (event) => {
-      outFilter.size = event.target.value;
-      renderAll();
-    });
-    document.getElementById("outFilterFrom").addEventListener("change", (event) => {
-      outFilter.from = event.target.value;
-      renderAll();
-    });
-    document.getElementById("outFilterTo").addEventListener("change", (event) => {
-      outFilter.to = event.target.value;
-      renderAll();
-    });
-    document.getElementById("outReset").addEventListener("click", () => {
-      outFilter.q = outFilter.item = outFilter.size = outFilter.from = outFilter.to = "";
-      document.getElementById("outSearch").value = "";
-      document.getElementById("outFilterItem").value = "";
-      document.getElementById("outFilterSize").value = "";
-      document.getElementById("outFilterFrom").value = "";
-      document.getElementById("outFilterTo").value = "";
-      renderAll();
-    });
 
           {/* 출고 내역 표 */}
           <div className="overflow-auto">
@@ -880,51 +1100,6 @@ export default function InventoryDashboard(){
     </div>
   );
 }
-    document.getElementById("prodForm").addEventListener("submit", (event) => {
-      event.preventDefault();
-      const row = {
-        id: uid(),
-        lot: document.getElementById("prodLot").value.trim(),
-        date: document.getElementById("prodDate").value,
-        item: document.getElementById("prodItem").value,
-        size: document.getElementById("prodSize").value,
-        packLB: toNumber(document.getElementById("prodPack").value),
-        rawLot: document.getElementById("prodRaw").value.trim(),
-        worker: document.getElementById("prodWorker").value.trim()
-      };
-      if (!row.lot) {
-        alert("LOT 번호를 입력해주세요.");
-        return;
-      }
-      prodRows.push(row);
-      event.target.reset();
-      renderAll();
-    });
-
-    document.getElementById("outForm").addEventListener("submit", (event) => {
-      event.preventDefault();
-      const row = {
-        id: uid(),
-        date: document.getElementById("outDate").value,
-        orderNo: document.getElementById("outOrder").value.trim(),
-        plant: document.getElementById("outPlant").value.trim(),
-        unit: document.getElementById("outUnit").value.trim(),
-        use: document.getElementById("outUse").value.trim(),
-        item: document.getElementById("outItem").value,
-        size: document.getElementById("outSize").value,
-        outLB: toNumber(document.getElementById("outLb").value),
-        prodLot: document.getElementById("outLot").value.trim(),
-        worker: document.getElementById("outWorker").value.trim()
-      };
-      if (!row.prodLot) {
-        alert("생산 LOT을 입력해주세요.");
-        return;
-      }
-      outRows.push(row);
-      event.target.reset();
-      renderAll();
-    });
-
     document.body.addEventListener("click", (event) => {
       const button = event.target.closest("button[data-id]");
       if (!button) return;
@@ -937,9 +1112,70 @@ export default function InventoryDashboard(){
         const index = outRows.findIndex((row) => row.id === id);
         if (index > -1) outRows.splice(index, 1);
       }
+      saveToStorage();
       renderAll();
     });
 
+    document.getElementById("exportData").addEventListener("click", () => {
+      if (prodRows.length === 0 && outRows.length === 0) {
+        alert("저장된 데이터가 없습니다.");
+        return;
+      }
+      downloadBackup();
+    });
+
+    const importInput = document.getElementById("importInput");
+    document.getElementById("importTrigger").addEventListener("click", () => {
+      if (!storageAvailable) {
+        alert("브라우저 저장소를 사용할 수 없어 불러온 데이터가 새로고침 시 사라집니다.");
+      }
+      importInput.click();
+    });
+
+    importInput.addEventListener("change", (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          const dropped = applyDataset(parsed);
+          saveToStorage();
+          renderAll();
+          if (dropped.prod > 0 || dropped.out > 0) {
+            alert(`백업 데이터를 불러왔지만 ${dropped.prod + dropped.out}개의 행이 유효하지 않아 제외되었습니다.`);
+          } else {
+            alert("백업 데이터를 불러왔습니다.");
+          }
+        } catch (error) {
+          console.error("백업 불러오기 실패", error);
+          alert("백업 파일을 해석하지 못했습니다. JSON 형식을 확인하세요.");
+        } finally {
+          event.target.value = "";
+        }
+      };
+      reader.readAsText(file, "utf-8");
+    });
+
+    document.getElementById("resetData").addEventListener("click", () => {
+      if (!confirm("입력된 모든 데이터를 삭제하시겠습니까?")) return;
+      clearAllData();
+    });
+
+    document.getElementById("loadSample").addEventListener("click", () => {
+      if (!confirm("샘플 데이터를 불러오면 현재 데이터가 덮어쓰기 됩니다. 계속하시겠습니까?")) return;
+      if (!storageAvailable) {
+        alert("브라우저 저장소를 사용할 수 없어 샘플 데이터가 새로고침 시 사라집니다.");
+      }
+      const dropped = applyDataset(sampleData);
+      saveToStorage();
+      renderAll();
+      if (dropped.prod > 0 || dropped.out > 0) {
+        alert("샘플 데이터의 일부가 제외되었습니다. ITEM 및 SIZE 목록을 확인하세요.");
+      }
+    });
+
+    loadFromStorage();
     renderAll();
   </script>
 </body>
