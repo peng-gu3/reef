@@ -378,6 +378,24 @@
       return true;
     };
 
+    const deriveSequentialLot = (baseLot = "", chunkIndex = 1, totalChunks = 1) => {
+      if (!baseLot) return "";
+      if (totalChunks <= 1) return baseLot;
+      const text = String(baseLot);
+      const match = text.match(/^(.*?)(\d+)$/);
+      if (!match) {
+        return `${text}-${String(chunkIndex).padStart(2, "0")}`;
+      }
+      const [, prefix, digits] = match;
+      const padLength = digits.length;
+      const numeric = Number(digits);
+      if (!Number.isFinite(numeric)) {
+        return `${text}-${String(chunkIndex).padStart(2, "0")}`;
+      }
+      const next = numeric + chunkIndex;
+      return prefix + String(next).padStart(padLength, "0");
+    };
+
     const normalizeProd = (row = {}) => {
       if (!row.lot) return null;
       if (!ITEMS.includes(row.item) || !SIZES.includes(row.size)) return null;
@@ -503,25 +521,31 @@
         const remainder = Number((remain % PACK_UNIT_LB).toFixed(4));
         const totalChunks = fullChunks + (remainder > 0 ? 1 : 0);
         for (let index = 0; index < fullChunks; index += 1) {
+          const chunkIndex = index + 1;
           matrix[row.size][row.item].push({
-            lot: row.lot,
+            lot: deriveSequentialLot(row.lot, chunkIndex, totalChunks),
+            sourceLot: row.lot,
             remain: PACK_UNIT_LB,
-            chunkIndex: index + 1,
+            chunkIndex,
             chunkCount: totalChunks
           });
         }
         if (remainder > 0) {
+          const chunkIndex = totalChunks;
           matrix[row.size][row.item].push({
-            lot: row.lot,
+            lot: deriveSequentialLot(row.lot, chunkIndex, totalChunks),
+            sourceLot: row.lot,
             remain: remainder,
-            chunkIndex: totalChunks,
+            chunkIndex,
             chunkCount: totalChunks
           });
         }
         if (fullChunks === 0 && remainder > 0) {
           // totalChunks will be 1 here; ensure consistent metadata
-          matrix[row.size][row.item][matrix[row.size][row.item].length - 1].chunkIndex = 1;
-          matrix[row.size][row.item][matrix[row.size][row.item].length - 1].chunkCount = 1;
+          const last = matrix[row.size][row.item][matrix[row.size][row.item].length - 1];
+          last.chunkIndex = 1;
+          last.chunkCount = 1;
+          last.lot = deriveSequentialLot(row.lot, 1, 1);
         }
       });
       return matrix;
@@ -557,16 +581,19 @@
             const wrap = document.createElement("div");
             wrap.className = "pill-list";
             list.sort((a, b) => {
-              const lotCompare = a.lot.localeCompare(b.lot);
-              if (lotCompare !== 0) return lotCompare;
+              const baseA = a.sourceLot || a.lot || "";
+              const baseB = b.sourceLot || b.lot || "";
+              const baseCompare = baseA.localeCompare(baseB);
+              if (baseCompare !== 0) return baseCompare;
               return (a.chunkIndex || 0) - (b.chunkIndex || 0);
             });
             list.forEach((info) => {
               const pill = document.createElement("div");
               pill.className = "pill";
-              const chunkLabel = info.chunkCount && info.chunkCount > 1
-                ? `${info.lot}-${String(info.chunkIndex || 1).padStart(2, "0")}`
-                : info.lot;
+              const chunkLabel = info.lot || info.sourceLot || "";
+              if (info.sourceLot && info.sourceLot !== chunkLabel) {
+                pill.title = `원본 LOT: ${info.sourceLot}`;
+              }
               pill.innerHTML = `<span>${toNumber(info.remain).toLocaleString()} LB</span><span>${chunkLabel}</span>`;
               wrap.appendChild(pill);
             });
