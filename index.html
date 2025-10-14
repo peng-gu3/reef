@@ -1,953 +1,939 @@
- (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
-diff --git a/index.html b/index.html
-index 65990b4989fd94829ae121e0143bf5f8003bf53c..98cbddad691752e56340697f7f35e53b8b807aa5 100644
---- a/index.html
-+++ b/index.html
-@@ -1,376 +1,596 @@
--import React, { useState, useMemo, useEffect } from "react";
--import { Card, CardContent } from "@/components/ui/card";
--import { Button } from "@/components/ui/button";
--import { Input } from "@/components/ui/input";
--import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
--import { Plus, Trash2 } from "lucide-react";
-+<!DOCTYPE html>
-+<html lang="ko">
-+<head>
-+  <meta charset="UTF-8" />
-+  <meta name="viewport" content="width=device-width, initial-scale=1" />
-+  <title>자동 재고관리 대장</title>
-+  <style>
-+    body { font-family: "Noto Sans KR", Arial, sans-serif; margin: 0; padding: 24px; background: #f4f6fb; color: #1f2937; }
-+    h1 { margin-top: 0; }
-+    .grid { display: grid; gap: 16px; }
-+    .card { background: #fff; border-radius: 12px; padding: 18px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1); }
-+    label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
-+    input, select { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #cbd5f5; background: #f8f9ff; box-sizing: border-box; }
-+    table { width: 100%; border-collapse: collapse; margin-top: 12px; background: #fff; }
-+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; font-size: 14px; text-align: left; }
-+    thead { background: #eef2ff; }
-+    button { border: none; border-radius: 8px; padding: 10px 14px; font-weight: 600; cursor: pointer; }
-+    button.primary { background: #2563eb; color: #fff; }
-+    button.ghost { background: transparent; color: #dc2626; }
-+    .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-top: 12px; }
-+    .pill-list { display: flex; flex-direction: column; gap: 4px; }
-+    .pill { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; border-radius: 999px; background: #e0f2fe; font-weight: 600; font-size: 13px; }
-+    .muted { color: #6b7280; font-size: 13px; margin-top: 6px; }
-+    .empty { text-align: center; color: #94a3b8; padding: 14px 0; font-size: 13px; }
-+    @media (max-width: 640px) { body { padding: 18px; } }
-+  </style>
-+</head>
-+<body>
-+  <h1>자동 재고관리 대장</h1>
-+  <p class="muted">생산과 출고 데이터를 입력하면 LOT 별 잔량과 SIZE × ITEM 매트릭스를 자동 계산합니다.</p>
- 
--const ITEMS = [
--  "ALS910C","ALS900G","ALS955W","ALS970","ALS990","ALS420","ALS610","ALS620","ALS623S","ALS630N","ALS640K","ALS350Y"
--];
--const SIZES = [
--  '1/8"','3/16"','1/4"','5/16"','3/8"','7/16"','1/2"','9/16"','5/8"','11/16"','3/4"','13/16"','(20.6)"','7/8"','1"','1-1/4"'
--];
-+  <section class="card">
-+    <h2>재고 매트릭스</h2>
-+    <p class="muted">SIZE와 ITEM 조합별 잔량과 LOT를 빠르게 확인하세요.</p>
-+    <div style="overflow-x:auto;">
-+      <table id="matrixTable">
-+        <thead></thead>
-+        <tbody></tbody>
-+      </table>
-+    </div>
-+  </section>
- 
--// ===== Helpers =====
--const uid = () => Math.random().toString(36).slice(2,9);
--const ALL = "__ALL__"; // placeholder value for SelectItem (non-empty)
--const mapAllToEmpty = (v) => (v === ALL ? "" : v);
-+  <section class="card">
-+    <h2>생산 내역</h2>
-+    <div class="filters">
-+      <div>
-+        <label for="prodSearch">검색어</label>
-+        <input id="prodSearch" type="search" placeholder="LOT / 원자재 LOT / 작업자" />
-+      </div>
-+      <div>
-+        <label for="prodFilterItem">ITEM</label>
-+        <select id="prodFilterItem"></select>
-+      </div>
-+      <div>
-+        <label for="prodFilterSize">SIZE</label>
-+        <select id="prodFilterSize"></select>
-+      </div>
-+      <div>
-+        <label for="prodFilterFrom">FROM</label>
-+        <input id="prodFilterFrom" type="date" />
-+      </div>
-+      <div>
-+        <label for="prodFilterTo">TO</label>
-+        <input id="prodFilterTo" type="date" />
-+      </div>
-+      <div>
-+        <label>&nbsp;</label>
-+        <button id="prodReset" type="button">초기화</button>
-+      </div>
-+    </div>
-+    <table>
-+      <thead>
-+        <tr>
-+          <th>LOT</th>
-+          <th>생산일자</th>
-+          <th>ITEM</th>
-+          <th>SIZE</th>
-+          <th>포장(LB)</th>
-+          <th>잔량(LB)</th>
-+          <th>원자재 LOT</th>
-+          <th>작업자</th>
-+          <th>삭제</th>
-+        </tr>
-+      </thead>
-+      <tbody id="prodBody"></tbody>
-+    </table>
-+  </section>
- 
--// Pure helper for tests and state derivations
--function computeRemainingRows(prodRows, outRows){
--  return prodRows.map(p=>{
--    const used = outRows
--      .filter(o=>o.prodLot===p.lot)
--      .reduce((s,o)=>s+(Number(o.outLB)||0),0);
--    const remain = (Number(p.packLB)||0) - used;
--    return { ...p, remain };
--  });
--}
-+  <section class="card">
-+    <h2>생산 데이터 입력</h2>
-+    <form id="prodForm" class="filters">
-+      <div>
-+        <label for="prodLot">LOT</label>
-+        <input id="prodLot" required />
-+      </div>
-+      <div>
-+        <label for="prodDate">생산일자</label>
-+        <input id="prodDate" type="date" required />
-+      </div>
-+      <div>
-+        <label for="prodItem">ITEM</label>
-+        <select id="prodItem" required></select>
-+      </div>
-+      <div>
-+        <label for="prodSize">SIZE</label>
-+        <select id="prodSize" required></select>
-+      </div>
-+      <div>
-+        <label for="prodPack">포장(LB)</label>
-+        <input id="prodPack" type="number" min="0" step="0.1" required />
-+      </div>
-+      <div>
-+        <label for="prodRaw">원자재 LOT</label>
-+        <input id="prodRaw" />
-+      </div>
-+      <div>
-+        <label for="prodWorker">작업자</label>
-+        <input id="prodWorker" />
-+      </div>
-+      <div>
-+        <label>&nbsp;</label>
-+        <button class="primary" type="submit">추가</button>
-+      </div>
-+    </form>
-+  </section>
- 
--export default function InventoryDashboard(){
--  // data states
--  const [prodRows, setProdRows] = useState([]);
--  const [outRows, setOutRows] = useState([]);
-+  <section class="card">
-+    <h2>출고 내역</h2>
-+    <div class="filters">
-+      <div>
-+        <label for="outSearch">검색어</label>
-+        <input id="outSearch" type="search" placeholder="오더 / 발전소 / LOT" />
-+      </div>
-+      <div>
-+        <label for="outFilterItem">ITEM</label>
-+        <select id="outFilterItem"></select>
-+      </div>
-+      <div>
-+        <label for="outFilterSize">SIZE</label>
-+        <select id="outFilterSize"></select>
-+      </div>
-+      <div>
-+        <label for="outFilterFrom">FROM</label>
-+        <input id="outFilterFrom" type="date" />
-+      </div>
-+      <div>
-+        <label for="outFilterTo">TO</label>
-+        <input id="outFilterTo" type="date" />
-+      </div>
-+      <div>
-+        <label>&nbsp;</label>
-+        <button id="outReset" type="button">초기화</button>
-+      </div>
-+    </div>
-+    <table>
-+      <thead>
-+        <tr>
-+          <th>출고일자</th>
-+          <th>Order No</th>
-+          <th>발전소</th>
-+          <th>호기</th>
-+          <th>용도</th>
-+          <th>ITEM</th>
-+          <th>SIZE</th>
-+          <th>출고(LB)</th>
-+          <th>생산 LOT</th>
-+          <th>출고자</th>
-+          <th>삭제</th>
-+        </tr>
-+      </thead>
-+      <tbody id="outBody"></tbody>
-+    </table>
-+  </section>
- 
--  // single-line input states
--  const [prodInput, setProdInput] = useState({lot:"", date:"", item:ITEMS[0], size:SIZES[0], packLB:"", rawLot:"", dim:"", worker:""});
--  const [outInput, setOutInput] = useState({date:"", orderNo:"", power:"", unit:"", useName:"", item:ITEMS[0], size:SIZES[0], outLB:"", prodLot:"", worker:""});
-+  <section class="card">
-+    <h2>출고 데이터 입력</h2>
-+    <form id="outForm" class="filters">
-+      <div>
-+        <label for="outDate">출고일자</label>
-+        <input id="outDate" type="date" required />
-+      </div>
-+      <div>
-+        <label for="outOrder">Order No</label>
-+        <input id="outOrder" />
-+      </div>
-+      <div>
-+        <label for="outPlant">발전소</label>
-+        <input id="outPlant" />
-+      </div>
-+      <div>
-+        <label for="outUnit">호기</label>
-+        <input id="outUnit" />
-+      </div>
-+      <div>
-+        <label for="outUse">용도</label>
-+        <input id="outUse" />
-+      </div>
-+      <div>
-+        <label for="outItem">ITEM</label>
-+        <select id="outItem" required></select>
-+      </div>
-+      <div>
-+        <label for="outSize">SIZE</label>
-+        <select id="outSize" required></select>
-+      </div>
-+      <div>
-+        <label for="outLb">출고(LB)</label>
-+        <input id="outLb" type="number" min="0" step="0.1" required />
-+      </div>
-+      <div>
-+        <label for="outLot">생산 LOT</label>
-+        <input id="outLot" required />
-+      </div>
-+      <div>
-+        <label for="outWorker">출고자</label>
-+        <input id="outWorker" />
-+      </div>
-+      <div>
-+        <label>&nbsp;</label>
-+        <button class="primary" type="submit">추가</button>
-+      </div>
-+    </form>
-+  </section>
- 
--  // filter states (검색/필터)
--  const [prodFilter, setProdFilter] = useState({q:"", lot:"", item:"", size:"", from:"", to:""});
--  const [outFilter, setOutFilter] = useState({q:"", lot:"", item:"", size:"", from:"", to:"", order:""});
-+  <script>
-+    const ITEMS = [
-+      "ALS910C",
-+      "ALS900G",
-+      "ALS955W",
-+      "ALS970",
-+      "ALS990",
-+      "ALS420",
-+      "ALS610",
-+      "ALS620",
-+      "ALS623S",
-+      "ALS630N",
-+      "ALS640K",
-+      "ALS350Y"
-+    ];
- 
--  // 출고 반영 잔량 계산 (LOT 기준 차감)
--  const remainingRows = useMemo(()=> computeRemainingRows(prodRows, outRows), [prodRows, outRows]);
-+    const SIZES = [
-+      '1/8"',
-+      '3/16"',
-+      '1/4"',
-+      '5/16"',
-+      '3/8"',
-+      '7/16"',
-+      '1/2"',
-+      '9/16"',
-+      '5/8"',
-+      '11/16"',
-+      '3/4"',
-+      '13/16"',
-+      '(20.6)"',
-+      '7/8"',
-+      '1"',
-+      '1-1/4"'
-+    ];
- 
--  // ====== 재고 현황판(실시간)용 셀 매트릭스 ======
--  function buildCellMatrix(rows){
--    // size -> item -> [{lot, remain, date}]
--    const m = {};
--    for(const s of SIZES){ m[s] = Object.fromEntries(ITEMS.map(i=>[i,[]])); }
--    for(const r of rows){
--      const remain = Number(r.remain ?? r.packLB) || 0;
--      if(remain <= 0) continue; // 0 이하는 표시 안함
--      if(!m[r.size] || !m[r.size][r.item]) continue;
--      m[r.size][r.item].push({ lot: r.lot, remain, date: r.date || "" });
--    }
--    // 정렬: 날짜 오름차순 -> LOT 문자열
--    for(const s of SIZES){
--      for(const it of ITEMS){
--        m[s][it].sort((a,b)=>{
--          const da = new Date(a.date||0).getTime();
--          const db = new Date(b.date||0).getTime();
--          if(da!==db) return da-db; return a.lot.localeCompare(b.lot);
--        });
--      }
--    }
--    return m;
--  }
--  const cellMatrix = useMemo(()=>buildCellMatrix(remainingRows),[remainingRows]);
-+    const prodRows = [];
-+    const outRows = [];
- 
--  // ===== Filters =====
--  const matchDate = (d, from, to) => {
--    if(!d) return false; // 빈 날짜는 기본적으로 검색에서 제외
--    if(from && d < from) return false;
--    if(to && d > to) return false;
--    return true;
--  };
-+    const selects = [
-+      "prodFilterItem",
-+      "prodFilterSize",
-+      "prodItem",
-+      "prodSize",
-+      "outFilterItem",
-+      "outFilterSize",
-+      "outItem",
-+      "outSize"
-+    ];
- 
--  const prodFiltered = useMemo(()=>{
--    return remainingRows.filter(r=>{
--      const q = prodFilter.q.trim().toLowerCase();
--      const text = `${r.lot||""} ${r.rawLot||""} ${r.worker||""} ${r.dim||""}`.toLowerCase();
--      if(q && !text.includes(q)) return false;
--      if(prodFilter.lot && (r.lot||"") !== prodFilter.lot) return false;
--      if(prodFilter.item && r.item !== prodFilter.item) return false;
--      if(prodFilter.size && r.size !== prodFilter.size) return false;
--      if(prodFilter.from || prodFilter.to){
--        if(!matchDate(r.date, prodFilter.from, prodFilter.to)) return false;
-+    selects.forEach((id) => {
-+      const el = document.getElementById(id);
-+      if (!el) return;
-+      el.innerHTML = "";
-+      if (!id.toLowerCase().includes("filter")) {
-+        // input selects: no 전체 option
-+      } else {
-+        const opt = document.createElement("option");
-+        opt.value = "";
-+        opt.textContent = "(전체)";
-+        el.appendChild(opt);
-       }
--      return true;
-+      const source = id.toLowerCase().includes("item") ? ITEMS : SIZES;
-+      source.forEach((value) => {
-+        const opt = document.createElement("option");
-+        opt.value = value;
-+        opt.textContent = value;
-+        el.appendChild(opt);
-+      });
-     });
--  },[remainingRows, prodFilter]);
- 
--  const outFiltered = useMemo(()=>{
--    return outRows.filter(r=>{
--      const q = outFilter.q.trim().toLowerCase();
--      const text = `${r.orderNo||""} ${r.power||""} ${r.unit||""} ${r.useName||""} ${r.worker||""} ${r.prodLot||""}`.toLowerCase();
--      if(q && !text.includes(q)) return false;
--      if(outFilter.order && r.orderNo !== outFilter.order) return false;
--      if(outFilter.lot && r.prodLot !== outFilter.lot) return false;
--      if(outFilter.item && r.item !== outFilter.item) return false;
--      if(outFilter.size && r.size !== outFilter.size) return false;
--      if(outFilter.from || outFilter.to){
--        if(!matchDate(r.date, outFilter.from, outFilter.to)) return false;
--      }
-+    const matrixHead = document.querySelector("#matrixTable thead");
-+    const matrixBody = document.querySelector("#matrixTable tbody");
-+    const prodBody = document.getElementById("prodBody");
-+    const outBody = document.getElementById("outBody");
-+
-+    const prodFilter = { q: "", item: "", size: "", from: "", to: "" };
-+    const outFilter = { q: "", item: "", size: "", from: "", to: "" };
-+
-+    const uid = () => "id-" + Math.random().toString(36).slice(2, 7) + Date.now().toString(36);
-+
-+    const toNumber = (value) => {
-+      const num = Number(value);
-+      return Number.isFinite(num) ? num : 0;
-+    };
-+
-+    const withinRange = (date, from, to) => {
-+      if (!date) return false;
-+      if (from && date < from) return false;
-+      if (to && date > to) return false;
-       return true;
--    });
--  },[outRows, outFilter]);
-+    };
- 
--  // ===== Actions =====
--  const addProd = () => {
--    setProdRows(v=>[...v,{id:uid(),...prodInput}]);
--    setProdInput({lot:"", date:"", item:ITEMS[0], size:SIZES[0], packLB:"", rawLot:"", dim:"", worker:""});
--  };
--  const delProd = (id) => setProdRows(v=>v.filter(r=>r.id!==id));
-+    const computeRemaining = () => {
-+      return prodRows.map((row) => {
-+        const used = outRows
-+          .filter((out) => out.prodLot === row.lot)
-+          .reduce((sum, out) => sum + toNumber(out.outLB), 0);
-+        return { ...row, remain: toNumber(row.packLB) - used };
-+      });
-+    };
- 
--  const addOut = () => {
--    setOutRows(v=>[...v,{id:uid(),...outInput}]);
--    setOutInput({date:"", orderNo:"", power:"", unit:"", useName:"", item:ITEMS[0], size:SIZES[0], outLB:"", prodLot:"", worker:""});
--  };
--  const delOut = (id) => setOutRows(v=>v.filter(r=>r.id!==id));
-+    const buildMatrix = (rows) => {
-+      const matrix = {};
-+      SIZES.forEach((size) => {
-+        matrix[size] = Object.fromEntries(ITEMS.map((item) => [item, []]));
-+      });
-+      rows.forEach((row) => {
-+        const remain = toNumber(row.remain);
-+        if (remain <= 0) return;
-+        if (!matrix[row.size] || !matrix[row.size][row.item]) return;
-+        matrix[row.size][row.item].push({ lot: row.lot, remain });
-+      });
-+      return matrix;
-+    };
- 
--  const resetProdFilter = () => setProdFilter({q:"", lot:"", item:"", size:"", from:"", to:""});
--  const resetOutFilter = () => setOutFilter({q:"", lot:"", item:"", size:"", from:"", to:"", order:""});
-+    const renderMatrix = (rows) => {
-+      const matrix = buildMatrix(rows);
-+      matrixHead.innerHTML = "";
-+      matrixBody.innerHTML = "";
- 
--  // ===== Lightweight tests (pure, no state mutation) =====
--  useEffect(()=>{
--    console.assert(mapAllToEmpty(ALL)==="", "TEST FAIL: mapAllToEmpty(ALL) !== ''");
--    console.assert(mapAllToEmpty("ALS910C")==="ALS910C", "TEST FAIL: mapAllToEmpty passthrough failed");
--    const p = [
--      {id:"p1", lot:"L1", packLB:10, item:"ALS910C", size:'1/2"', date:"2025-09-20"},
--      {id:"p2", lot:"L2", packLB:5, item:"ALS910C", size:'1/2"', date:"2025-09-21"},
--      {id:"p3", lot:"L3", packLB:8, item:"ALS900G", size:'3/4"', date:"2025-09-19"},
--    ];
--    const o = [
--      {id:"o1", prodLot:"L1", outLB:7, date:"2025-09-22"},
--      {id:"o2", prodLot:"L2", outLB:3, date:"2025-09-23"},
--    ];
--    const res = computeRemainingRows(p,o);
--    console.assert(res.find(r=>r.lot==="L1").remain===3, "TEST FAIL: L1 remain !== 3");
--    console.assert(res.find(r=>r.lot==="L2").remain===2, "TEST FAIL: L2 remain !== 2");
--    console.assert(res.find(r=>r.lot==="L3").remain===8, "TEST FAIL: L3 remain !== 8");
--    const m = buildCellMatrix(res);
--    console.assert(Array.isArray(m['1/2"']["ALS910C"]) && m['1/2"']["ALS910C"].length===2, "TEST FAIL: cellMatrix count for 1/2 × ALS910C");
--    console.log("✅ TESTS PASSED (mapping, remaining, date, matrix)");
--  },[]);
-+      const headRow = document.createElement("tr");
-+      const first = document.createElement("th");
-+      first.textContent = "SIZE \\ ITEM";
-+      headRow.appendChild(first);
-+      ITEMS.forEach((item) => {
-+        const th = document.createElement("th");
-+        th.textContent = item;
-+        headRow.appendChild(th);
-+      });
-+      matrixHead.appendChild(headRow);
- 
--  return (
--    <div className="min-h-screen p-6 grid gap-6 bg-gray-50">
--      <h1 className="text-2xl font-semibold">예스폼 스타일 재고관리 대시보드</h1>
-+      SIZES.forEach((size) => {
-+        const tr = document.createElement("tr");
-+        const tdSize = document.createElement("td");
-+        tdSize.textContent = size;
-+        tr.appendChild(tdSize);
-+        ITEMS.forEach((item) => {
-+          const td = document.createElement("td");
-+          const list = matrix[size][item];
-+          if (!list || list.length === 0) {
-+            td.innerHTML = '<div class="empty">-</div>';
-+          } else {
-+            const wrap = document.createElement("div");
-+            wrap.className = "pill-list";
-+            list.sort((a, b) => a.lot.localeCompare(b.lot));
-+            list.forEach((info) => {
-+              const pill = document.createElement("div");
-+              pill.className = "pill";
-+              pill.innerHTML = `<span>${info.remain.toLocaleString()} LB</span><span>${info.lot}</span>`;
-+              wrap.appendChild(pill);
-+            });
-+            td.appendChild(wrap);
-+          }
-+          tr.appendChild(td);
-+        });
-+        matrixBody.appendChild(tr);
-+      });
-+    };
- 
--      {/* 재고 현황판 (실시간) : SIZE × ITEM, 각 셀에 LOT별 잔량 개별 표시 */}
--<Card className="shadow">
--  <CardContent className="p-4 space-y-3">
--    <div className="text-lg font-medium">재고 현황판 (실시간)</div>
--    <div className="overflow-auto">
--      <table className="min-w-full border text-sm">
--        <thead>
--          <tr>
--            <th className="sticky left-0 bg-gray-100 border px-2 py-1">SIZE \ ITEM</th>
--            {ITEMS.map(it=> (
--              <th key={it} className="border px-2 py-1 text-center text-gray-700">{it}</th>
--            ))}
--          </tr>
--        </thead>
--        <tbody>
--          {SIZES.map((sz, idx)=> (
--            <tr key={sz} className={idx%2?"bg-gray-50":"bg-white"}>
--              <td className="sticky left-0 bg-gray-100 border px-2 py-1 font-medium">{sz}</td>
--              {ITEMS.map(it=> (
--                <td key={it+sz} className="border px-2 py-1 align-top min-w-[160px]">
--                  {cellMatrix[sz]?.[it]?.length ? (
--                    <ul className="space-y-1">
--                      {cellMatrix[sz][it].map((e, i)=> (
--                        <li key={e.lot+"_"+i} className="px-2 py-1 rounded-xl bg-gray-100 flex items-center justify-between">
--                          <span className="font-medium">{e.remain} LB</span>
--                          <span className="text-xs text-gray-600">{e.lot}</span>
--                        </li>
--                      ))}
--                    </ul>
--                  ) : (
--                    <div className="text-gray-300 text-center">—</div>
--                  )}
--                </td>
--              ))}
--            </tr>
--          ))}
--        </tbody>
--      </table>
--    </div>
--  </CardContent>
--</Card>
-+    const renderProd = (rows) => {
-+      prodBody.innerHTML = "";
-+      if (rows.length === 0) {
-+        const tr = document.createElement("tr");
-+        const td = document.createElement("td");
-+        td.colSpan = 9;
-+        td.className = "empty";
-+        td.textContent = "생산 데이터가 없습니다.";
-+        tr.appendChild(td);
-+        prodBody.appendChild(tr);
-+        return;
-+      }
-+      rows.forEach((row) => {
-+        const tr = document.createElement("tr");
-+        tr.innerHTML = `
-+          <td>${row.lot}</td>
-+          <td>${row.date || ""}</td>
-+          <td>${row.item}</td>
-+          <td>${row.size}</td>
-+          <td style="text-align:right;">${toNumber(row.packLB).toLocaleString()}</td>
-+          <td style="text-align:right;">${toNumber(row.remain).toLocaleString()}</td>
-+          <td>${row.rawLot || ""}</td>
-+          <td>${row.worker || ""}</td>
-+          <td style="text-align:center;"><button class="ghost" data-id="${row.id}" data-type="prod">삭제</button></td>
-+        `;
-+        prodBody.appendChild(tr);
-+      });
-+    };
- 
--{/* 재고관리대장 (생산 내역 + 출고 반영 잔량) */}
--<Card className="shadow">
--  <CardContent className="p-4 space-y-3">
--    <div className="flex items-center justify-between">
--      <div className="text-lg font-medium">재고관리대장 (검색/필터 가능)</div>
--    </div>
-+    const renderOut = (rows) => {
-+      outBody.innerHTML = "";
-+      if (rows.length === 0) {
-+        const tr = document.createElement("tr");
-+        const td = document.createElement("td");
-+        td.colSpan = 11;
-+        td.className = "empty";
-+        td.textContent = "출고 데이터가 없습니다.";
-+        tr.appendChild(td);
-+        outBody.appendChild(tr);
-+        return;
-+      }
-+      rows.forEach((row) => {
-+        const tr = document.createElement("tr");
-+        tr.innerHTML = `
-+          <td>${row.date || ""}</td>
-+          <td>${row.orderNo || ""}</td>
-+          <td>${row.plant || ""}</td>
-+          <td>${row.unit || ""}</td>
-+          <td>${row.use || ""}</td>
-+          <td>${row.item}</td>
-+          <td>${row.size}</td>
-+          <td style="text-align:right;">${toNumber(row.outLB).toLocaleString()}</td>
-+          <td>${row.prodLot}</td>
-+          <td>${row.worker || ""}</td>
-+          <td style="text-align:center;"><button class="ghost" data-id="${row.id}" data-type="out">삭제</button></td>
-+        `;
-+        outBody.appendChild(tr);
-+      });
-+    };
- 
--    {/* 생산 내역 검색바 */}
--    <div className="grid grid-cols-12 gap-2">
--      <Input className="col-span-3" placeholder="검색어(LOT/원자재LOT/작업자/치수)" value={prodFilter.q} onChange={e=>setProdFilter({...prodFilter,q:e.target.value})}/>
--      <Input className="col-span-2" placeholder="LOT" value={prodFilter.lot} onChange={e=>setProdFilter({...prodFilter,lot:e.target.value})}/>
--      <Select value={prodFilter.item || undefined} onValueChange={val=>setProdFilter({...prodFilter,item:mapAllToEmpty(val)})}>
--        <SelectTrigger className="col-span-2"><SelectValue placeholder="ITEM 선택"/></SelectTrigger>
--        <SelectContent>
--          <SelectItem value={ALL}>(전체)</SelectItem>
--          {ITEMS.map(i=> <SelectItem key={i} value={i}>{i}</SelectItem>)}
--        </SelectContent>
--      </Select>
--      <Select value={prodFilter.size || undefined} onValueChange={val=>setProdFilter({...prodFilter,size:mapAllToEmpty(val)})}>
--        <SelectTrigger className="col-span-2"><SelectValue placeholder="SIZE 선택"/></SelectTrigger>
--        <SelectContent>
--          <SelectItem value={ALL}>(전체)</SelectItem>
--          {SIZES.map(s=> <SelectItem key={s} value={s}>{s}</SelectItem>)}
--        </SelectContent>
--      </Select>
--      <Input type="date" className="col-span-1" value={prodFilter.from} onChange={e=>setProdFilter({...prodFilter,from:e.target.value})}/>
--      <Input type="date" className="col-span-1" value={prodFilter.to} onChange={e=>setProdFilter({...prodFilter,to:e.target.value})}/>
--      <Button variant="secondary" className="col-span-1" onClick={resetProdFilter}>초기화</Button>
--    </div>
-+    const applyProdFilter = (row, filter) => {
-+      const text = `${row.lot} ${row.rawLot || ""} ${row.worker || ""}`.toLowerCase();
-+      const q = filter.q.trim().toLowerCase();
-+      if (q && !text.includes(q)) return false;
-+      if (filter.item && row.item !== filter.item) return false;
-+      if (filter.size && row.size !== filter.size) return false;
-+      if ((filter.from || filter.to) && !withinRange(row.date, filter.from, filter.to)) return false;
-+      return true;
-+    };
- 
--    {/* 생산 내역 표 (잔량 반영) */}
--    <div className="overflow-auto">
--      <table className="min-w-full border text-sm">
--        <thead>
--          <tr>
--            <th className="border px-2 py-1">LOT</th>
--            <th className="border px-2 py-1">생산일자</th>
--            <th className="border px-2 py-1">ITEM</th>
--            <th className="border px-2 py-1">SIZE</th>
--            <th className="border px-2 py-1">포장(LB)</th>
--            <th className="border px-2 py-1">출고후 잔량(LB)</th>
--            <th className="border px-2 py-1">원자재 LOT</th>
--            <th className="border px-2 py-1">치수</th>
--            <th className="border px-2 py-1">작업자</th>
--            <th className="border px-2 py-1">삭제</th>
--          </tr>
--        </thead>
--        <tbody>
--          {prodFiltered.map(p=> (
--            <tr key={p.id}>
--              <td className="border px-2 py-1">{p.lot}</td>
--              <td className="border px-2 py-1">{p.date}</td>
--              <td className="border px-2 py-1">{p.item}</td>
--              <td className="border px-2 py-1">{p.size}</td>
--              <td className="border px-2 py-1 text-right">{p.packLB}</td>
--              <td className="border px-2 py-1 text-right">{p.remain}</td>
--              <td className="border px-2 py-1">{p.rawLot}</td>
--              <td className="border px-2 py-1">{p.dim}</td>
--              <td className="border px-2 py-1">{p.worker}</td>
--              <td className="border px-2 py-1"><Button variant="ghost" onClick={()=>delProd(p.id)}><Trash2 className="w-4 h-4"/></Button></td>
--            </tr>
--          ))}
--        </tbody>
--      </table>
--    </div>
--  </CardContent>
--</Card>
-+    const applyOutFilter = (row, filter) => {
-+      const text = `${row.orderNo || ""} ${row.plant || ""} ${row.prodLot}`.toLowerCase();
-+      const q = filter.q.trim().toLowerCase();
-+      if (q && !text.includes(q)) return false;
-+      if (filter.item && row.item !== filter.item) return false;
-+      if (filter.size && row.size !== filter.size) return false;
-+      if ((filter.from || filter.to) && !withinRange(row.date, filter.from, filter.to)) return false;
-+      return true;
-+    };
- 
--      {/* 생산리스트 입력 (단일 입력줄) */}
--      <Card className="shadow">
--        <CardContent className="p-4 space-y-3">
--          <div className="text-lg font-medium">생산리스트 입력</div>
--          <div className="grid grid-cols-12 gap-2 items-center p-2 rounded-xl bg-white shadow-sm">
--            <Input className="col-span-2" placeholder="LOT. NO" value={prodInput.lot} onChange={e=>setProdInput({...prodInput,lot:e.target.value})}/>
--            <Input type="date" className="col-span-2" value={prodInput.date} onChange={e=>setProdInput({...prodInput,date:e.target.value})}/>
--            <Select value={prodInput.item} onValueChange={val=>setProdInput({...prodInput,item:val})}>
--              <SelectTrigger className="col-span-2"><SelectValue placeholder="ITEM"/></SelectTrigger>
--              <SelectContent>{ITEMS.map(i=> <SelectItem key={i} value={i}>{i}</SelectItem>)}</SelectContent>
--            </Select>
--            <Select value={prodInput.size} onValueChange={val=>setProdInput({...prodInput,size:val})}>
--              <SelectTrigger className="col-span-2"><SelectValue placeholder="SIZE"/></SelectTrigger>
--              <SelectContent>{SIZES.map(s=> <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
--            </Select>
--            <Input type="number" className="col-span-1" placeholder="포장(LB)" value={prodInput.packLB} onChange={e=>setProdInput({...prodInput,packLB:e.target.value})}/>
--            <Input className="col-span-2" placeholder="원자재 LOT" value={prodInput.rawLot} onChange={e=>setProdInput({...prodInput,rawLot:e.target.value})}/>
--            <Input className="col-span-1" placeholder="치수" value={prodInput.dim} onChange={e=>setProdInput({...prodInput,dim:e.target.value})}/>
--            <Input className="col-span-2" placeholder="작업자" value={prodInput.worker} onChange={e=>setProdInput({...prodInput,worker:e.target.value})}/>
--            <Button onClick={addProd}><Plus className="w-4 h-4 mr-1"/>저장</Button>
--          </div>
--        </CardContent>
--      </Card>
-+    const renderAll = () => {
-+      const remaining = computeRemaining();
-+      const prodFiltered = remaining.filter((row) => applyProdFilter(row, prodFilter));
-+      const outFiltered = outRows.filter((row) => applyOutFilter(row, outFilter));
-+      renderMatrix(remaining);
-+      renderProd(prodFiltered);
-+      renderOut(outFiltered);
-+    };
- 
--      {/* 출고리스트 입력 (단일 입력줄) + 검색/필터 + 내역표 */}
--      <Card className="shadow">
--        <CardContent className="p-4 space-y-3">
--          <div className="text-lg font-medium">출고리스트 입력</div>
--          <div className="grid grid-cols-12 gap-2 items-center p-2 rounded-xl bg-white shadow-sm">
--            <Input type="date" className="col-span-2" placeholder="출고일자" value={outInput.date} onChange={e=>setOutInput({...outInput,date:e.target.value})}/>
--            <Input className="col-span-2" placeholder="Order No." value={outInput.orderNo} onChange={e=>setOutInput({...outInput,orderNo:e.target.value})}/>
--            <Input className="col-span-2" placeholder="발전소명" value={outInput.power} onChange={e=>setOutInput({...outInput,power:e.target.value})}/>
--            <Input className="col-span-1" placeholder="호기명" value={outInput.unit} onChange={e=>setOutInput({...outInput,unit:e.target.value})}/>
--            <Input className="col-span-2" placeholder="용도명" value={outInput.useName} onChange={e=>setOutInput({...outInput,useName:e.target.value})}/>
--            <Select value={outInput.item} onValueChange={val=>setOutInput({...outInput,item:val})}>
--              <SelectTrigger className="col-span-2"><SelectValue placeholder="ITEM"/></SelectTrigger>
--              <SelectContent>{ITEMS.map(i=> <SelectItem key={i} value={i}>{i}</SelectItem>)}</SelectContent>
--            </Select>
--            <Select value={outInput.size} onValueChange={val=>setOutInput({...outInput,size:val})}>
--              <SelectTrigger className="col-span-2"><SelectValue placeholder="SIZE"/></SelectTrigger>
--              <SelectContent>{SIZES.map(s=> <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
--            </Select>
--            <Input type="number" className="col-span-1" placeholder="출고(LB)" value={outInput.outLB} onChange={e=>setOutInput({...outInput,outLB:e.target.value})}/>
--            <Input className="col-span-2" placeholder="생산 LOT" value={outInput.prodLot} onChange={e=>setOutInput({...outInput,prodLot:e.target.value})}/>
--            <Input className="col-span-2" placeholder="출고자" value={outInput.worker} onChange={e=>setOutInput({...outInput,worker:e.target.value})}/>
--            <Button onClick={addOut}><Plus className="w-4 h-4 mr-1"/>저장</Button>
--          </div>
-+    document.getElementById("prodSearch").addEventListener("input", (event) => {
-+      prodFilter.q = event.target.value;
-+      renderAll();
-+    });
-+    document.getElementById("prodFilterItem").addEventListener("change", (event) => {
-+      prodFilter.item = event.target.value;
-+      renderAll();
-+    });
-+    document.getElementById("prodFilterSize").addEventListener("change", (event) => {
-+      prodFilter.size = event.target.value;
-+      renderAll();
-+    });
-+    document.getElementById("prodFilterFrom").addEventListener("change", (event) => {
-+      prodFilter.from = event.target.value;
-+      renderAll();
-+    });
-+    document.getElementById("prodFilterTo").addEventListener("change", (event) => {
-+      prodFilter.to = event.target.value;
-+      renderAll();
-+    });
-+    document.getElementById("prodReset").addEventListener("click", () => {
-+      prodFilter.q = prodFilter.item = prodFilter.size = prodFilter.from = prodFilter.to = "";
-+      document.getElementById("prodSearch").value = "";
-+      document.getElementById("prodFilterItem").value = "";
-+      document.getElementById("prodFilterSize").value = "";
-+      document.getElementById("prodFilterFrom").value = "";
-+      document.getElementById("prodFilterTo").value = "";
-+      renderAll();
-+    });
- 
--          {/* 출고 검색바 */}
--          <div className="grid grid-cols-12 gap-2">
--            <Input className="col-span-3" placeholder="검색어(오더/발전소/용도/출고자/LOT)" value={outFilter.q} onChange={e=>setOutFilter({...outFilter,q:e.target.value})}/>
--            <Input className="col-span-2" placeholder="Order No" value={outFilter.order} onChange={e=>setOutFilter({...outFilter,order:e.target.value})}/>
--            <Input className="col-span-2" placeholder="생산 LOT" value={outFilter.lot} onChange={e=>setOutFilter({...outFilter,lot:e.target.value})}/>
--            <Select value={outFilter.item || undefined} onValueChange={val=>setOutFilter({...outFilter,item:mapAllToEmpty(val)})}>
--              <SelectTrigger className="col-span-2"><SelectValue placeholder="ITEM 선택"/></SelectTrigger>
--              <SelectContent>
--                <SelectItem value={ALL}>(전체)</SelectItem>
--                {ITEMS.map(i=> <SelectItem key={i} value={i}>{i}</SelectItem>)}
--              </SelectContent>
--            </Select>
--            <Select value={outFilter.size || undefined} onValueChange={val=>setOutFilter({...outFilter,size:mapAllToEmpty(val)})}>
--              <SelectTrigger className="col-span-2"><SelectValue placeholder="SIZE 선택"/></SelectTrigger>
--              <SelectContent>
--                <SelectItem value={ALL}>(전체)</SelectItem>
--                {SIZES.map(s=> <SelectItem key={s} value={s}>{s}</SelectItem>)}
--              </SelectContent>
--            </Select>
--            <Input type="date" className="col-span-1" value={outFilter.from} onChange={e=>setOutFilter({...outFilter,from:e.target.value})}/>
--            <Input type="date" className="col-span-1" value={outFilter.to} onChange={e=>setOutFilter({...outFilter,to:e.target.value})}/>
--            <Button variant="secondary" className="col-span-1" onClick={resetOutFilter}>초기화</Button>
--          </div>
-+    document.getElementById("outSearch").addEventListener("input", (event) => {
-+      outFilter.q = event.target.value;
-+      renderAll();
-+    });
-+    document.getElementById("outFilterItem").addEventListener("change", (event) => {
-+      outFilter.item = event.target.value;
-+      renderAll();
-+    });
-+    document.getElementById("outFilterSize").addEventListener("change", (event) => {
-+      outFilter.size = event.target.value;
-+      renderAll();
-+    });
-+    document.getElementById("outFilterFrom").addEventListener("change", (event) => {
-+      outFilter.from = event.target.value;
-+      renderAll();
-+    });
-+    document.getElementById("outFilterTo").addEventListener("change", (event) => {
-+      outFilter.to = event.target.value;
-+      renderAll();
-+    });
-+    document.getElementById("outReset").addEventListener("click", () => {
-+      outFilter.q = outFilter.item = outFilter.size = outFilter.from = outFilter.to = "";
-+      document.getElementById("outSearch").value = "";
-+      document.getElementById("outFilterItem").value = "";
-+      document.getElementById("outFilterSize").value = "";
-+      document.getElementById("outFilterFrom").value = "";
-+      document.getElementById("outFilterTo").value = "";
-+      renderAll();
-+    });
- 
--          {/* 출고 내역 표 */}
--          <div className="overflow-auto">
--            <table className="min-w-full border text-sm">
--              <thead>
--                <tr>
--                  <th className="border px-2 py-1">출고일자</th>
--                  <th className="border px-2 py-1">Order No</th>
--                  <th className="border px-2 py-1">발전소</th>
--                  <th className="border px-2 py-1">호기</th>
--                  <th className="border px-2 py-1">용도</th>
--                  <th className="border px-2 py-1">ITEM</th>
--                  <th className="border px-2 py-1">SIZE</th>
--                  <th className="border px-2 py-1">출고(LB)</th>
--                  <th className="border px-2 py-1">생산 LOT</th>
--                  <th className="border px-2 py-1">출고자</th>
--                  <th className="border px-2 py-1">삭제</th>
--                </tr>
--              </thead>
--              <tbody>
--                {outFiltered.map(o=> (
--                  <tr key={o.id}>
--                    <td className="border px-2 py-1">{o.date}</td>
--                    <td className="border px-2 py-1">{o.orderNo}</td>
--                    <td className="border px-2 py-1">{o.power}</td>
--                    <td className="border px-2 py-1">{o.unit}</td>
--                    <td className="border px-2 py-1">{o.useName}</td>
--                    <td className="border px-2 py-1">{o.item}</td>
--                    <td className="border px-2 py-1">{o.size}</td>
--                    <td className="border px-2 py-1 text-right">{o.outLB}</td>
--                    <td className="border px-2 py-1">{o.prodLot}</td>
--                    <td className="border px-2 py-1">{o.worker}</td>
--                    <td className="border px-2 py-1"><Button variant="ghost" onClick={()=>delOut(o.id)}><Trash2 className="w-4 h-4"/></Button></td>
--                  </tr>
--                ))}
--              </tbody>
--            </table>
--          </div>
--        </CardContent>
--      </Card>
--    </div>
--  );
--}
-+    document.getElementById("prodForm").addEventListener("submit", (event) => {
-+      event.preventDefault();
-+      const row = {
-+        id: uid(),
-+        lot: document.getElementById("prodLot").value.trim(),
-+        date: document.getElementById("prodDate").value,
-+        item: document.getElementById("prodItem").value,
-+        size: document.getElementById("prodSize").value,
-+        packLB: toNumber(document.getElementById("prodPack").value),
-+        rawLot: document.getElementById("prodRaw").value.trim(),
-+        worker: document.getElementById("prodWorker").value.trim()
-+      };
-+      if (!row.lot) {
-+        alert("LOT 번호를 입력해주세요.");
-+        return;
-+      }
-+      prodRows.push(row);
-+      event.target.reset();
-+      renderAll();
-+    });
-+
-+    document.getElementById("outForm").addEventListener("submit", (event) => {
-+      event.preventDefault();
-+      const row = {
-+        id: uid(),
-+        date: document.getElementById("outDate").value,
-+        orderNo: document.getElementById("outOrder").value.trim(),
-+        plant: document.getElementById("outPlant").value.trim(),
-+        unit: document.getElementById("outUnit").value.trim(),
-+        use: document.getElementById("outUse").value.trim(),
-+        item: document.getElementById("outItem").value,
-+        size: document.getElementById("outSize").value,
-+        outLB: toNumber(document.getElementById("outLb").value),
-+        prodLot: document.getElementById("outLot").value.trim(),
-+        worker: document.getElementById("outWorker").value.trim()
-+      };
-+      if (!row.prodLot) {
-+        alert("생산 LOT을 입력해주세요.");
-+        return;
-+      }
-+      outRows.push(row);
-+      event.target.reset();
-+      renderAll();
-+    });
-+
-+    document.body.addEventListener("click", (event) => {
-+      const button = event.target.closest("button[data-id]");
-+      if (!button) return;
-+      const { id, type } = button.dataset;
-+      if (!confirm("삭제하시겠습니까?")) return;
-+      if (type === "prod") {
-+        const index = prodRows.findIndex((row) => row.id === id);
-+        if (index > -1) prodRows.splice(index, 1);
-+      } else {
-+        const index = outRows.findIndex((row) => row.id === id);
-+        if (index > -1) outRows.splice(index, 1);
-+      }
-+      renderAll();
-+    });
-+
-+    renderAll();
-+  </script>
-+</body>
-+</html> 
-EOF
-)
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>자동 재고관리 대장</title>
+  <style>
+    body { font-family: "Noto Sans KR", Arial, sans-serif; margin: 0; padding: 24px; background: #f4f6fb; color: #1f2937; }
+    h1 { margin-top: 0; }
+    .grid { display: grid; gap: 16px; }
+    .card { background: #fff; border-radius: 12px; padding: 18px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1); }
+    label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+    input, select { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #cbd5f5; background: #f8f9ff; box-sizing: border-box; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; background: #fff; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; font-size: 14px; text-align: left; }
+    thead { background: #eef2ff; }
+    button { border: none; border-radius: 8px; padding: 10px 14px; font-weight: 600; cursor: pointer; }
+    button.primary { background: #2563eb; color: #fff; }
+    button.ghost { background: transparent; color: #dc2626; }
+    .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-top: 12px; }
+    .pill-list { display: flex; flex-direction: column; gap: 4px; }
+    .pill { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; border-radius: 999px; background: #e0f2fe; font-weight: 600; font-size: 13px; }
+    .muted { color: #6b7280; font-size: 13px; margin-top: 6px; }
+    .empty { text-align: center; color: #94a3b8; padding: 14px 0; font-size: 13px; }
+    @media (max-width: 640px) { body { padding: 18px; } }
+  </style>
+</head>
+<body>
+  <h1>자동 재고관리 대장</h1>
+  <p class="muted">생산과 출고 데이터를 입력하면 LOT 별 잔량과 SIZE × ITEM 매트릭스를 자동 계산합니다.</p>
+
+const ITEMS = [
+  "ALS910C","ALS900G","ALS955W","ALS970","ALS990","ALS420","ALS610","ALS620","ALS623S","ALS630N","ALS640K","ALS350Y"
+];
+const SIZES = [
+  '1/8"','3/16"','1/4"','5/16"','3/8"','7/16"','1/2"','9/16"','5/8"','11/16"','3/4"','13/16"','(20.6)"','7/8"','1"','1-1/4"'
+];
+  <section class="card">
+    <h2>재고 매트릭스</h2>
+    <p class="muted">SIZE와 ITEM 조합별 잔량과 LOT를 빠르게 확인하세요.</p>
+    <div style="overflow-x:auto;">
+      <table id="matrixTable">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+// ===== Helpers =====
+const uid = () => Math.random().toString(36).slice(2,9);
+const ALL = "__ALL__"; // placeholder value for SelectItem (non-empty)
+const mapAllToEmpty = (v) => (v === ALL ? "" : v);
+  <section class="card">
+    <h2>생산 내역</h2>
+    <div class="filters">
+      <div>
+        <label for="prodSearch">검색어</label>
+        <input id="prodSearch" type="search" placeholder="LOT / 원자재 LOT / 작업자" />
+      </div>
+      <div>
+        <label for="prodFilterItem">ITEM</label>
+        <select id="prodFilterItem"></select>
+      </div>
+      <div>
+        <label for="prodFilterSize">SIZE</label>
+        <select id="prodFilterSize"></select>
+      </div>
+      <div>
+        <label for="prodFilterFrom">FROM</label>
+        <input id="prodFilterFrom" type="date" />
+      </div>
+      <div>
+        <label for="prodFilterTo">TO</label>
+        <input id="prodFilterTo" type="date" />
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button id="prodReset" type="button">초기화</button>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>LOT</th>
+          <th>생산일자</th>
+          <th>ITEM</th>
+          <th>SIZE</th>
+          <th>포장(LB)</th>
+          <th>잔량(LB)</th>
+          <th>원자재 LOT</th>
+          <th>작업자</th>
+          <th>삭제</th>
+        </tr>
+      </thead>
+      <tbody id="prodBody"></tbody>
+    </table>
+  </section>
+
+// Pure helper for tests and state derivations
+function computeRemainingRows(prodRows, outRows){
+  return prodRows.map(p=>{
+    const used = outRows
+      .filter(o=>o.prodLot===p.lot)
+      .reduce((s,o)=>s+(Number(o.outLB)||0),0);
+    const remain = (Number(p.packLB)||0) - used;
+    return { ...p, remain };
+  });
+}
+  <section class="card">
+    <h2>생산 데이터 입력</h2>
+    <form id="prodForm" class="filters">
+      <div>
+        <label for="prodLot">LOT</label>
+        <input id="prodLot" required />
+      </div>
+      <div>
+        <label for="prodDate">생산일자</label>
+        <input id="prodDate" type="date" required />
+      </div>
+      <div>
+        <label for="prodItem">ITEM</label>
+        <select id="prodItem" required></select>
+      </div>
+      <div>
+        <label for="prodSize">SIZE</label>
+        <select id="prodSize" required></select>
+      </div>
+      <div>
+        <label for="prodPack">포장(LB)</label>
+        <input id="prodPack" type="number" min="0" step="0.1" required />
+      </div>
+      <div>
+        <label for="prodRaw">원자재 LOT</label>
+        <input id="prodRaw" />
+      </div>
+      <div>
+        <label for="prodWorker">작업자</label>
+        <input id="prodWorker" />
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button class="primary" type="submit">추가</button>
+      </div>
+    </form>
+  </section>
+
+export default function InventoryDashboard(){
+  // data states
+  const [prodRows, setProdRows] = useState([]);
+  const [outRows, setOutRows] = useState([]);
+  <section class="card">
+    <h2>출고 내역</h2>
+    <div class="filters">
+      <div>
+        <label for="outSearch">검색어</label>
+        <input id="outSearch" type="search" placeholder="오더 / 발전소 / LOT" />
+      </div>
+      <div>
+        <label for="outFilterItem">ITEM</label>
+        <select id="outFilterItem"></select>
+      </div>
+      <div>
+        <label for="outFilterSize">SIZE</label>
+        <select id="outFilterSize"></select>
+      </div>
+      <div>
+        <label for="outFilterFrom">FROM</label>
+        <input id="outFilterFrom" type="date" />
+      </div>
+      <div>
+        <label for="outFilterTo">TO</label>
+        <input id="outFilterTo" type="date" />
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button id="outReset" type="button">초기화</button>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>출고일자</th>
+          <th>Order No</th>
+          <th>발전소</th>
+          <th>호기</th>
+          <th>용도</th>
+          <th>ITEM</th>
+          <th>SIZE</th>
+          <th>출고(LB)</th>
+          <th>생산 LOT</th>
+          <th>출고자</th>
+          <th>삭제</th>
+        </tr>
+      </thead>
+      <tbody id="outBody"></tbody>
+    </table>
+  </section>
+
+  // single-line input states
+  const [prodInput, setProdInput] = useState({lot:"", date:"", item:ITEMS[0], size:SIZES[0], packLB:"", rawLot:"", dim:"", worker:""});
+  const [outInput, setOutInput] = useState({date:"", orderNo:"", power:"", unit:"", useName:"", item:ITEMS[0], size:SIZES[0], outLB:"", prodLot:"", worker:""});
+  <section class="card">
+    <h2>출고 데이터 입력</h2>
+    <form id="outForm" class="filters">
+      <div>
+        <label for="outDate">출고일자</label>
+        <input id="outDate" type="date" required />
+      </div>
+      <div>
+        <label for="outOrder">Order No</label>
+        <input id="outOrder" />
+      </div>
+      <div>
+        <label for="outPlant">발전소</label>
+        <input id="outPlant" />
+      </div>
+      <div>
+        <label for="outUnit">호기</label>
+        <input id="outUnit" />
+      </div>
+      <div>
+        <label for="outUse">용도</label>
+        <input id="outUse" />
+      </div>
+      <div>
+        <label for="outItem">ITEM</label>
+        <select id="outItem" required></select>
+      </div>
+      <div>
+        <label for="outSize">SIZE</label>
+        <select id="outSize" required></select>
+      </div>
+      <div>
+        <label for="outLb">출고(LB)</label>
+        <input id="outLb" type="number" min="0" step="0.1" required />
+      </div>
+      <div>
+        <label for="outLot">생산 LOT</label>
+        <input id="outLot" required />
+      </div>
+      <div>
+        <label for="outWorker">출고자</label>
+        <input id="outWorker" />
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button class="primary" type="submit">추가</button>
+      </div>
+    </form>
+  </section>
+
+  // filter states (검색/필터)
+  const [prodFilter, setProdFilter] = useState({q:"", lot:"", item:"", size:"", from:"", to:""});
+  const [outFilter, setOutFilter] = useState({q:"", lot:"", item:"", size:"", from:"", to:"", order:""});
+  <script>
+    const ITEMS = [
+      "ALS910C",
+      "ALS900G",
+      "ALS955W",
+      "ALS970",
+      "ALS990",
+      "ALS420",
+      "ALS610",
+      "ALS620",
+      "ALS623S",
+      "ALS630N",
+      "ALS640K",
+      "ALS350Y"
+    ];
+
+  // 출고 반영 잔량 계산 (LOT 기준 차감)
+  const remainingRows = useMemo(()=> computeRemainingRows(prodRows, outRows), [prodRows, outRows]);
+    const SIZES = [
+      '1/8"',
+      '3/16"',
+      '1/4"',
+      '5/16"',
+      '3/8"',
+      '7/16"',
+      '1/2"',
+      '9/16"',
+      '5/8"',
+      '11/16"',
+      '3/4"',
+      '13/16"',
+      '(20.6)"',
+      '7/8"',
+      '1"',
+      '1-1/4"'
+    ];
+
+  // ====== 재고 현황판(실시간)용 셀 매트릭스 ======
+  function buildCellMatrix(rows){
+    // size -> item -> [{lot, remain, date}]
+    const m = {};
+    for(const s of SIZES){ m[s] = Object.fromEntries(ITEMS.map(i=>[i,[]])); }
+    for(const r of rows){
+      const remain = Number(r.remain ?? r.packLB) || 0;
+      if(remain <= 0) continue; // 0 이하는 표시 안함
+      if(!m[r.size] || !m[r.size][r.item]) continue;
+      m[r.size][r.item].push({ lot: r.lot, remain, date: r.date || "" });
+    }
+    // 정렬: 날짜 오름차순 -> LOT 문자열
+    for(const s of SIZES){
+      for(const it of ITEMS){
+        m[s][it].sort((a,b)=>{
+          const da = new Date(a.date||0).getTime();
+          const db = new Date(b.date||0).getTime();
+          if(da!==db) return da-db; return a.lot.localeCompare(b.lot);
+        });
+      }
+    }
+    return m;
+  }
+  const cellMatrix = useMemo(()=>buildCellMatrix(remainingRows),[remainingRows]);
+    const prodRows = [];
+    const outRows = [];
+
+  // ===== Filters =====
+  const matchDate = (d, from, to) => {
+    if(!d) return false; // 빈 날짜는 기본적으로 검색에서 제외
+    if(from && d < from) return false;
+    if(to && d > to) return false;
+    return true;
+  };
+    const selects = [
+      "prodFilterItem",
+      "prodFilterSize",
+      "prodItem",
+      "prodSize",
+      "outFilterItem",
+      "outFilterSize",
+      "outItem",
+      "outSize"
+    ];
+
+  const prodFiltered = useMemo(()=>{
+    return remainingRows.filter(r=>{
+      const q = prodFilter.q.trim().toLowerCase();
+      const text = `${r.lot||""} ${r.rawLot||""} ${r.worker||""} ${r.dim||""}`.toLowerCase();
+      if(q && !text.includes(q)) return false;
+      if(prodFilter.lot && (r.lot||"") !== prodFilter.lot) return false;
+      if(prodFilter.item && r.item !== prodFilter.item) return false;
+      if(prodFilter.size && r.size !== prodFilter.size) return false;
+      if(prodFilter.from || prodFilter.to){
+        if(!matchDate(r.date, prodFilter.from, prodFilter.to)) return false;
+    selects.forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.innerHTML = "";
+      if (!id.toLowerCase().includes("filter")) {
+        // input selects: no 전체 option
+      } else {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "(전체)";
+        el.appendChild(opt);
+      }
+      return true;
+      const source = id.toLowerCase().includes("item") ? ITEMS : SIZES;
+      source.forEach((value) => {
+        const opt = document.createElement("option");
+        opt.value = value;
+        opt.textContent = value;
+        el.appendChild(opt);
+      });
+    });
+  },[remainingRows, prodFilter]);
+
+  const outFiltered = useMemo(()=>{
+    return outRows.filter(r=>{
+      const q = outFilter.q.trim().toLowerCase();
+      const text = `${r.orderNo||""} ${r.power||""} ${r.unit||""} ${r.useName||""} ${r.worker||""} ${r.prodLot||""}`.toLowerCase();
+      if(q && !text.includes(q)) return false;
+      if(outFilter.order && r.orderNo !== outFilter.order) return false;
+      if(outFilter.lot && r.prodLot !== outFilter.lot) return false;
+      if(outFilter.item && r.item !== outFilter.item) return false;
+      if(outFilter.size && r.size !== outFilter.size) return false;
+      if(outFilter.from || outFilter.to){
+        if(!matchDate(r.date, outFilter.from, outFilter.to)) return false;
+      }
+    const matrixHead = document.querySelector("#matrixTable thead");
+    const matrixBody = document.querySelector("#matrixTable tbody");
+    const prodBody = document.getElementById("prodBody");
+    const outBody = document.getElementById("outBody");
+
+    const prodFilter = { q: "", item: "", size: "", from: "", to: "" };
+    const outFilter = { q: "", item: "", size: "", from: "", to: "" };
+
+    const uid = () => "id-" + Math.random().toString(36).slice(2, 7) + Date.now().toString(36);
+
+    const toNumber = (value) => {
+      const num = Number(value);
+      return Number.isFinite(num) ? num : 0;
+    };
+
+    const withinRange = (date, from, to) => {
+      if (!date) return false;
+      if (from && date < from) return false;
+      if (to && date > to) return false;
+      return true;
+    });
+  },[outRows, outFilter]);
+    };
+
+  // ===== Actions =====
+  const addProd = () => {
+    setProdRows(v=>[...v,{id:uid(),...prodInput}]);
+    setProdInput({lot:"", date:"", item:ITEMS[0], size:SIZES[0], packLB:"", rawLot:"", dim:"", worker:""});
+  };
+  const delProd = (id) => setProdRows(v=>v.filter(r=>r.id!==id));
+    const computeRemaining = () => {
+      return prodRows.map((row) => {
+        const used = outRows
+          .filter((out) => out.prodLot === row.lot)
+          .reduce((sum, out) => sum + toNumber(out.outLB), 0);
+        return { ...row, remain: toNumber(row.packLB) - used };
+      });
+    };
+
+  const addOut = () => {
+    setOutRows(v=>[...v,{id:uid(),...outInput}]);
+    setOutInput({date:"", orderNo:"", power:"", unit:"", useName:"", item:ITEMS[0], size:SIZES[0], outLB:"", prodLot:"", worker:""});
+  };
+  const delOut = (id) => setOutRows(v=>v.filter(r=>r.id!==id));
+    const buildMatrix = (rows) => {
+      const matrix = {};
+      SIZES.forEach((size) => {
+        matrix[size] = Object.fromEntries(ITEMS.map((item) => [item, []]));
+      });
+      rows.forEach((row) => {
+        const remain = toNumber(row.remain);
+        if (remain <= 0) return;
+        if (!matrix[row.size] || !matrix[row.size][row.item]) return;
+        matrix[row.size][row.item].push({ lot: row.lot, remain });
+      });
+      return matrix;
+    };
+
+  const resetProdFilter = () => setProdFilter({q:"", lot:"", item:"", size:"", from:"", to:""});
+  const resetOutFilter = () => setOutFilter({q:"", lot:"", item:"", size:"", from:"", to:"", order:""});
+    const renderMatrix = (rows) => {
+      const matrix = buildMatrix(rows);
+      matrixHead.innerHTML = "";
+      matrixBody.innerHTML = "";
+
+  // ===== Lightweight tests (pure, no state mutation) =====
+  useEffect(()=>{
+    console.assert(mapAllToEmpty(ALL)==="", "TEST FAIL: mapAllToEmpty(ALL) !== ''");
+    console.assert(mapAllToEmpty("ALS910C")==="ALS910C", "TEST FAIL: mapAllToEmpty passthrough failed");
+    const p = [
+      {id:"p1", lot:"L1", packLB:10, item:"ALS910C", size:'1/2"', date:"2025-09-20"},
+      {id:"p2", lot:"L2", packLB:5, item:"ALS910C", size:'1/2"', date:"2025-09-21"},
+      {id:"p3", lot:"L3", packLB:8, item:"ALS900G", size:'3/4"', date:"2025-09-19"},
+    ];
+    const o = [
+      {id:"o1", prodLot:"L1", outLB:7, date:"2025-09-22"},
+      {id:"o2", prodLot:"L2", outLB:3, date:"2025-09-23"},
+    ];
+    const res = computeRemainingRows(p,o);
+    console.assert(res.find(r=>r.lot==="L1").remain===3, "TEST FAIL: L1 remain !== 3");
+    console.assert(res.find(r=>r.lot==="L2").remain===2, "TEST FAIL: L2 remain !== 2");
+    console.assert(res.find(r=>r.lot==="L3").remain===8, "TEST FAIL: L3 remain !== 8");
+    const m = buildCellMatrix(res);
+    console.assert(Array.isArray(m['1/2"']["ALS910C"]) && m['1/2"']["ALS910C"].length===2, "TEST FAIL: cellMatrix count for 1/2 × ALS910C");
+    console.log("✅ TESTS PASSED (mapping, remaining, date, matrix)");
+  },[]);
+      const headRow = document.createElement("tr");
+      const first = document.createElement("th");
+      first.textContent = "SIZE \\ ITEM";
+      headRow.appendChild(first);
+      ITEMS.forEach((item) => {
+        const th = document.createElement("th");
+        th.textContent = item;
+        headRow.appendChild(th);
+      });
+      matrixHead.appendChild(headRow);
+
+  return (
+    <div className="min-h-screen p-6 grid gap-6 bg-gray-50">
+      <h1 className="text-2xl font-semibold">예스폼 스타일 재고관리 대시보드</h1>
+      SIZES.forEach((size) => {
+        const tr = document.createElement("tr");
+        const tdSize = document.createElement("td");
+        tdSize.textContent = size;
+        tr.appendChild(tdSize);
+        ITEMS.forEach((item) => {
+          const td = document.createElement("td");
+          const list = matrix[size][item];
+          if (!list || list.length === 0) {
+            td.innerHTML = '<div class="empty">-</div>';
+          } else {
+            const wrap = document.createElement("div");
+            wrap.className = "pill-list";
+            list.sort((a, b) => a.lot.localeCompare(b.lot));
+            list.forEach((info) => {
+              const pill = document.createElement("div");
+              pill.className = "pill";
+              pill.innerHTML = `<span>${info.remain.toLocaleString()} LB</span><span>${info.lot}</span>`;
+              wrap.appendChild(pill);
+            });
+            td.appendChild(wrap);
+          }
+          tr.appendChild(td);
+        });
+        matrixBody.appendChild(tr);
+      });
+    };
+
+      {/* 재고 현황판 (실시간) : SIZE × ITEM, 각 셀에 LOT별 잔량 개별 표시 */}
+<Card className="shadow">
+  <CardContent className="p-4 space-y-3">
+    <div className="text-lg font-medium">재고 현황판 (실시간)</div>
+    <div className="overflow-auto">
+      <table className="min-w-full border text-sm">
+        <thead>
+          <tr>
+            <th className="sticky left-0 bg-gray-100 border px-2 py-1">SIZE \ ITEM</th>
+            {ITEMS.map(it=> (
+              <th key={it} className="border px-2 py-1 text-center text-gray-700">{it}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {SIZES.map((sz, idx)=> (
+            <tr key={sz} className={idx%2?"bg-gray-50":"bg-white"}>
+              <td className="sticky left-0 bg-gray-100 border px-2 py-1 font-medium">{sz}</td>
+              {ITEMS.map(it=> (
+                <td key={it+sz} className="border px-2 py-1 align-top min-w-[160px]">
+                  {cellMatrix[sz]?.[it]?.length ? (
+                    <ul className="space-y-1">
+                      {cellMatrix[sz][it].map((e, i)=> (
+                        <li key={e.lot+"_"+i} className="px-2 py-1 rounded-xl bg-gray-100 flex items-center justify-between">
+                          <span className="font-medium">{e.remain} LB</span>
+                          <span className="text-xs text-gray-600">{e.lot}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="text-gray-300 text-center">—</div>
+                  )}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </CardContent>
+</Card>
+    const renderProd = (rows) => {
+      prodBody.innerHTML = "";
+      if (rows.length === 0) {
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = 9;
+        td.className = "empty";
+        td.textContent = "생산 데이터가 없습니다.";
+        tr.appendChild(td);
+        prodBody.appendChild(tr);
+        return;
+      }
+      rows.forEach((row) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${row.lot}</td>
+          <td>${row.date || ""}</td>
+          <td>${row.item}</td>
+          <td>${row.size}</td>
+          <td style="text-align:right;">${toNumber(row.packLB).toLocaleString()}</td>
+          <td style="text-align:right;">${toNumber(row.remain).toLocaleString()}</td>
+          <td>${row.rawLot || ""}</td>
+          <td>${row.worker || ""}</td>
+          <td style="text-align:center;"><button class="ghost" data-id="${row.id}" data-type="prod">삭제</button></td>
+        `;
+        prodBody.appendChild(tr);
+      });
+    };
+
+{/* 재고관리대장 (생산 내역 + 출고 반영 잔량) */}
+<Card className="shadow">
+  <CardContent className="p-4 space-y-3">
+    <div className="flex items-center justify-between">
+      <div className="text-lg font-medium">재고관리대장 (검색/필터 가능)</div>
+    </div>
+    const renderOut = (rows) => {
+      outBody.innerHTML = "";
+      if (rows.length === 0) {
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = 11;
+        td.className = "empty";
+        td.textContent = "출고 데이터가 없습니다.";
+        tr.appendChild(td);
+        outBody.appendChild(tr);
+        return;
+      }
+      rows.forEach((row) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${row.date || ""}</td>
+          <td>${row.orderNo || ""}</td>
+          <td>${row.plant || ""}</td>
+          <td>${row.unit || ""}</td>
+          <td>${row.use || ""}</td>
+          <td>${row.item}</td>
+          <td>${row.size}</td>
+          <td style="text-align:right;">${toNumber(row.outLB).toLocaleString()}</td>
+          <td>${row.prodLot}</td>
+          <td>${row.worker || ""}</td>
+          <td style="text-align:center;"><button class="ghost" data-id="${row.id}" data-type="out">삭제</button></td>
+        `;
+        outBody.appendChild(tr);
+      });
+    };
+
+    {/* 생산 내역 검색바 */}
+    <div className="grid grid-cols-12 gap-2">
+      <Input className="col-span-3" placeholder="검색어(LOT/원자재LOT/작업자/치수)" value={prodFilter.q} onChange={e=>setProdFilter({...prodFilter,q:e.target.value})}/>
+      <Input className="col-span-2" placeholder="LOT" value={prodFilter.lot} onChange={e=>setProdFilter({...prodFilter,lot:e.target.value})}/>
+      <Select value={prodFilter.item || undefined} onValueChange={val=>setProdFilter({...prodFilter,item:mapAllToEmpty(val)})}>
+        <SelectTrigger className="col-span-2"><SelectValue placeholder="ITEM 선택"/></SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ALL}>(전체)</SelectItem>
+          {ITEMS.map(i=> <SelectItem key={i} value={i}>{i}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      <Select value={prodFilter.size || undefined} onValueChange={val=>setProdFilter({...prodFilter,size:mapAllToEmpty(val)})}>
+        <SelectTrigger className="col-span-2"><SelectValue placeholder="SIZE 선택"/></SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ALL}>(전체)</SelectItem>
+          {SIZES.map(s=> <SelectItem key={s} value={s}>{s}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      <Input type="date" className="col-span-1" value={prodFilter.from} onChange={e=>setProdFilter({...prodFilter,from:e.target.value})}/>
+      <Input type="date" className="col-span-1" value={prodFilter.to} onChange={e=>setProdFilter({...prodFilter,to:e.target.value})}/>
+      <Button variant="secondary" className="col-span-1" onClick={resetProdFilter}>초기화</Button>
+    </div>
+    const applyProdFilter = (row, filter) => {
+      const text = `${row.lot} ${row.rawLot || ""} ${row.worker || ""}`.toLowerCase();
+      const q = filter.q.trim().toLowerCase();
+      if (q && !text.includes(q)) return false;
+      if (filter.item && row.item !== filter.item) return false;
+      if (filter.size && row.size !== filter.size) return false;
+      if ((filter.from || filter.to) && !withinRange(row.date, filter.from, filter.to)) return false;
+      return true;
+    };
+
+    {/* 생산 내역 표 (잔량 반영) */}
+    <div className="overflow-auto">
+      <table className="min-w-full border text-sm">
+        <thead>
+          <tr>
+            <th className="border px-2 py-1">LOT</th>
+            <th className="border px-2 py-1">생산일자</th>
+            <th className="border px-2 py-1">ITEM</th>
+            <th className="border px-2 py-1">SIZE</th>
+            <th className="border px-2 py-1">포장(LB)</th>
+            <th className="border px-2 py-1">출고후 잔량(LB)</th>
+            <th className="border px-2 py-1">원자재 LOT</th>
+            <th className="border px-2 py-1">치수</th>
+            <th className="border px-2 py-1">작업자</th>
+            <th className="border px-2 py-1">삭제</th>
+          </tr>
+        </thead>
+        <tbody>
+          {prodFiltered.map(p=> (
+            <tr key={p.id}>
+              <td className="border px-2 py-1">{p.lot}</td>
+              <td className="border px-2 py-1">{p.date}</td>
+              <td className="border px-2 py-1">{p.item}</td>
+              <td className="border px-2 py-1">{p.size}</td>
+              <td className="border px-2 py-1 text-right">{p.packLB}</td>
+              <td className="border px-2 py-1 text-right">{p.remain}</td>
+              <td className="border px-2 py-1">{p.rawLot}</td>
+              <td className="border px-2 py-1">{p.dim}</td>
+              <td className="border px-2 py-1">{p.worker}</td>
+              <td className="border px-2 py-1"><Button variant="ghost" onClick={()=>delProd(p.id)}><Trash2 className="w-4 h-4"/></Button></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </CardContent>
+</Card>
+    const applyOutFilter = (row, filter) => {
+      const text = `${row.orderNo || ""} ${row.plant || ""} ${row.prodLot}`.toLowerCase();
+      const q = filter.q.trim().toLowerCase();
+      if (q && !text.includes(q)) return false;
+      if (filter.item && row.item !== filter.item) return false;
+      if (filter.size && row.size !== filter.size) return false;
+      if ((filter.from || filter.to) && !withinRange(row.date, filter.from, filter.to)) return false;
+      return true;
+    };
+
+      {/* 생산리스트 입력 (단일 입력줄) */}
+      <Card className="shadow">
+        <CardContent className="p-4 space-y-3">
+          <div className="text-lg font-medium">생산리스트 입력</div>
+          <div className="grid grid-cols-12 gap-2 items-center p-2 rounded-xl bg-white shadow-sm">
+            <Input className="col-span-2" placeholder="LOT. NO" value={prodInput.lot} onChange={e=>setProdInput({...prodInput,lot:e.target.value})}/>
+            <Input type="date" className="col-span-2" value={prodInput.date} onChange={e=>setProdInput({...prodInput,date:e.target.value})}/>
+            <Select value={prodInput.item} onValueChange={val=>setProdInput({...prodInput,item:val})}>
+              <SelectTrigger className="col-span-2"><SelectValue placeholder="ITEM"/></SelectTrigger>
+              <SelectContent>{ITEMS.map(i=> <SelectItem key={i} value={i}>{i}</SelectItem>)}</SelectContent>
+            </Select>
+            <Select value={prodInput.size} onValueChange={val=>setProdInput({...prodInput,size:val})}>
+              <SelectTrigger className="col-span-2"><SelectValue placeholder="SIZE"/></SelectTrigger>
+              <SelectContent>{SIZES.map(s=> <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+            </Select>
+            <Input type="number" className="col-span-1" placeholder="포장(LB)" value={prodInput.packLB} onChange={e=>setProdInput({...prodInput,packLB:e.target.value})}/>
+            <Input className="col-span-2" placeholder="원자재 LOT" value={prodInput.rawLot} onChange={e=>setProdInput({...prodInput,rawLot:e.target.value})}/>
+            <Input className="col-span-1" placeholder="치수" value={prodInput.dim} onChange={e=>setProdInput({...prodInput,dim:e.target.value})}/>
+            <Input className="col-span-2" placeholder="작업자" value={prodInput.worker} onChange={e=>setProdInput({...prodInput,worker:e.target.value})}/>
+            <Button onClick={addProd}><Plus className="w-4 h-4 mr-1"/>저장</Button>
+          </div>
+        </CardContent>
+      </Card>
+    const renderAll = () => {
+      const remaining = computeRemaining();
+      const prodFiltered = remaining.filter((row) => applyProdFilter(row, prodFilter));
+      const outFiltered = outRows.filter((row) => applyOutFilter(row, outFilter));
+      renderMatrix(remaining);
+      renderProd(prodFiltered);
+      renderOut(outFiltered);
+    };
+
+      {/* 출고리스트 입력 (단일 입력줄) + 검색/필터 + 내역표 */}
+      <Card className="shadow">
+        <CardContent className="p-4 space-y-3">
+          <div className="text-lg font-medium">출고리스트 입력</div>
+          <div className="grid grid-cols-12 gap-2 items-center p-2 rounded-xl bg-white shadow-sm">
+            <Input type="date" className="col-span-2" placeholder="출고일자" value={outInput.date} onChange={e=>setOutInput({...outInput,date:e.target.value})}/>
+            <Input className="col-span-2" placeholder="Order No." value={outInput.orderNo} onChange={e=>setOutInput({...outInput,orderNo:e.target.value})}/>
+            <Input className="col-span-2" placeholder="발전소명" value={outInput.power} onChange={e=>setOutInput({...outInput,power:e.target.value})}/>
+            <Input className="col-span-1" placeholder="호기명" value={outInput.unit} onChange={e=>setOutInput({...outInput,unit:e.target.value})}/>
+            <Input className="col-span-2" placeholder="용도명" value={outInput.useName} onChange={e=>setOutInput({...outInput,useName:e.target.value})}/>
+            <Select value={outInput.item} onValueChange={val=>setOutInput({...outInput,item:val})}>
+              <SelectTrigger className="col-span-2"><SelectValue placeholder="ITEM"/></SelectTrigger>
+              <SelectContent>{ITEMS.map(i=> <SelectItem key={i} value={i}>{i}</SelectItem>)}</SelectContent>
+            </Select>
+            <Select value={outInput.size} onValueChange={val=>setOutInput({...outInput,size:val})}>
+              <SelectTrigger className="col-span-2"><SelectValue placeholder="SIZE"/></SelectTrigger>
+              <SelectContent>{SIZES.map(s=> <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+            </Select>
+            <Input type="number" className="col-span-1" placeholder="출고(LB)" value={outInput.outLB} onChange={e=>setOutInput({...outInput,outLB:e.target.value})}/>
+            <Input className="col-span-2" placeholder="생산 LOT" value={outInput.prodLot} onChange={e=>setOutInput({...outInput,prodLot:e.target.value})}/>
+            <Input className="col-span-2" placeholder="출고자" value={outInput.worker} onChange={e=>setOutInput({...outInput,worker:e.target.value})}/>
+            <Button onClick={addOut}><Plus className="w-4 h-4 mr-1"/>저장</Button>
+          </div>
+    document.getElementById("prodSearch").addEventListener("input", (event) => {
+      prodFilter.q = event.target.value;
+      renderAll();
+    });
+    document.getElementById("prodFilterItem").addEventListener("change", (event) => {
+      prodFilter.item = event.target.value;
+      renderAll();
+    });
+    document.getElementById("prodFilterSize").addEventListener("change", (event) => {
+      prodFilter.size = event.target.value;
+      renderAll();
+    });
+    document.getElementById("prodFilterFrom").addEventListener("change", (event) => {
+      prodFilter.from = event.target.value;
+      renderAll();
+    });
+    document.getElementById("prodFilterTo").addEventListener("change", (event) => {
+      prodFilter.to = event.target.value;
+      renderAll();
+    });
+    document.getElementById("prodReset").addEventListener("click", () => {
+      prodFilter.q = prodFilter.item = prodFilter.size = prodFilter.from = prodFilter.to = "";
+      document.getElementById("prodSearch").value = "";
+      document.getElementById("prodFilterItem").value = "";
+      document.getElementById("prodFilterSize").value = "";
+      document.getElementById("prodFilterFrom").value = "";
+      document.getElementById("prodFilterTo").value = "";
+      renderAll();
+    });
+
+          {/* 출고 검색바 */}
+          <div className="grid grid-cols-12 gap-2">
+            <Input className="col-span-3" placeholder="검색어(오더/발전소/용도/출고자/LOT)" value={outFilter.q} onChange={e=>setOutFilter({...outFilter,q:e.target.value})}/>
+            <Input className="col-span-2" placeholder="Order No" value={outFilter.order} onChange={e=>setOutFilter({...outFilter,order:e.target.value})}/>
+            <Input className="col-span-2" placeholder="생산 LOT" value={outFilter.lot} onChange={e=>setOutFilter({...outFilter,lot:e.target.value})}/>
+            <Select value={outFilter.item || undefined} onValueChange={val=>setOutFilter({...outFilter,item:mapAllToEmpty(val)})}>
+              <SelectTrigger className="col-span-2"><SelectValue placeholder="ITEM 선택"/></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>(전체)</SelectItem>
+                {ITEMS.map(i=> <SelectItem key={i} value={i}>{i}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={outFilter.size || undefined} onValueChange={val=>setOutFilter({...outFilter,size:mapAllToEmpty(val)})}>
+              <SelectTrigger className="col-span-2"><SelectValue placeholder="SIZE 선택"/></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>(전체)</SelectItem>
+                {SIZES.map(s=> <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Input type="date" className="col-span-1" value={outFilter.from} onChange={e=>setOutFilter({...outFilter,from:e.target.value})}/>
+            <Input type="date" className="col-span-1" value={outFilter.to} onChange={e=>setOutFilter({...outFilter,to:e.target.value})}/>
+            <Button variant="secondary" className="col-span-1" onClick={resetOutFilter}>초기화</Button>
+          </div>
+    document.getElementById("outSearch").addEventListener("input", (event) => {
+      outFilter.q = event.target.value;
+      renderAll();
+    });
+    document.getElementById("outFilterItem").addEventListener("change", (event) => {
+      outFilter.item = event.target.value;
+      renderAll();
+    });
+    document.getElementById("outFilterSize").addEventListener("change", (event) => {
+      outFilter.size = event.target.value;
+      renderAll();
+    });
+    document.getElementById("outFilterFrom").addEventListener("change", (event) => {
+      outFilter.from = event.target.value;
+      renderAll();
+    });
+    document.getElementById("outFilterTo").addEventListener("change", (event) => {
+      outFilter.to = event.target.value;
+      renderAll();
+    });
+    document.getElementById("outReset").addEventListener("click", () => {
+      outFilter.q = outFilter.item = outFilter.size = outFilter.from = outFilter.to = "";
+      document.getElementById("outSearch").value = "";
+      document.getElementById("outFilterItem").value = "";
+      document.getElementById("outFilterSize").value = "";
+      document.getElementById("outFilterFrom").value = "";
+      document.getElementById("outFilterTo").value = "";
+      renderAll();
+    });
+
+          {/* 출고 내역 표 */}
+          <div className="overflow-auto">
+            <table className="min-w-full border text-sm">
+              <thead>
+                <tr>
+                  <th className="border px-2 py-1">출고일자</th>
+                  <th className="border px-2 py-1">Order No</th>
+                  <th className="border px-2 py-1">발전소</th>
+                  <th className="border px-2 py-1">호기</th>
+                  <th className="border px-2 py-1">용도</th>
+                  <th className="border px-2 py-1">ITEM</th>
+                  <th className="border px-2 py-1">SIZE</th>
+                  <th className="border px-2 py-1">출고(LB)</th>
+                  <th className="border px-2 py-1">생산 LOT</th>
+                  <th className="border px-2 py-1">출고자</th>
+                  <th className="border px-2 py-1">삭제</th>
+                </tr>
+              </thead>
+              <tbody>
+                {outFiltered.map(o=> (
+                  <tr key={o.id}>
+                    <td className="border px-2 py-1">{o.date}</td>
+                    <td className="border px-2 py-1">{o.orderNo}</td>
+                    <td className="border px-2 py-1">{o.power}</td>
+                    <td className="border px-2 py-1">{o.unit}</td>
+                    <td className="border px-2 py-1">{o.useName}</td>
+                    <td className="border px-2 py-1">{o.item}</td>
+                    <td className="border px-2 py-1">{o.size}</td>
+                    <td className="border px-2 py-1 text-right">{o.outLB}</td>
+                    <td className="border px-2 py-1">{o.prodLot}</td>
+                    <td className="border px-2 py-1">{o.worker}</td>
+                    <td className="border px-2 py-1"><Button variant="ghost" onClick={()=>delOut(o.id)}><Trash2 className="w-4 h-4"/></Button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+    document.getElementById("prodForm").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const row = {
+        id: uid(),
+        lot: document.getElementById("prodLot").value.trim(),
+        date: document.getElementById("prodDate").value,
+        item: document.getElementById("prodItem").value,
+        size: document.getElementById("prodSize").value,
+        packLB: toNumber(document.getElementById("prodPack").value),
+        rawLot: document.getElementById("prodRaw").value.trim(),
+        worker: document.getElementById("prodWorker").value.trim()
+      };
+      if (!row.lot) {
+        alert("LOT 번호를 입력해주세요.");
+        return;
+      }
+      prodRows.push(row);
+      event.target.reset();
+      renderAll();
+    });
+
+    document.getElementById("outForm").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const row = {
+        id: uid(),
+        date: document.getElementById("outDate").value,
+        orderNo: document.getElementById("outOrder").value.trim(),
+        plant: document.getElementById("outPlant").value.trim(),
+        unit: document.getElementById("outUnit").value.trim(),
+        use: document.getElementById("outUse").value.trim(),
+        item: document.getElementById("outItem").value,
+        size: document.getElementById("outSize").value,
+        outLB: toNumber(document.getElementById("outLb").value),
+        prodLot: document.getElementById("outLot").value.trim(),
+        worker: document.getElementById("outWorker").value.trim()
+      };
+      if (!row.prodLot) {
+        alert("생산 LOT을 입력해주세요.");
+        return;
+      }
+      outRows.push(row);
+      event.target.reset();
+      renderAll();
+    });
+
+    document.body.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-id]");
+      if (!button) return;
+      const { id, type } = button.dataset;
+      if (!confirm("삭제하시겠습니까?")) return;
+      if (type === "prod") {
+        const index = prodRows.findIndex((row) => row.id === id);
+        if (index > -1) prodRows.splice(index, 1);
+      } else {
+        const index = outRows.findIndex((row) => row.id === id);
+        if (index > -1) outRows.splice(index, 1);
+      }
+      renderAll();
+    });
+
+    renderAll();
+  </script>
+</body>
+</html>
