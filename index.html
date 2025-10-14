@@ -28,6 +28,12 @@
     .empty { text-align: center; color: #94a3b8; padding: 14px 0; font-size: 13px; }
     .button-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
     .button-row button { min-width: 150px; }
+    .layout-split { display: grid; gap: 16px; }
+    @media (min-width: 1024px) { .layout-split { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; } }
+    .card.table-card { display: flex; flex-direction: column; }
+    .table-scroll { overflow-x: auto; }
+    .card.table-card .table-scroll { margin-top: 12px; flex: 1; }
+    .card.table-card .table-scroll table { margin-top: 0; }
     @media (max-width: 640px) { body { padding: 18px; } }
   </style>
 </head>
@@ -44,62 +50,66 @@
     </ul>
   </section>
 
-  <section class="card">
-    <h2>재고 매트릭스</h2>
-    <p class="muted">SIZE와 ITEM 조합별 잔량과 LOT를 빠르게 확인하세요.</p>
-    <div style="overflow-x:auto;">
-      <table id="matrixTable">
-        <thead></thead>
-        <tbody></tbody>
-      </table>
-    </div>
-  </section>
+  <div class="layout-split">
+    <section class="card table-card">
+      <h2>재고 매트릭스</h2>
+      <p class="muted">SIZE와 ITEM 조합별 잔량과 LOT를 빠르게 확인하세요.</p>
+      <div class="table-scroll">
+        <table id="matrixTable">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
 
-  <section class="card">
-    <h2>생산 내역</h2>
-    <div class="filters">
-      <div>
-        <label for="prodSearch">검색어</label>
-        <input id="prodSearch" type="search" placeholder="LOT / 원자재 LOT / 작업자" />
+    <section class="card table-card">
+      <h2>생산 내역</h2>
+      <div class="filters">
+        <div>
+          <label for="prodSearch">검색어</label>
+          <input id="prodSearch" type="search" placeholder="LOT / 원자재 LOT / 작업자" />
+        </div>
+        <div>
+          <label for="prodFilterItem">ITEM</label>
+          <select id="prodFilterItem"></select>
+        </div>
+        <div>
+          <label for="prodFilterSize">SIZE</label>
+          <select id="prodFilterSize"></select>
+        </div>
+        <div>
+          <label for="prodFilterFrom">FROM</label>
+          <input id="prodFilterFrom" type="date" />
+        </div>
+        <div>
+          <label for="prodFilterTo">TO</label>
+          <input id="prodFilterTo" type="date" />
+        </div>
+        <div>
+          <label>&nbsp;</label>
+          <button id="prodReset" type="button">초기화</button>
+        </div>
       </div>
-      <div>
-        <label for="prodFilterItem">ITEM</label>
-        <select id="prodFilterItem"></select>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>LOT</th>
+              <th>생산일자</th>
+              <th>ITEM</th>
+              <th>SIZE</th>
+              <th>포장(LB)</th>
+              <th>잔량(LB)</th>
+              <th>원자재 LOT</th>
+              <th>작업자</th>
+              <th>삭제</th>
+            </tr>
+          </thead>
+          <tbody id="prodBody"></tbody>
+        </table>
       </div>
-      <div>
-        <label for="prodFilterSize">SIZE</label>
-        <select id="prodFilterSize"></select>
-      </div>
-      <div>
-        <label for="prodFilterFrom">FROM</label>
-        <input id="prodFilterFrom" type="date" />
-      </div>
-      <div>
-        <label for="prodFilterTo">TO</label>
-        <input id="prodFilterTo" type="date" />
-      </div>
-      <div>
-        <label>&nbsp;</label>
-        <button id="prodReset" type="button">초기화</button>
-      </div>
-    </div>
-    <table>
-      <thead>
-        <tr>
-          <th>LOT</th>
-          <th>생산일자</th>
-          <th>ITEM</th>
-          <th>SIZE</th>
-          <th>포장(LB)</th>
-          <th>잔량(LB)</th>
-          <th>원자재 LOT</th>
-          <th>작업자</th>
-          <th>삭제</th>
-        </tr>
-      </thead>
-      <tbody id="prodBody"></tbody>
-    </table>
-  </section>
+    </section>
+  </div>
 
   <section class="card">
     <h2>생산 데이터 입력</h2>
@@ -388,12 +398,36 @@
       }
       const [, prefix, digits] = match;
       const padLength = digits.length;
+      const safeIndex = Number.isFinite(chunkIndex) ? Math.trunc(chunkIndex) : 1;
+      const step = safeIndex >= 1 ? safeIndex : 1;
+
+      if (typeof BigInt === "function") {
+        try {
+          const numeric = BigInt(digits);
+          const nextNumeric = numeric + BigInt(step);
+          const baseStr = numeric.toString();
+          const nextStr = nextNumeric.toString();
+          if (nextStr.length > baseStr.length) {
+            return prefix + nextStr;
+          }
+          return prefix + nextStr.padStart(padLength, "0");
+        } catch (error) {
+          console.warn("LOT 번호 계산 중 BigInt 변환에 실패했습니다.", error);
+        }
+      }
+
       const numeric = Number(digits);
       if (!Number.isFinite(numeric)) {
-        return `${text}-${String(chunkIndex).padStart(2, "0")}`;
+        const fallbackIndex = step > 0 ? step : 1;
+        return `${text}-${String(fallbackIndex).padStart(2, "0")}`;
       }
-      const next = numeric + chunkIndex;
-      return prefix + String(next).padStart(padLength, "0");
+      const next = numeric + step;
+      const baseStr = Math.trunc(numeric).toString();
+      const nextStr = Math.trunc(next).toString();
+      if (nextStr.length > baseStr.length) {
+        return prefix + nextStr;
+      }
+      return prefix + nextStr.padStart(padLength, "0");
     };
 
     const normalizeProd = (row = {}) => {
