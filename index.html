@@ -2,63 +2,102 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>자동 재고관리 대장</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>자동 재고관리 대장 (코딩 파트너 Ver.)</title>
   <style>
-    body { font-family: "Noto Sans KR", Arial, sans-serif; margin: 0; padding: 24px; background: #f4f6fb; color: #1f2937; }
-    h1 { margin-top: 0; }
-    .grid { display: grid; gap: 16px; }
-    .card { background: #fff; border-radius: 12px; padding: 18px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1); }
-    label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
-    input, select { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #cbd5f5; background: #f8f9ff; box-sizing: border-box; }
-    table { width: 100%; border-collapse: collapse; margin-top: 12px; background: #fff; }
-    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; font-size: 14px; text-align: left; }
-    thead { background: #eef2ff; }
-    button { border: none; border-radius: 8px; padding: 10px 14px; font-weight: 600; cursor: pointer; transition: transform 0.1s ease, box-shadow 0.1s ease; }
-    button.primary { background: #2563eb; color: #fff; }
-    button.secondary { background: #fff; color: #2563eb; border: 1px solid #bfdbfe; }
-    button.danger { background: #fee2e2; color: #b91c1c; }
-    button:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(37, 99, 235, 0.12); }
-    button:active { transform: translateY(0); box-shadow: none; }
-    button.ghost { background: transparent; color: #dc2626; }
-    .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-top: 12px; }
-    .pill-list { display: flex; flex-direction: column; gap: 4px; }
-    .pill { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; border-radius: 999px; background: #e0f2fe; font-weight: 600; font-size: 13px; }
-    .muted { color: #6b7280; font-size: 13px; margin-top: 6px; }
-    .empty { text-align: center; color: #94a3b8; padding: 14px 0; font-size: 13px; }
-    .button-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
-    .button-row button { min-width: 150px; }
-    .card.table-card { display: flex; flex-direction: column; }
-    .table-scroll { overflow-x: auto; }
-    .card.table-card .table-scroll { margin-top: 12px; flex: 1; }
-    .card.table-card .table-scroll table { margin-top: 0; }
-    .matrix-card .table-scroll { overflow: auto; }
-    .matrix-card table th, .matrix-card table td { white-space: nowrap; }
-    .history-card { padding: 0; overflow: hidden; }
-    .history-card .history-pane { padding: 18px; display: flex; flex-direction: column; }
-    .history-card .history-pane + .history-pane { border-top: 1px solid #e5e7eb; }
-    .history-card .history-pane h2 { margin-top: 0; }
-    .history-card .table-scroll { margin-top: 12px; flex: 1; }
-    @media (max-width: 640px) { body { padding: 18px; } }
+    :root {
+      --primary-color: #007bff;
+      --primary-hover: #0056b3;
+      --danger-color: #dc3545;
+      --danger-hover: #c82333;
+      --light-gray: #f8f9fa;
+      --medium-gray: #dee2e6;
+      --dark-gray: #343a40;
+      --white: #ffffff;
+      --border-radius: 8px;
+      --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 24px; background-color: var(--light-gray); color: var(--dark-gray); }
+    .container { display: grid; gap: 24px; }
+    .card { background-color: var(--white); border-radius: var(--border-radius); padding: 24px; box-shadow: var(--shadow); }
+    h1, h2 { margin-top: 0; }
+    p.muted { color: #6c757d; font-size: 0.9rem; margin-top: -8px; }
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; align-items: end; }
+    label { font-weight: 600; font-size: 0.85rem; }
+    input, select { width: 100%; padding: 10px; border: 1px solid var(--medium-gray); border-radius: 6px; box-sizing: border-box; }
+    button { border: none; border-radius: 6px; padding: 10px 16px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
+    button.primary { background-color: var(--primary-color); color: var(--white); }
+    button.primary:hover { background-color: var(--primary-hover); }
+    button.danger { background-color: var(--danger-color); color: var(--white); }
+    button.danger:hover { background-color: var(--danger-hover); }
+    button.secondary { background-color: #6c757d; color: var(--white); }
+    button.secondary:hover { background-color: #5a6268; }
+    button.ghost { background: transparent; color: var(--danger-color); padding: 4px; }
+    .table-wrapper { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+    th, td { border: 1px solid var(--medium-gray); padding: 12px; font-size: 0.9rem; text-align: center; }
+    thead { background-color: #e9ecef; }
+    td.left { text-align: left; }
+    .empty-row td { color: #6c757d; }
+    #matrixTable th:first-child, #matrixTable td:first-child { background-color: #e9ecef; font-weight: 600; position: sticky; left: 0; z-index: 1; }
+    .lot-cell { display: flex; flex-direction: column; gap: 4px; min-width: 150px; }
+    .lot-pill { display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; border-radius: 12px; background-color: #e7f3ff; font-size: 0.8rem; font-weight: 500; }
+    .lot-pill .amount { color: var(--primary-color); font-weight: 700; }
+    .tab-nav { display: flex; border-bottom: 2px solid var(--medium-gray); }
+    .tab-btn { background: none; border: none; padding: 12px 18px; font-size: 1rem; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+    .tab-btn.active { border-bottom-color: var(--primary-color); color: var(--primary-color); font-weight: 600; }
+    .tab-content { display: none; padding-top: 24px; }
+    .tab-content.active { display: block; }
+    .data-actions { display: flex; flex-wrap: wrap; gap: 12px; }
   </style>
 </head>
 <body>
-  <h1>자동 재고관리 대장</h1>
-  <p class="muted">생산과 출고 데이터를 입력하면 LOT 별 잔량과 SIZE × ITEM 매트릭스를 자동 계산합니다.</p>
 
-  <section class="card" style="border: 1px solid #dbeafe; background: #f8fbff;">
-    <h2>사용 안내</h2>
-    <ul style="margin: 0; padding-left: 20px; line-height: 1.7; font-size: 14px;">
-      <li>이 파일 하나만으로 동작하며 <strong>순수 HTML + JavaScript</strong>로 작성되었습니다.</li>
-      <li>GitHub Pages 또는 로컬에서 두 번 클릭해 열면 바로 실행됩니다. 별도의 파이썬 서버가 필요 없습니다.</li>
-      <li>입력한 데이터는 브라우저에 저장되며, 필요 시 아래 “데이터 관리”에서 백업/복원할 수 있습니다.</li>
-    </ul>
+<div class="container">
+  <header>
+    <h1>⚙️ 자동 재고관리 대장 (코딩 파트너 Ver.)</h1>
+    <p class="muted">생산/출고 데이터를 기반으로 LOT별 잔량과 재고 매트릭스를 자동으로 계산합니다.</p>
+  </header>
+
+  <section class="card">
+    <div class="tab-nav">
+      <button class="tab-btn active" data-tab="prod">생산 입력</button>
+      <button class="tab-btn" data-tab="out">출고 입력</button>
+    </div>
+    
+    <div id="prodTab" class="tab-content active">
+      <h2>생산 데이터 입력</h2>
+      <form id="prodForm" class="form-grid">
+        <div><label for="prodLot">LOT</label><input id="prodLot" name="lot" required /></div>
+        <div><label for="prodDate">생산일자</label><input id="prodDate" name="date" type="date" required /></div>
+        <div><label for="prodItem">ITEM</label><select id="prodItem" name="item" required></select></div>
+        <div><label for="prodSize">SIZE</label><select id="prodSize" name="size" required></select></div>
+        <div><label for="prodPack">포장(LB)</label><input id="prodPack" name="packLB" type="number" min="0" step="0.1" required /></div>
+        <div><label for="prodRaw">원자재 LOT</label><input id="prodRaw" name="rawLot" /></div>
+        <div><label for="prodWorker">작업자</label><input id="prodWorker" name="worker" /></div>
+        <div><button class="primary" type="submit">생산 추가</button></div>
+      </form>
+    </div>
+    
+    <div id="outTab" class="tab-content">
+      <h2>출고 데이터 입력</h2>
+      <form id="outForm" class="form-grid">
+        <div><label for="outDate">출고일자</label><input id="outDate" name="date" type="date" required /></div>
+        <div><label for="outOrder">Order No</label><input id="outOrder" name="orderNo" /></div>
+        <div><label for="outPlant">발전소</label><input id="outPlant" name="plant" /></div>
+        <div><label for="outItem">ITEM</label><select id="outItem" name="item" required></select></div>
+        <div><label for="outSize">SIZE</label><select id="outSize" name="size" required></select></div>
+        <div><label for="outLb">출고(LB)</label><input id="outLb" name="outLB" type="number" min="0" step="0.1" required /></div>
+        <div><label for="outLot">생산 LOT</label><input id="outLot" name="prodLot" required /></div>
+        <div><label for="outWorker">출고자</label><input id="outWorker" name="worker" /></div>
+        <div><button class="primary" type="submit">출고 추가</button></div>
+      </form>
+    </div>
   </section>
 
-  <section class="card table-card matrix-card">
-    <h2>재고 매트릭스</h2>
-    <p class="muted">SIZE와 ITEM 조합별 잔량과 LOT를 빠르게 확인하세요.</p>
-    <div class="table-scroll">
+  <section class="card">
+    <h2>재고 매트릭스 (SIZE × ITEM)</h2>
+    <div class="table-wrapper">
       <table id="matrixTable">
         <thead></thead>
         <tbody></tbody>
@@ -66,935 +105,93 @@
     </div>
   </section>
 
-  <section class="card history-card">
-    <div class="history-pane">
-      <h2>생산 내역</h2>
-      <p class="muted">최근 3일치 내역만 표시되며, 검색이나 필터를 사용하면 전체 기록에서 조회합니다.</p>
-      <div class="filters">
-        <div>
-          <label for="prodSearch">검색어</label>
-          <input id="prodSearch" type="search" placeholder="LOT / 원자재 LOT / 작업자" />
-        </div>
-        <div>
-          <label for="prodFilterItem">ITEM</label>
-          <select id="prodFilterItem"></select>
-        </div>
-        <div>
-          <label for="prodFilterSize">SIZE</label>
-          <select id="prodFilterSize"></select>
-        </div>
-        <div>
-          <label for="prodFilterFrom">FROM</label>
-          <input id="prodFilterFrom" type="date" />
-        </div>
-        <div>
-          <label for="prodFilterTo">TO</label>
-          <input id="prodFilterTo" type="date" />
-        </div>
-        <div>
-          <label>&nbsp;</label>
-          <button id="prodReset" type="button">초기화</button>
-        </div>
-      </div>
-      <div class="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>LOT</th>
-              <th>생산일자</th>
-              <th>ITEM</th>
-              <th>SIZE</th>
-              <th>포장(LB)</th>
-              <th>잔량(LB)</th>
-              <th>원자재 LOT</th>
-              <th>작업자</th>
-              <th>삭제</th>
-            </tr>
-          </thead>
-          <tbody id="prodBody"></tbody>
-        </table>
-      </div>
-    </div>
-    <div class="history-pane">
-      <h2>출고 내역</h2>
-      <p class="muted">최근 3일치 내역만 표시되며, 검색이나 필터를 사용하면 전체 기록에서 조회합니다.</p>
-      <div class="filters">
-        <div>
-          <label for="outSearch">검색어</label>
-          <input id="outSearch" type="search" placeholder="오더 / 발전소 / LOT" />
-        </div>
-        <div>
-          <label for="outFilterItem">ITEM</label>
-          <select id="outFilterItem"></select>
-        </div>
-        <div>
-          <label for="outFilterSize">SIZE</label>
-          <select id="outFilterSize"></select>
-        </div>
-        <div>
-          <label for="outFilterFrom">FROM</label>
-          <input id="outFilterFrom" type="date" />
-        </div>
-        <div>
-          <label for="outFilterTo">TO</label>
-          <input id="outFilterTo" type="date" />
-        </div>
-        <div>
-          <label>&nbsp;</label>
-          <button id="outReset" type="button">초기화</button>
-        </div>
-      </div>
-      <div class="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>출고일자</th>
-              <th>Order No</th>
-              <th>발전소</th>
-              <th>호기</th>
-              <th>용도</th>
-              <th>ITEM</th>
-              <th>SIZE</th>
-              <th>출고(LB)</th>
-              <th>생산 LOT</th>
-              <th>출고자</th>
-              <th>삭제</th>
-            </tr>
-          </thead>
-          <tbody id="outBody"></tbody>
-        </table>
-      </div>
+  <section class="card">
+    <h2>생산 내역</h2>
+    <div class="table-wrapper">
+      <table id="prodTable">
+        <thead>
+          <tr>
+            <th>LOT</th><th>생산일자</th><th>ITEM</th><th>SIZE</th><th>포장(LB)</th><th>잔량(LB)</th><th>원자재 LOT</th><th>작업자</th><th>작업</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
     </div>
   </section>
 
   <section class="card">
-    <h2>생산 데이터 입력</h2>
-    <form id="prodForm" class="filters">
-      <div>
-        <label for="prodLot">LOT</label>
-        <input id="prodLot" required />
-      </div>
-      <div>
-        <label for="prodDate">생산일자</label>
-        <input id="prodDate" type="date" required />
-      </div>
-      <div>
-        <label for="prodItem">ITEM</label>
-        <select id="prodItem" required></select>
-      </div>
-      <div>
-        <label for="prodSize">SIZE</label>
-        <select id="prodSize" required></select>
-      </div>
-      <div>
-        <label for="prodPack">포장(LB)</label>
-        <input id="prodPack" type="number" min="0" step="0.1" required />
-      </div>
-      <div>
-        <label for="prodRaw">원자재 LOT</label>
-        <input id="prodRaw" />
-      </div>
-      <div>
-        <label for="prodWorker">작업자</label>
-        <input id="prodWorker" />
-      </div>
-      <div>
-        <label>&nbsp;</label>
-        <button class="primary" type="submit">추가</button>
-      </div>
-    </form>
-  </section>
-
-  <section class="card">
-    <h2>출고 데이터 입력</h2>
-    <form id="outForm" class="filters">
-      <div>
-        <label for="outDate">출고일자</label>
-        <input id="outDate" type="date" required />
-      </div>
-      <div>
-        <label for="outOrder">Order No</label>
-        <input id="outOrder" />
-      </div>
-      <div>
-        <label for="outPlant">발전소</label>
-        <input id="outPlant" />
-      </div>
-      <div>
-        <label for="outUnit">호기</label>
-        <input id="outUnit" />
-      </div>
-      <div>
-        <label for="outUse">용도</label>
-        <input id="outUse" />
-      </div>
-      <div>
-        <label for="outItem">ITEM</label>
-        <select id="outItem" required></select>
-      </div>
-      <div>
-        <label for="outSize">SIZE</label>
-        <select id="outSize" required></select>
-      </div>
-      <div>
-        <label for="outLb">출고(LB)</label>
-        <input id="outLb" type="number" min="0" step="0.1" required />
-      </div>
-      <div>
-        <label for="outLot">생산 LOT</label>
-        <input id="outLot" required />
-      </div>
-      <div>
-        <label for="outWorker">출고자</label>
-        <input id="outWorker" />
-      </div>
-      <div>
-        <label>&nbsp;</label>
-        <button class="primary" type="submit">추가</button>
-      </div>
-    </form>
+    <h2>출고 내역</h2>
+    <div class="table-wrapper">
+      <table id="outTable">
+        <thead>
+          <tr>
+            <th>출고일자</th><th>Order No</th><th>발전소</th><th>ITEM</th><th>SIZE</th><th>출고(LB)</th><th>생산 LOT</th><th>출고자</th><th>작업</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
   </section>
 
   <section class="card">
     <h2>데이터 관리</h2>
-    <p id="storageHint" class="muted">입력한 내용은 브라우저에 자동 저장됩니다. 필요하면 아래 버튼으로 백업하거나 복원하세요.</p>
-    <div class="button-row">
-      <button id="loadSample" type="button" class="secondary">샘플 데이터 불러오기</button>
-      <button id="exportData" type="button" class="secondary">백업 다운로드</button>
-      <button id="importTrigger" type="button" class="secondary">백업 불러오기</button>
-      <button id="resetData" type="button" class="danger">전체 초기화</button>
+    <p class="muted">데이터는 브라우저에 자동 저장됩니다. 필요 시 아래 버튼으로 데이터를 관리하세요.</p>
+    <div class="data-actions">
+      <button id="loadSample" class="secondary">샘플 데이터 로드</button>
+      <button id="exportData" class="secondary">데이터 백업 (내보내기)</button>
+      <button id="importTrigger" class="secondary">데이터 복원 (가져오기)</button>
+      <button id="resetData" class="danger">전체 데이터 초기화</button>
     </div>
-    <input id="importInput" type="file" accept="application/json" hidden />
+    <input id="importInput" type="file" accept=".json" hidden />
   </section>
+</div>
 
-  <script>
-    const ITEMS = [
-      "ALS910C",
-      "ALS900G",
-      "ALS955W",
-      "ALS970",
-      "ALS990",
-      "ALS420",
-      "ALS610",
-      "ALS620",
-      "ALS623S",
-      "ALS630N",
-      "ALS640K",
-      "ALS350Y"
-    ];
-
-    const SIZES = [
-      '1/8"',
-      '3/16"',
-      '1/4"',
-      '5/16"',
-      '3/8"',
-      '7/16"',
-      '1/2"',
-      '9/16"',
-      '5/8"',
-      '11/16"',
-      '3/4"',
-      '13/16"',
-      '(20.6)"',
-      '7/8"',
-      '1"',
-      '1-1/4"'
-    ];
-
-    const STORAGE_KEY = "inventory-ledger-v1";
-    const PACK_UNIT_LB = 10;
-    const RECENT_DAY_COUNT = 3;
-    const sampleData = {
-      prod: [
-        { lot: "LOT-2301", date: "2025-01-03", item: "ALS910C", size: '1/4"', packLB: 120, rawLot: "RM-202", worker: "홍길동" },
-        { lot: "LOT-2302", date: "2025-01-04", item: "ALS955W", size: '3/8"', packLB: 90, rawLot: "RM-208", worker: "이영희" },
-        { lot: "LOT-2303", date: "2025-01-06", item: "ALS970", size: '1/2"', packLB: 150, rawLot: "RM-212", worker: "박민수" }
-      ],
-      out: [
-        { date: "2025-01-07", orderNo: "ORD-501", plant: "한빛", unit: "1호기", use: "정기점검", item: "ALS910C", size: '1/4"', outLB: 40, prodLot: "LOT-2301", worker: "정우성" },
-        { date: "2025-01-08", orderNo: "ORD-502", plant: "당진", unit: "2호기", use: "긴급보수", item: "ALS955W", size: '3/8"', outLB: 35, prodLot: "LOT-2302", worker: "김서연" }
-      ]
-    };
-
-    const prodRows = [];
-    const outRows = [];
-    let storageAvailable = true;
-
-    const selects = [
-      "prodFilterItem",
-      "prodFilterSize",
-      "prodItem",
-      "prodSize",
-      "outFilterItem",
-      "outFilterSize",
-      "outItem",
-      "outSize"
-    ];
-
-    selects.forEach((id) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      el.innerHTML = "";
-      const isFilter = id.toLowerCase().includes("filter");
-      if (isFilter) {
-        const opt = document.createElement("option");
-        opt.value = "";
-        opt.textContent = "(전체)";
-        opt.defaultSelected = true;
-        el.appendChild(opt);
-      } else {
-        const opt = document.createElement("option");
-        opt.value = "";
-        opt.textContent = "선택";
-        opt.disabled = true;
-        opt.selected = true;
-        opt.defaultSelected = true;
-        opt.hidden = true;
-        el.appendChild(opt);
-      }
-      const source = id.toLowerCase().includes("item") ? ITEMS : SIZES;
-      source.forEach((value) => {
-        const opt = document.createElement("option");
-        opt.value = value;
-        opt.textContent = value;
-        el.appendChild(opt);
-      });
-    });
-
-    const matrixHead = document.querySelector("#matrixTable thead");
-    const matrixBody = document.querySelector("#matrixTable tbody");
-    const prodBody = document.getElementById("prodBody");
-    const outBody = document.getElementById("outBody");
-    const storageHint = document.getElementById("storageHint");
-
-    try {
-      const testKey = "inventory-ledger-check";
-      localStorage.setItem(testKey, "ok");
-      localStorage.removeItem(testKey);
-    } catch (error) {
-      storageAvailable = false;
-      console.warn("로컬 저장소에 접근할 수 없습니다.", error);
-      if (storageHint) {
-        storageHint.textContent = "브라우저 저장소를 사용할 수 없어 새로고침하면 데이터가 초기화됩니다.";
-      }
-    }
-
-    const prodFilter = { q: "", item: "", size: "", from: "", to: "" };
-    const outFilter = { q: "", item: "", size: "", from: "", to: "" };
-
-    const uid = () => "id-" + Math.random().toString(36).slice(2, 7) + Date.now().toString(36);
-
-    const toNumber = (value) => {
-      const num = Number(value);
-      return Number.isFinite(num) ? num : 0;
-    };
-
-    const withinRange = (date, from, to) => {
-      if (!date) return false;
-      if (from && date < from) return false;
-      if (to && date > to) return false;
-      return true;
-    };
-
-    const parseISODate = (value) => {
-      if (typeof value !== "string" || value.trim() === "") return null;
-      const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-      if (!match) return null;
-      const year = Number(match[1]);
-      const month = Number(match[2]);
-      const day = Number(match[3]);
-      if (![year, month, day].every(Number.isFinite)) return null;
-      const date = new Date(Date.UTC(year, month - 1, day));
-      if (
-        date.getUTCFullYear() !== year ||
-        date.getUTCMonth() !== month - 1 ||
-        date.getUTCDate() !== day
-      ) {
-        return null;
-      }
-      return date;
-    };
-
-    const limitToRecentDays = (rows, days) => {
-      const limit = Math.max(1, Number.isFinite(days) ? Math.trunc(days) : 1);
-      const dated = rows
-        .map((row) => {
-          const iso = typeof row.date === "string" ? row.date.trim() : "";
-          const date = parseISODate(iso);
-          return { row, iso, date };
-        })
-        .filter((entry) => entry.date);
-      if (dated.length === 0) {
-        return rows;
-      }
-      const uniqueDates = Array.from(new Set(dated.map((entry) => entry.iso))).sort((a, b) => {
-        if (a === b) return 0;
-        return a > b ? -1 : 1;
-      });
-      const allowed = new Set(uniqueDates.slice(0, limit));
-      return rows.filter((row) => {
-        const iso = typeof row.date === "string" ? row.date.trim() : "";
-        if (!parseISODate(iso)) return true;
-        return allowed.has(iso);
-      });
-    };
-
-    const hasActiveFilters = (filter) => {
-      return Object.values(filter).some((value) => {
-        if (typeof value === "string") {
-          return value.trim() !== "";
-        }
-        return Boolean(value);
-      });
-    };
-
-    const compareByDateDesc = (a, b) => {
-      const isoA = typeof a.date === "string" ? a.date.trim() : "";
-      const isoB = typeof b.date === "string" ? b.date.trim() : "";
-      const validA = parseISODate(isoA);
-      const validB = parseISODate(isoB);
-      if (validA && validB) {
-        if (isoA === isoB) return 0;
-        return isoA > isoB ? -1 : 1;
-      }
-      if (validA) return -1;
-      if (validB) return 1;
-      return 0;
-    };
-
-    const deriveSequentialLot = (baseLot = "", chunkIndex = 1, totalChunks = 1) => {
-      if (!baseLot) return "";
-      if (totalChunks <= 1) return baseLot;
-      const text = String(baseLot);
-      const match = text.match(/^(.*?)(\d+)$/);
-      if (!match) {
-        return `${text}-${String(chunkIndex).padStart(2, "0")}`;
-      }
-      const [, prefix, digits] = match;
-      const padLength = digits.length;
-      const safeIndex = Number.isFinite(chunkIndex) ? Math.trunc(chunkIndex) : 1;
-      const step = safeIndex >= 1 ? safeIndex : 1;
-
-      if (typeof BigInt === "function") {
-        try {
-          const numeric = BigInt(digits);
-          const nextNumeric = numeric + BigInt(step);
-          const baseStr = numeric.toString();
-          const nextStr = nextNumeric.toString();
-          if (nextStr.length > baseStr.length) {
-            return prefix + nextStr;
-          }
-          return prefix + nextStr.padStart(padLength, "0");
-        } catch (error) {
-          console.warn("LOT 번호 계산 중 BigInt 변환에 실패했습니다.", error);
-        }
-      }
-
-      const numeric = Number(digits);
-      if (!Number.isFinite(numeric)) {
-        const fallbackIndex = step > 0 ? step : 1;
-        return `${text}-${String(fallbackIndex).padStart(2, "0")}`;
-      }
-      const next = numeric + step;
-      const baseStr = Math.trunc(numeric).toString();
-      const nextStr = Math.trunc(next).toString();
-      if (nextStr.length > baseStr.length) {
-        return prefix + nextStr;
-      }
-      return prefix + nextStr.padStart(padLength, "0");
-    };
-
-    const normalizeProd = (row = {}) => {
-      if (!row.lot) return null;
-      if (!ITEMS.includes(row.item) || !SIZES.includes(row.size)) return null;
-      return {
-        id: row.id || uid(),
-        lot: row.lot,
-        date: row.date || "",
-        item: row.item,
-        size: row.size,
-        packLB: toNumber(row.packLB),
-        rawLot: row.rawLot || "",
-        worker: row.worker || ""
-      };
-    };
-
-    const normalizeOut = (row = {}) => {
-      if (!row.prodLot) return null;
-      if (!ITEMS.includes(row.item) || !SIZES.includes(row.size)) return null;
-      return {
-        id: row.id || uid(),
-        date: row.date || "",
-        orderNo: row.orderNo || "",
-        plant: row.plant || "",
-        unit: row.unit || "",
-        use: row.use || "",
-        item: row.item,
-        size: row.size,
-        outLB: toNumber(row.outLB),
-        prodLot: row.prodLot,
-        worker: row.worker || ""
-      };
-    };
-
-    const applyDataset = (dataset = {}) => {
-      const prod = Array.isArray(dataset.prod) ? dataset.prod : [];
-      const out = Array.isArray(dataset.out) ? dataset.out : [];
-      const normalizedProd = prod.map(normalizeProd).filter(Boolean);
-      const normalizedOut = out.map(normalizeOut).filter(Boolean);
-      const dropped = {
-        prod: prod.length - normalizedProd.length,
-        out: out.length - normalizedOut.length
-      };
-      prodRows.splice(0, prodRows.length, ...normalizedProd);
-      outRows.splice(0, outRows.length, ...normalizedOut);
-      return dropped;
-    };
-
-    const saveToStorage = () => {
-      if (!storageAvailable) return;
-      try {
-        if (prodRows.length === 0 && outRows.length === 0) {
-          localStorage.removeItem(STORAGE_KEY);
-          return;
-        }
-        const payload = {
-          prod: prodRows.map(({ id, lot, date, item, size, packLB, rawLot, worker }) => ({ id, lot, date, item, size, packLB, rawLot, worker })),
-          out: outRows.map(({ id, date, orderNo, plant, unit, use, item, size, outLB, prodLot, worker }) => ({ id, date, orderNo, plant, unit, use, item, size, outLB, prodLot, worker }))
-        };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-      } catch (error) {
-        console.error("데이터 저장에 실패했습니다.", error);
-      }
-    };
-
-    const loadFromStorage = () => {
-      if (!storageAvailable) return false;
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return false;
-        const parsed = JSON.parse(raw);
-        applyDataset(parsed);
-        return true;
-      } catch (error) {
-        console.error("저장된 데이터를 불러오는 데 실패했습니다.", error);
-        return false;
-      }
-    };
-
-    const downloadBackup = () => {
-      const payload = {
-        prod: prodRows.map(({ id, lot, date, item, size, packLB, rawLot, worker }) => ({ id, lot, date, item, size, packLB, rawLot, worker })),
-        out: outRows.map(({ id, date, orderNo, plant, unit, use, item, size, outLB, prodLot, worker }) => ({ id, date, orderNo, plant, unit, use, item, size, outLB, prodLot, worker }))
-      };
-      const text = JSON.stringify(payload, null, 2);
-      const blob = new Blob([text], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      const today = new Date().toISOString().slice(0, 10);
-      link.href = url;
-      link.download = `inventory-ledger-${today}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    };
-
-    const clearAllData = () => {
-      prodRows.splice(0, prodRows.length);
-      outRows.splice(0, outRows.length);
-      saveToStorage();
-      renderAll();
-    };
-
-    const computeRemaining = () => {
-      return prodRows.map((row) => {
-        const used = outRows
-          .filter((out) => out.prodLot === row.lot)
-          .reduce((sum, out) => sum + toNumber(out.outLB), 0);
-        return { ...row, remain: toNumber(row.packLB) - used };
-      });
-    };
-
-    const buildMatrix = (rows) => {
-      const matrix = {};
-      SIZES.forEach((size) => {
-        matrix[size] = Object.fromEntries(ITEMS.map((item) => [item, []]));
-      });
-      rows.forEach((row) => {
-        let remain = toNumber(row.remain);
-        if (remain <= 0) return;
-        if (!matrix[row.size] || !matrix[row.size][row.item]) return;
-        const fullChunks = Math.floor(remain / PACK_UNIT_LB);
-        const remainder = Number((remain % PACK_UNIT_LB).toFixed(4));
-        const totalChunks = fullChunks + (remainder > 0 ? 1 : 0);
-        for (let index = 0; index < fullChunks; index += 1) {
-          const chunkIndex = index + 1;
-          matrix[row.size][row.item].push({
-            lot: deriveSequentialLot(row.lot, chunkIndex, totalChunks),
-            sourceLot: row.lot,
-            remain: PACK_UNIT_LB,
-            chunkIndex,
-            chunkCount: totalChunks
-          });
-        }
-        if (remainder > 0) {
-          const chunkIndex = totalChunks;
-          matrix[row.size][row.item].push({
-            lot: deriveSequentialLot(row.lot, chunkIndex, totalChunks),
-            sourceLot: row.lot,
-            remain: remainder,
-            chunkIndex,
-            chunkCount: totalChunks
-          });
-        }
-        if (fullChunks === 0 && remainder > 0) {
-          // totalChunks will be 1 here; ensure consistent metadata
-          const last = matrix[row.size][row.item][matrix[row.size][row.item].length - 1];
-          last.chunkIndex = 1;
-          last.chunkCount = 1;
-          last.lot = deriveSequentialLot(row.lot, 1, 1);
-        }
-      });
-      return matrix;
-    };
-
-    const renderMatrix = (rows) => {
-      const matrix = buildMatrix(rows);
-      matrixHead.innerHTML = "";
-      matrixBody.innerHTML = "";
-
-      const headRow = document.createElement("tr");
-      const first = document.createElement("th");
-      first.textContent = "SIZE \\ ITEM";
-      headRow.appendChild(first);
-      ITEMS.forEach((item) => {
-        const th = document.createElement("th");
-        th.textContent = item;
-        headRow.appendChild(th);
-      });
-      matrixHead.appendChild(headRow);
-
-      SIZES.forEach((size) => {
-        const tr = document.createElement("tr");
-        const tdSize = document.createElement("td");
-        tdSize.textContent = size;
-        tr.appendChild(tdSize);
-        ITEMS.forEach((item) => {
-          const td = document.createElement("td");
-          const list = matrix[size][item];
-          if (!list || list.length === 0) {
-            td.innerHTML = '<div class="empty">-</div>';
-          } else {
-            const wrap = document.createElement("div");
-            wrap.className = "pill-list";
-            list.sort((a, b) => {
-              const baseA = a.sourceLot || a.lot || "";
-              const baseB = b.sourceLot || b.lot || "";
-              const baseCompare = baseA.localeCompare(baseB);
-              if (baseCompare !== 0) return baseCompare;
-              return (a.chunkIndex || 0) - (b.chunkIndex || 0);
-            });
-            list.forEach((info) => {
-              const pill = document.createElement("div");
-              pill.className = "pill";
-              const chunkLabel = info.lot || info.sourceLot || "";
-              if (info.sourceLot && info.sourceLot !== chunkLabel) {
-                pill.title = `원본 LOT: ${info.sourceLot}`;
-              }
-              pill.innerHTML = `<span>${toNumber(info.remain).toLocaleString()} LB</span><span>${chunkLabel}</span>`;
-              wrap.appendChild(pill);
-            });
-            td.appendChild(wrap);
-          }
-          tr.appendChild(td);
-        });
-        matrixBody.appendChild(tr);
-      });
-    };
-
-    const renderProd = (rows) => {
-      prodBody.innerHTML = "";
-      if (rows.length === 0) {
-        const tr = document.createElement("tr");
-        const td = document.createElement("td");
-        td.colSpan = 9;
-        td.className = "empty";
-        td.textContent = "생산 데이터가 없습니다.";
-        tr.appendChild(td);
-        prodBody.appendChild(tr);
-        return;
-      }
-      const sorted = [...rows].sort(compareByDateDesc);
-      sorted.forEach((row) => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${row.lot}</td>
-          <td>${row.date || ""}</td>
-          <td>${row.item}</td>
-          <td>${row.size}</td>
-          <td style="text-align:right;">${toNumber(row.packLB).toLocaleString()}</td>
-          <td style="text-align:right;">${toNumber(row.remain).toLocaleString()}</td>
-          <td>${row.rawLot || ""}</td>
-          <td>${row.worker || ""}</td>
-          <td style="text-align:center;"><button class="ghost" data-id="${row.id}" data-type="prod">삭제</button></td>
-        `;
-        prodBody.appendChild(tr);
-      });
-    };
-
-    const renderOut = (rows) => {
-      outBody.innerHTML = "";
-      if (rows.length === 0) {
-        const tr = document.createElement("tr");
-        const td = document.createElement("td");
-        td.colSpan = 11;
-        td.className = "empty";
-        td.textContent = "출고 데이터가 없습니다.";
-        tr.appendChild(td);
-        outBody.appendChild(tr);
-        return;
-      }
-      const sorted = [...rows].sort(compareByDateDesc);
-      sorted.forEach((row) => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${row.date || ""}</td>
-          <td>${row.orderNo || ""}</td>
-          <td>${row.plant || ""}</td>
-          <td>${row.unit || ""}</td>
-          <td>${row.use || ""}</td>
-          <td>${row.item}</td>
-          <td>${row.size}</td>
-          <td style="text-align:right;">${toNumber(row.outLB).toLocaleString()}</td>
-          <td>${row.prodLot}</td>
-          <td>${row.worker || ""}</td>
-          <td style="text-align:center;"><button class="ghost" data-id="${row.id}" data-type="out">삭제</button></td>
-        `;
-        outBody.appendChild(tr);
-      });
-    };
-
-    const applyProdFilter = (row, filter) => {
-      const text = `${row.lot} ${row.rawLot || ""} ${row.worker || ""}`.toLowerCase();
-      const q = filter.q.trim().toLowerCase();
-      if (q && !text.includes(q)) return false;
-      if (filter.item && row.item !== filter.item) return false;
-      if (filter.size && row.size !== filter.size) return false;
-      if ((filter.from || filter.to) && !withinRange(row.date, filter.from, filter.to)) return false;
-      return true;
-    };
-
-    const applyOutFilter = (row, filter) => {
-      const text = `${row.orderNo || ""} ${row.plant || ""} ${row.prodLot}`.toLowerCase();
-      const q = filter.q.trim().toLowerCase();
-      if (q && !text.includes(q)) return false;
-      if (filter.item && row.item !== filter.item) return false;
-      if (filter.size && row.size !== filter.size) return false;
-      if ((filter.from || filter.to) && !withinRange(row.date, filter.from, filter.to)) return false;
-      return true;
-    };
-
-    const renderAll = () => {
-      const remaining = computeRemaining();
-      const prodFiltered = remaining.filter((row) => applyProdFilter(row, prodFilter));
-      const outFiltered = outRows.filter((row) => applyOutFilter(row, outFilter));
-      const prodVisible = hasActiveFilters(prodFilter)
-        ? prodFiltered
-        : limitToRecentDays(prodFiltered, RECENT_DAY_COUNT);
-      const outVisible = hasActiveFilters(outFilter)
-        ? outFiltered
-        : limitToRecentDays(outFiltered, RECENT_DAY_COUNT);
-      renderMatrix(remaining);
-      renderProd(prodVisible);
-      renderOut(outVisible);
-    };
-
-    document.getElementById("prodSearch").addEventListener("input", (event) => {
-      prodFilter.q = event.target.value;
-      renderAll();
-    });
-    document.getElementById("prodFilterItem").addEventListener("change", (event) => {
-      prodFilter.item = event.target.value;
-      renderAll();
-    });
-    document.getElementById("prodFilterSize").addEventListener("change", (event) => {
-      prodFilter.size = event.target.value;
-      renderAll();
-    });
-    document.getElementById("prodFilterFrom").addEventListener("change", (event) => {
-      prodFilter.from = event.target.value;
-      renderAll();
-    });
-    document.getElementById("prodFilterTo").addEventListener("change", (event) => {
-      prodFilter.to = event.target.value;
-      renderAll();
-    });
-    document.getElementById("prodReset").addEventListener("click", () => {
-      prodFilter.q = prodFilter.item = prodFilter.size = prodFilter.from = prodFilter.to = "";
-      document.getElementById("prodSearch").value = "";
-      document.getElementById("prodFilterItem").value = "";
-      document.getElementById("prodFilterSize").value = "";
-      document.getElementById("prodFilterFrom").value = "";
-      document.getElementById("prodFilterTo").value = "";
-      renderAll();
-    });
-
-    document.getElementById("outSearch").addEventListener("input", (event) => {
-      outFilter.q = event.target.value;
-      renderAll();
-    });
-    document.getElementById("outFilterItem").addEventListener("change", (event) => {
-      outFilter.item = event.target.value;
-      renderAll();
-    });
-    document.getElementById("outFilterSize").addEventListener("change", (event) => {
-      outFilter.size = event.target.value;
-      renderAll();
-    });
-    document.getElementById("outFilterFrom").addEventListener("change", (event) => {
-      outFilter.from = event.target.value;
-      renderAll();
-    });
-    document.getElementById("outFilterTo").addEventListener("change", (event) => {
-      outFilter.to = event.target.value;
-      renderAll();
-    });
-    document.getElementById("outReset").addEventListener("click", () => {
-      outFilter.q = outFilter.item = outFilter.size = outFilter.from = outFilter.to = "";
-      document.getElementById("outSearch").value = "";
-      document.getElementById("outFilterItem").value = "";
-      document.getElementById("outFilterSize").value = "";
-      document.getElementById("outFilterFrom").value = "";
-      document.getElementById("outFilterTo").value = "";
-      renderAll();
-    });
-
-    document.getElementById("prodForm").addEventListener("submit", (event) => {
-      event.preventDefault();
-      const row = {
-        id: uid(),
-        lot: document.getElementById("prodLot").value.trim(),
-        date: document.getElementById("prodDate").value,
-        item: document.getElementById("prodItem").value,
-        size: document.getElementById("prodSize").value,
-        packLB: toNumber(document.getElementById("prodPack").value),
-        rawLot: document.getElementById("prodRaw").value.trim(),
-        worker: document.getElementById("prodWorker").value.trim()
-      };
-      if (!row.lot) {
-        alert("LOT 번호를 입력해주세요.");
-        return;
-      }
-      prodRows.push(row);
-      event.target.reset();
-      saveToStorage();
-      renderAll();
-    });
-
-    document.getElementById("outForm").addEventListener("submit", (event) => {
-      event.preventDefault();
-      const row = {
-        id: uid(),
-        date: document.getElementById("outDate").value,
-        orderNo: document.getElementById("outOrder").value.trim(),
-        plant: document.getElementById("outPlant").value.trim(),
-        unit: document.getElementById("outUnit").value.trim(),
-        use: document.getElementById("outUse").value.trim(),
-        item: document.getElementById("outItem").value,
-        size: document.getElementById("outSize").value,
-        outLB: toNumber(document.getElementById("outLb").value),
-        prodLot: document.getElementById("outLot").value.trim(),
-        worker: document.getElementById("outWorker").value.trim()
-      };
-      if (!row.prodLot) {
-        alert("생산 LOT을 입력해주세요.");
-        return;
-      }
-      outRows.push(row);
-      event.target.reset();
-      saveToStorage();
-      renderAll();
-    });
-
-    document.body.addEventListener("click", (event) => {
-      const button = event.target.closest("button[data-id]");
-      if (!button) return;
-      const { id, type } = button.dataset;
-      if (!confirm("삭제하시겠습니까?")) return;
-      if (type === "prod") {
-        const index = prodRows.findIndex((row) => row.id === id);
-        if (index > -1) prodRows.splice(index, 1);
-      } else {
-        const index = outRows.findIndex((row) => row.id === id);
-        if (index > -1) outRows.splice(index, 1);
-      }
-      saveToStorage();
-      renderAll();
-    });
-
-    document.getElementById("exportData").addEventListener("click", () => {
-      if (prodRows.length === 0 && outRows.length === 0) {
-        alert("저장된 데이터가 없습니다.");
-        return;
-      }
-      downloadBackup();
-    });
-
-    const importInput = document.getElementById("importInput");
-    document.getElementById("importTrigger").addEventListener("click", () => {
-      if (!storageAvailable) {
-        alert("브라우저 저장소를 사용할 수 없어 불러온 데이터가 새로고침 시 사라집니다.");
-      }
-      importInput.click();
-    });
-
-    importInput.addEventListener("change", (event) => {
-      const file = event.target.files && event.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const parsed = JSON.parse(e.target.result);
-          const dropped = applyDataset(parsed);
-          saveToStorage();
-          renderAll();
-          if (dropped.prod > 0 || dropped.out > 0) {
-            alert(`백업 데이터를 불러왔지만 ${dropped.prod + dropped.out}개의 행이 유효하지 않아 제외되었습니다.`);
-          } else {
-            alert("백업 데이터를 불러왔습니다.");
-          }
-        } catch (error) {
-          console.error("백업 불러오기 실패", error);
-          alert("백업 파일을 해석하지 못했습니다. JSON 형식을 확인하세요.");
-        } finally {
-          event.target.value = "";
-        }
-      };
-      reader.readAsText(file, "utf-8");
-    });
-
-    document.getElementById("resetData").addEventListener("click", () => {
-      if (!confirm("입력된 모든 데이터를 삭제하시겠습니까?")) return;
-      clearAllData();
-    });
-
-    document.getElementById("loadSample").addEventListener("click", () => {
-      if (!confirm("샘플 데이터를 불러오면 현재 데이터가 덮어쓰기 됩니다. 계속하시겠습니까?")) return;
-      if (!storageAvailable) {
-        alert("브라우저 저장소를 사용할 수 없어 샘플 데이터가 새로고침 시 사라집니다.");
-      }
-      const dropped = applyDataset(sampleData);
-      saveToStorage();
-      renderAll();
-      if (dropped.prod > 0 || dropped.out > 0) {
-        alert("샘플 데이터의 일부가 제외되었습니다. ITEM 및 SIZE 목록을 확인하세요.");
-      }
-    });
-
-    loadFromStorage();
-    renderAll();
-  </script>
+<script>
+  const ITEMS = ["ALS910C", "ALS900G", "ALS955W", "ALS970", "ALS990", "ALS420", "ALS610", "ALS620", "ALS623S", "ALS630N", "ALS640K", "ALS350Y"];
+  const SIZES = ['1/8"', '3/16"', '1/4"', '5/16"', '3/8"', '7/16"', '1/2"', '9/16"', '5/8"', '11/16"', '3/4"', '13/16"', '(20.6)"', '7/8"', '1"', '1-1/4"'];
+  const STORAGE_KEY = "inventory-ledger-partner-v1";
+  const PACK_UNIT_LB = 10;
+  const sampleData = {
+    productions: [
+      { id: "p1", lot: "LOT-2501", date: "2025-10-01", item: "ALS910C", size: '1/4"', packLB: 120, rawLot: "RM-A", worker: "김민준" },
+      { id: "p2", lot: "LOT-2502", date: "2025-10-02", item: "ALS955W", size: '3/8"', packLB: 90, rawLot: "RM-B", worker: "이서아" },
+      { id: "p3", lot: "LOT-2503", date: "2025-10-03", item: "ALS910C", size: '1/4"', packLB: 55.5, rawLot: "RM-C", worker: "박도윤" }
+    ],
+    shipments: [
+      { id: "s1", date: "2025-10-05", orderNo: "ORD-101", plant: "고리", item: "ALS910C", size: '1/4"', outLB: 40, prodLot: "LOT-2501", worker: "최지우" },
+      { id: "s2", date: "2025-10-06", orderNo: "ORD-102", plant: "한울", item: "ALS955W", size: '3/8"', outLB: 35.2, prodLot: "LOT-2502", worker: "윤하은" }
+    ]
+  };
+  let state = { productions: [], shipments: [] };
+  const prodForm = document.getElementById("prodForm");
+  const outForm = document.getElementById("outForm");
+  const matrixHead = document.querySelector("#matrixTable thead");
+  const matrixBody = document.querySelector("#matrixTable tbody");
+  const prodBody = document.querySelector("#prodTable tbody");
+  const outBody = document.querySelector("#outTable tbody");
+  const importInput = document.getElementById("importInput");
+  const uid = () => `id_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const formatNum = (num) => Number.isFinite(parseFloat(num)) ? parseFloat(num).toLocaleString() : "0";
+  const saveState = () => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { console.error("데이터 저장에 실패했습니다.", e); } };
+  const loadState = () => { try { const storedState = localStorage.getItem(STORAGE_KEY); if (storedState) { state = JSON.parse(storedState); } } catch (e) { console.error("데이터 불러오기에 실패했습니다.", e); state = { productions: [], shipments: [] }; } };
+  const addTransaction = (type, data) => { if (type === 'production') { state.productions.push({ ...data, id: uid() }); } else if (type === 'shipment') { state.shipments.push({ ...data, id: uid() }); } saveState(); render(); };
+  const deleteTransaction = (type, id) => { if (!confirm("정말로 이 항목을 삭제하시겠습니까?")) return; if (type === 'production') { state.productions = state.productions.filter(p => p.id !== id); } else if (type === 'shipment') { state.shipments = state.shipments.filter(s => s.id !== id); } saveState(); render(); };
+  const calculateInventory = () => { const shipmentMap = new Map(); state.shipments.forEach(s => { const total = (shipmentMap.get(s.prodLot) || 0) + parseFloat(s.outLB || 0); shipmentMap.set(s.prodLot, total); }); return state.productions.map(p => ({ ...p, remainingLB: parseFloat(p.packLB || 0) - (shipmentMap.get(p.lot) || 0) })); };
+  const deriveSequentialLot = (baseLot, index) => { if (index <= 1) return baseLot; const match = baseLot.match(/^(.*?)(\d+)$/); if (match) { const [, prefix, numStr] = match; const nextNum = parseInt(numStr, 10) + index - 1; return `${prefix}${String(nextNum).padStart(numStr.length, '0')}`; } return `${baseLot}-${String(index).padStart(2, '0')}`; };
+  const render = () => { const inventory = calculateInventory(); renderMatrix(inventory); renderProdTable(inventory); renderOutTable(); };
+  const renderMatrix = (inventory) => { matrixHead.innerHTML = `<tr><th>SIZE \\ ITEM</th>${ITEMS.map(item => `<th>${item}</th>`).join('')}</tr>`; matrixBody.innerHTML = SIZES.map(size => `<tr><td>${size}</td> ${ITEMS.map(item => { const lots = inventory.filter(p => p.item === item && p.size === size && p.remainingLB > 0.001); if (lots.length === 0) return '<td>-</td>'; const pills = lots.flatMap(lot => { let remaining = lot.remainingLB; const chunks = []; const fullChunks = Math.floor(remaining / PACK_UNIT_LB); const partialChunk = remaining % PACK_UNIT_LB; for (let i = 1; i <= fullChunks; i++) { chunks.push({ lot: deriveSequentialLot(lot.lot, i), amount: PACK_UNIT_LB }); } if (partialChunk > 0.001) { chunks.push({ lot: deriveSequentialLot(lot.lot, fullChunks + 1), amount: partialChunk }); } return chunks; }).map(chunk => `<div class="lot-pill" title="Source LOT: ${chunk.lot}"><span class="lot-id">${chunk.lot}</span><span class="amount">${formatNum(chunk.amount)}</span></div>`).join(''); return `<td><div class="lot-cell">${pills}</div></td>`; }).join('')}</tr>`).join(''); };
+  const renderProdTable = (inventory) => { const sorted = [...inventory].sort((a,b) => b.date.localeCompare(a.date)); if (sorted.length === 0) { prodBody.innerHTML = `<tr class="empty-row"><td colspan="9">생산 데이터가 없습니다.</td></tr>`; return; } prodBody.innerHTML = sorted.map(p => `<tr><td>${p.lot}</td><td>${p.date}</td><td>${p.item}</td><td>${p.size}</td><td>${formatNum(p.packLB)}</td><td style="font-weight:600;">${formatNum(p.remainingLB)}</td><td>${p.rawLot}</td><td>${p.worker}</td><td><button class="ghost" data-type="production" data-id="${p.id}">❌</button></td></tr>`).join(''); };
+  const renderOutTable = () => { const sorted = [...state.shipments].sort((a,b) => b.date.localeCompare(a.date)); if (sorted.length === 0) { outBody.innerHTML = `<tr class="empty-row"><td colspan="9">출고 데이터가 없습니다.</td></tr>`; return; } outBody.innerHTML = sorted.map(s => `<tr><td>${s.date}</td><td>${s.orderNo}</td><td>${s.plant}</td><td>${s.item}</td><td>${s.size}</td><td>${formatNum(s.outLB)}</td><td>${s.prodLot}</td><td>${s.worker}</td><td><button class="ghost" data-type="shipment" data-id="${s.id}">❌</button></td></tr>`).join(''); };
+  document.querySelector('.tab-nav').addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON') { document.querySelectorAll('.tab-btn, .tab-content').forEach(el => el.classList.remove('active')); const tab = e.target.dataset.tab; e.target.classList.add('active'); document.getElementById(`${tab}Tab`).classList.add('active'); } });
+  prodForm.addEventListener('submit', (e) => { e.preventDefault(); const data = Object.fromEntries(new FormData(prodForm).entries()); addTransaction('production', data); prodForm.reset(); });
+  outForm.addEventListener('submit', (e) => { e.preventDefault(); const data = Object.fromEntries(new FormData(outForm).entries()); addTransaction('shipment', data); outForm.reset(); });
+  document.body.addEventListener('click', (e) => { if (e.target.matches('button.ghost[data-id]')) { const { type, id } = e.target.dataset; deleteTransaction(type, id); } });
+  document.getElementById('loadSample').addEventListener('click', () => { if (confirm('샘플 데이터를 불러오면 현재 데이터가 모두 삭제됩니다. 계속하시겠습니까?')) { state = JSON.parse(JSON.stringify(sampleData)); saveState(); render(); } });
+  document.getElementById('exportData').addEventListener('click', () => { const dataStr = JSON.stringify(state, null, 2); const blob = new Blob([dataStr], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `inventory-backup-${new Date().toISOString().slice(0, 10)}.json`; a.click(); URL.revokeObjectURL(url); });
+  document.getElementById('importTrigger').addEventListener('click', () => importInput.click());
+  importInput.addEventListener('change', (e) => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (event) => { try { const importedState = JSON.parse(event.target.result); if (importedState.productions && importedState.shipments) { state = importedState; saveState(); render(); alert('데이터를 성공적으로 복원했습니다.'); } else { alert('파일 형식이 올바르지 않습니다.'); } } catch (err) { alert('파일을 읽는 중 오류가 발생했습니다.'); } }; reader.readAsText(file); importInput.value = ''; });
+  document.getElementById('resetData').addEventListener('click', () => { if (confirm('정말로 모든 데이터를 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) { state = { productions: [], shipments: [] }; saveState(); render(); } });
+  document.addEventListener('DOMContentLoaded', () => { document.querySelectorAll('select').forEach(select => { const options = select.id.toLowerCase().includes('item') ? ITEMS : SIZES; select.innerHTML = `<option value="" disabled selected>선택</option>` + options.map(opt => `<option value="${opt}">${opt}</option>`).join(''); }); const today = new Date().toISOString().slice(0, 10); document.getElementById('prodDate').value = today; document.getElementById('outDate').value = today; loadState(); render(); });
+</script>
 </body>
 </html>
