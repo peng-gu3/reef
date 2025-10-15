@@ -186,7 +186,28 @@
   const loadState = () => { try { const storedState = localStorage.getItem(STORAGE_KEY); if (storedState) { state = JSON.parse(storedState); } } catch (e) { console.error("데이터 불러오기에 실패했습니다.", e); state = { productions: [], shipments: [] }; } };
   const addTransaction = (type, data) => { if (type === 'production') { state.productions.push({ ...data, id: uid() }); } else if (type === 'shipment') { state.shipments.push({ ...data, id: uid() }); } saveState(); render(); };
   const deleteTransaction = (type, id) => { if (!confirm("정말로 이 항목을 삭제하시겠습니까?")) return; if (type === 'production') { state.productions = state.productions.filter(p => p.id !== id); } else if (type === 'shipment') { state.shipments = state.shipments.filter(s => s.id !== id); } saveState(); render(); };
-  const calculateInventory = () => { const shipmentMap = new Map(); state.shipments.forEach(s => { const total = (shipmentMap.get(s.prodLot) || 0) + parseFloat(s.outLB || 0); shipmentMap.set(s.prodLot, total); }); return state.productions.map(p => ({ ...p, remainingLB: parseFloat(p.packLB || 0) - (shipmentMap.get(p.lot) || 0) })); };
+  
+  const calculateInventory = () => {
+    const shipmentMap = new Map();
+    state.shipments.forEach(s => {
+      const outAmount = parseFloat(s.outLB);
+      if (Number.isFinite(outAmount)) {
+        const total = (shipmentMap.get(s.prodLot) || 0) + outAmount;
+        shipmentMap.set(s.prodLot, total);
+      }
+    });
+
+    return state.productions.map(p => {
+      const packAmount = parseFloat(p.packLB);
+      const validPackAmount = Number.isFinite(packAmount) ? packAmount : 0;
+      const usedAmount = shipmentMap.get(p.lot) || 0;
+      return {
+        ...p,
+        remainingLB: validPackAmount - usedAmount
+      };
+    });
+  };
+
   const deriveSequentialLot = (baseLot, index) => { if (index <= 1) return baseLot; const match = baseLot.match(/^(.*?)(\d+)$/); if (match) { const [, prefix, numStr] = match; const nextNum = parseInt(numStr, 10) + index - 1; return `${prefix}${String(nextNum).padStart(numStr.length, '0')}`; } return `${baseLot}-${String(index).padStart(2, '0')}`; };
   
   // ===================================================
