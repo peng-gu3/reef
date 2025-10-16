@@ -6,24 +6,19 @@
   <title>자동 재고관리 대장 (코딩 파트너 Ver.)</title>
   <style>
     :root {
-      --primary-color: #007bff;
-      --primary-hover: #0056b3;
-      --danger-color: #dc3545;
-      --danger-hover: #c82333;
-      --light-gray: #f8f9fa;
-      --medium-gray: #dee2e6;
-      --dark-gray: #343a40;
-      --white: #ffffff;
-      --border-radius: 8px;
-      --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      --primary-color: #007bff; --primary-hover: #0056b3; --danger-color: #dc3545; --danger-hover: #c82333;
+      --light-gray: #f8f9fa; --medium-gray: #dee2e6; --dark-gray: #343a40; --white: #ffffff;
+      --border-radius: 8px; --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 24px; background-color: var(--light-gray); color: var(--dark-gray); }
     .container { display: grid; gap: 24px; }
     .card { background-color: var(--white); border-radius: var(--border-radius); padding: 24px; box-shadow: var(--shadow); }
     h1, h2 { margin-top: 0; }
+    h2 { font-size: 1.4rem; }
     p.muted { color: #6c757d; font-size: 0.9rem; margin-top: -8px; }
     .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; align-items: end; }
-    label { font-weight: 600; font-size: 0.85rem; }
+    label { font-weight: 600; font-size: 0.85rem; margin-bottom: 4px; display: block; }
+    input, select, button { font-size: 1rem; }
     input, select { width: 100%; padding: 10px; border: 1px solid var(--medium-gray); border-radius: 6px; box-sizing: border-box; }
     button { border: none; border-radius: 6px; padding: 10px 16px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
     button.primary { background-color: var(--primary-color); color: var(--white); }
@@ -35,11 +30,11 @@
     button.ghost { background: transparent; color: var(--danger-color); padding: 4px; }
     .table-wrapper { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-    th, td { border: 1px solid var(--medium-gray); padding: 12px; font-size: 0.9rem; text-align: center; }
+    th, td { border: 1px solid var(--medium-gray); padding: 12px; font-size: 0.9rem; text-align: center; white-space: nowrap; }
     thead { background-color: #e9ecef; }
     .empty-row td { color: #6c757d; }
     #matrixTable th:first-child, #matrixTable td:first-child { background-color: #e9ecef; font-weight: 600; position: sticky; left: 0; z-index: 1; }
-    .lot-cell { display: flex; flex-direction: column; gap: 4px; min-width: 150px; }
+    .lot-cell { display: flex; flex-direction: column; gap: 4px; min-width: 150px; padding: 8px; }
     .lot-pill { display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; border-radius: 12px; background-color: #e7f3ff; font-size: 0.8rem; font-weight: 500; }
     .lot-pill .amount { color: var(--primary-color); font-weight: 700; }
     .tab-nav { display: flex; border-bottom: 2px solid var(--medium-gray); }
@@ -48,6 +43,7 @@
     .tab-content { display: none; padding-top: 24px; }
     .tab-content.active { display: block; }
     .data-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+    .filter-controls { display: grid; grid-template-columns: 1fr auto; gap: 12px; margin-bottom: 16px; }
   </style>
 </head>
 <body>
@@ -106,6 +102,11 @@
 
   <section class="card">
     <h2>생산 내역</h2>
+    <p class="muted">기본으로 최근 3일치 내역이 보이며, 검색 시 전체 데이터에서 조회합니다.</p>
+    <div class="filter-controls">
+      <input id="prodSearch" type="search" placeholder="LOT, 원자재 LOT, 작업자 등으로 검색..." />
+      <button id="prodReset" class="secondary">초기화</button>
+    </div>
     <div class="table-wrapper">
       <table id="prodTable">
         <thead>
@@ -120,6 +121,11 @@
 
   <section class="card">
     <h2>출고 내역</h2>
+    <p class="muted">기본으로 최근 3일치 내역이 보이며, 검색 시 전체 데이터에서 조회합니다.</p>
+    <div class="filter-controls">
+        <input id="outSearch" type="search" placeholder="Order No, 발전소, 생산 LOT 등으로 검색..." />
+        <button id="outReset" class="secondary">초기화</button>
+    </div>
     <div class="table-wrapper">
       <table id="outTable">
         <thead>
@@ -134,11 +140,10 @@
 
   <section class="card">
     <h2>데이터 관리</h2>
-    <p class="muted">데이터는 브라우저에 자동 저장됩니다. 필요 시 아래 버튼으로 데이터를 관리하세요.</p>
     <div class="data-actions">
       <button id="loadSample" class="secondary">샘플 데이터 로드</button>
-      <button id="exportData" class="secondary">데이터 백업 (내보내기)</button>
-      <button id="importTrigger" class="secondary">데이터 복원 (가져오기)</button>
+      <button id="exportData" class="secondary">데이터 백업</button>
+      <button id="importTrigger" class="secondary">데이터 복원</button>
       <button id="resetData" class="danger">전체 데이터 초기화</button>
     </div>
     <input id="importInput" type="file" accept=".json" hidden />
@@ -151,138 +156,136 @@
   // ===================================================
   const ITEMS = ["ALS910C", "ALS900G", "ALS955W", "ALS970", "ALS990", "ALS420", "ALS610", "ALS620", "ALS623S", "ALS630N", "ALS640K", "ALS350Y"];
   const SIZES = ['1/8"', '3/16"', '1/4"', '5/16"', '3/8"', '7/16"', '1/2"', '9/16"', '5/8"', '11/16"', '3/4"', '13/16"', '(20.6)"', '7/8"', '1"', '1-1/4"'];
-  const STORAGE_KEY = "inventory-ledger-partner-v1";
+  const STORAGE_KEY = "inventory-ledger-partner-v2"; // 버전업
   const PACK_UNIT_LB = 10;
-  const sampleData = {
-    productions: [
-      { id: "p1", lot: "LOT-2501", date: "2025-10-01", item: "ALS910C", size: '1/4"', packLB: 120, rawLot: "RM-A", worker: "김민준" },
-      { id: "p2", lot: "LOT-2502", date: "2025-10-02", item: "ALS955W", size: '3/8"', packLB: 90, rawLot: "RM-B", worker: "이서아" },
-      { id: "p3", lot: "LOT-2503", date: "2025-10-03", item: "ALS910C", size: '1/4"', packLB: 55.5, rawLot: "RM-C", worker: "박도윤" }
-    ],
-    shipments: [
-      { id: "s1", date: "2025-10-05", orderNo: "ORD-101", plant: "고리", item: "ALS910C", size: '1/4"', outLB: 40, prodLot: "LOT-2501", worker: "최지우" },
-      { id: "s2", date: "2025-10-06", orderNo: "ORD-102", plant: "한울", item: "ALS955W", size: '3/8"', outLB: 35.2, prodLot: "LOT-2502", worker: "윤하은" }
-    ]
-  };
+  const RECENT_DAYS = 3;
+  const sampleData = { productions: [ { id: "p1", lot: "LOT-2501", date: "2025-10-16", item: "ALS910C", size: '1/4"', packLB: 120, rawLot: "RM-A", worker: "김민준" }, { id: "p2", lot: "LOT-2502", date: "2025-10-15", item: "ALS955W", size: '3/8"', packLB: 90, rawLot: "RM-B", worker: "이서아" }, { id: "p3", lot: "LOT-2503", date: "2025-10-14", item: "ALS910C", size: '1/4"', packLB: 55.5, rawLot: "RM-C", worker: "박도윤" }, { id: "p4", lot: "LOT-2504", date: "2025-10-14", item: "ALS970", size: '1/2"', packLB: 200, rawLot: "RM-D", worker: "최지우" } ], shipments: [ { id: "s1", date: "2025-10-16", orderNo: "ORD-101", plant: "고리", item: "ALS910C", size: '1/4"', outLB: 40, prodLot: "LOT-2501", worker: "김민준" }, { id: "s2", date: "2025-10-15", orderNo: "ORD-102", plant: "한울", item: "ALS955W", size: '3/8"', outLB: 35.2, prodLot: "LOT-2502", worker: "이서아" } ] };
+  
   let state = { productions: [], shipments: [] };
+  let filters = { prodQuery: '', outQuery: '' };
 
   // ===================================================
   // 2. DOM 요소 참조
   // ===================================================
-  const prodForm = document.getElementById("prodForm");
-  const outForm = document.getElementById("outForm");
-  const matrixHead = document.querySelector("#matrixTable thead");
-  const matrixBody = document.querySelector("#matrixTable tbody");
-  const prodBody = document.querySelector("#prodTable tbody");
-  const outBody = document.querySelector("#outTable tbody");
+  const prodForm = document.getElementById("prodForm"), outForm = document.getElementById("outForm");
+  const matrixHead = document.querySelector("#matrixTable thead"), matrixBody = document.querySelector("#matrixTable tbody");
+  const prodBody = document.querySelector("#prodTable tbody"), outBody = document.querySelector("#outTable tbody");
   const importInput = document.getElementById("importInput");
+  const prodSearch = document.getElementById("prodSearch"), outSearch = document.getElementById("outSearch");
 
   // ===================================================
-  // 3. 핵심 로직 및 데이터 처리 함수
+  // 3. 헬퍼 및 데이터 처리 함수
   // ===================================================
   const uid = () => `id_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   const formatNum = (num) => Number.isFinite(parseFloat(num)) ? parseFloat(num).toLocaleString() : "0";
-  const saveState = () => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { console.error("데이터 저장에 실패했습니다.", e); } };
-  const loadState = () => { try { const storedState = localStorage.getItem(STORAGE_KEY); if (storedState) { state = JSON.parse(storedState); } } catch (e) { console.error("데이터 불러오기에 실패했습니다.", e); state = { productions: [], shipments: [] }; } };
-  const addTransaction = (type, data) => { if (type === 'production') { state.productions.push({ ...data, id: uid() }); } else if (type === 'shipment') { state.shipments.push({ ...data, id: uid() }); } saveState(); render(); };
-  const deleteTransaction = (type, id) => { if (!confirm("정말로 이 항목을 삭제하시겠습니까?")) return; if (type === 'production') { state.productions = state.productions.filter(p => p.id !== id); } else if (type === 'shipment') { state.shipments = state.shipments.filter(s => s.id !== id); } saveState(); render(); };
+  const saveState = () => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { console.error("데이터 저장 실패", e); } };
+  const loadState = () => { try { const storedState = localStorage.getItem(STORAGE_KEY); if (storedState) { state = JSON.parse(storedState); } } catch (e) { console.error("데이터 로드 실패", e); state = { productions: [], shipments: [] }; } };
+  const addTransaction = (type, data) => { const store = type === 'production' ? state.productions : state.shipments; store.push({ ...data, id: uid() }); saveState(); render(); };
+  const deleteTransaction = (type, id) => { if (!confirm("삭제하시겠습니까?")) return; if (type === 'production') state.productions = state.productions.filter(p => p.id !== id); else state.shipments = state.shipments.filter(s => s.id !== id); saveState(); render(); };
   
   const calculateInventory = () => {
     const shipmentMap = new Map();
-    state.shipments.forEach(s => {
-      const outAmount = parseFloat(s.outLB);
-      if (Number.isFinite(outAmount)) {
-        const total = (shipmentMap.get(s.prodLot) || 0) + outAmount;
-        shipmentMap.set(s.prodLot, total);
-      }
-    });
-
-    return state.productions.map(p => {
-      const packAmount = parseFloat(p.packLB);
-      const validPackAmount = Number.isFinite(packAmount) ? packAmount : 0;
-      const usedAmount = shipmentMap.get(p.lot) || 0;
-      return {
-        ...p,
-        remainingLB: validPackAmount - usedAmount
-      };
-    });
+    state.shipments.forEach(s => { const outAmount = parseFloat(s.outLB); if (Number.isFinite(outAmount)) { shipmentMap.set(s.prodLot, (shipmentMap.get(s.prodLot) || 0) + outAmount); } });
+    return state.productions.map(p => { const packAmount = parseFloat(p.packLB); const validPackAmount = Number.isFinite(packAmount) ? packAmount : 0; return { ...p, remainingLB: validPackAmount - (shipmentMap.get(p.lot) || 0) }; });
   };
 
   const deriveSequentialLot = (baseLot, index) => { if (index <= 1) return baseLot; const match = baseLot.match(/^(.*?)(\d+)$/); if (match) { const [, prefix, numStr] = match; const nextNum = parseInt(numStr, 10) + index - 1; return `${prefix}${String(nextNum).padStart(numStr.length, '0')}`; } return `${baseLot}-${String(index).padStart(2, '0')}`; };
-  
+
   // ===================================================
-  // 4. 렌더링 함수 (상태를 기반으로 화면을 그림)
+  // 4. 렌더링 함수
   // ===================================================
-  const render = () => { const inventory = calculateInventory(); renderMatrix(inventory); renderProdTable(inventory); renderOutTable(); };
-  const renderMatrix = (inventory) => { matrixHead.innerHTML = `<tr><th>SIZE \\ ITEM</th>${ITEMS.map(item => `<th>${item}</th>`).join('')}</tr>`; matrixBody.innerHTML = SIZES.map(size => `<tr><td>${size}</td> ${ITEMS.map(item => { const lots = inventory.filter(p => p.item === item && p.size === size && p.remainingLB > 0.001); if (lots.length === 0) return '<td>-</td>'; const pills = lots.flatMap(lot => { let remaining = lot.remainingLB; const chunks = []; const fullChunks = Math.floor(remaining / PACK_UNIT_LB); const partialChunk = remaining % PACK_UNIT_LB; for (let i = 1; i <= fullChunks; i++) { chunks.push({ lot: deriveSequentialLot(lot.lot, i), amount: PACK_UNIT_LB }); } if (partialChunk > 0.001) { chunks.push({ lot: deriveSequentialLot(lot.lot, fullChunks + 1), amount: partialChunk }); } return chunks; }).map(chunk => `<div class="lot-pill" title="Source LOT: ${chunk.lot}"><span class="lot-id">${chunk.lot}</span><span class="amount">${formatNum(chunk.amount)}</span></div>`).join(''); return `<td><div class="lot-cell">${pills}</div></td>`; }).join('')}</tr>`).join(''); };
-  const renderProdTable = (inventory) => { const sorted = [...inventory].sort((a,b) => b.date.localeCompare(a.date)); if (sorted.length === 0) { prodBody.innerHTML = `<tr class="empty-row"><td colspan="9">생산 데이터가 없습니다.</td></tr>`; return; } prodBody.innerHTML = sorted.map(p => `<tr><td>${p.lot}</td><td>${p.date}</td><td>${p.item}</td><td>${p.size}</td><td>${formatNum(p.packLB)}</td><td style="font-weight:600;">${formatNum(p.remainingLB)}</td><td>${p.rawLot}</td><td>${p.worker}</td><td><button class="ghost" data-type="production" data-id="${p.id}">❌</button></td></tr>`).join(''); };
-  const renderOutTable = () => { const sorted = [...state.shipments].sort((a,b) => b.date.localeCompare(a.date)); if (sorted.length === 0) { outBody.innerHTML = `<tr class="empty-row"><td colspan="9">출고 데이터가 없습니다.</td></tr>`; return; } outBody.innerHTML = sorted.map(s => `<tr><td>${s.date}</td><td>${s.orderNo}</td><td>${s.plant}</td><td>${s.item}</td><td>${s.size}</td><td>${formatNum(s.outLB)}</td><td>${s.prodLot}</td><td>${s.worker}</td><td><button class="ghost" data-type="shipment" data-id="${s.id}">❌</button></td></tr>`).join(''); };
-  
+  const render = () => {
+    const inventory = calculateInventory();
+    
+    // 필터링 로직
+    const prodQuery = filters.prodQuery.toLowerCase();
+    const outQuery = filters.outQuery.toLowerCase();
+    
+    const filteredProd = prodQuery ? inventory.filter(p => `${p.lot} ${p.rawLot} ${p.worker}`.toLowerCase().includes(prodQuery)) : inventory;
+    const filteredOut = outQuery ? state.shipments.filter(s => `${s.orderNo} ${s.plant} ${s.prodLot}`.toLowerCase().includes(outQuery)) : state.shipments;
+
+    // 최근 3일 데이터 필터링 (검색어가 없을 때만)
+    const getRecent = (data) => {
+        const sorted = [...data].sort((a,b) => b.date.localeCompare(a.date));
+        const recentDates = [...new Set(sorted.map(d => d.date))].slice(0, RECENT_DAYS);
+        return sorted.filter(d => recentDates.includes(d.date));
+    };
+
+    renderMatrix(inventory);
+    renderProdTable(prodQuery ? filteredProd : getRecent(filteredProd));
+    renderOutTable(outQuery ? filteredOut : getRecent(filteredOut));
+  };
+
+  const renderMatrix = (inventory) => {
+    matrixHead.innerHTML = `<tr><th>SIZE \\ ITEM</th>${ITEMS.map(item => `<th>${item}</th>`).join('')}</tr>`;
+    matrixBody.innerHTML = SIZES.map(size => `<tr><td>${size}</td> ${ITEMS.map(item => {
+        const lots = inventory.filter(p => p.item === item && p.size === size && p.remainingLB > 0.001);
+        if (lots.length === 0) return '<td>-</td>';
+        const pills = lots.flatMap(lot => {
+            const chunks = []; let remaining = lot.remainingLB;
+            const fullChunks = Math.floor(remaining / PACK_UNIT_LB);
+            const partialChunk = remaining % PACK_UNIT_LB;
+            for (let i = 1; i <= fullChunks; i++) chunks.push({ lot: deriveSequentialLot(lot.lot, i), amount: PACK_UNIT_LB, source: lot.lot });
+            if (partialChunk > 0.001) chunks.push({ lot: deriveSequentialLot(lot.lot, fullChunks + 1), amount: partialChunk, source: lot.lot });
+            return chunks;
+        }).map(c => `<div class="lot-pill" title="원래 LOT: ${c.source}"><span class="lot-id">${c.lot}</span><span class="amount">${formatNum(c.amount)}</span></div>`).join('');
+        return `<td><div class="lot-cell">${pills}</div></td>`;
+    }).join('')}</tr>`).join('');
+  };
+
+  const renderTable = (tbody, data, rowTemplate, colSpan) => {
+    const sorted = [...data].sort((a,b) => b.date.localeCompare(a.date));
+    if (sorted.length === 0) { tbody.innerHTML = `<tr class="empty-row"><td colspan="${colSpan}">데이터가 없습니다.</td></tr>`; return; }
+    tbody.innerHTML = sorted.map(rowTemplate).join('');
+  }
+
+  const renderProdTable = (data) => renderTable(prodBody, data, p =>
+    `<tr><td>${p.lot}</td><td>${p.date}</td><td>${p.item}</td><td>${p.size}</td><td>${formatNum(p.packLB)}</td><td style="font-weight:600;">${formatNum(p.remainingLB)}</td><td>${p.rawLot}</td><td>${p.worker}</td><td><button class="ghost" data-type="production" data-id="${p.id}">❌</button></td></tr>`, 9);
+
+  const renderOutTable = (data) => renderTable(outBody, data, s =>
+    `<tr><td>${s.date}</td><td>${s.orderNo}</td><td>${s.plant}</td><td>${s.item}</td><td>${s.size}</td><td>${formatNum(s.outLB)}</td><td>${s.prodLot}</td><td>${s.worker}</td><td><button class="ghost" data-type="shipment" data-id="${s.id}">❌</button></td></tr>`, 9);
+
   // ===================================================
   // 5. 이벤트 리스너 설정
   // ===================================================
   document.querySelector('.tab-nav').addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON') { document.querySelectorAll('.tab-btn, .tab-content').forEach(el => el.classList.remove('active')); const tab = e.target.dataset.tab; e.target.classList.add('active'); document.getElementById(`${tab}Tab`).classList.add('active'); } });
   
-  prodForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const data = Object.fromEntries(new FormData(prodForm).entries());
-    const packLB = parseFloat(data.packLB);
-    if (!Number.isFinite(packLB) || packLB <= 0) {
-      alert("'포장(LB)'에는 0보다 큰 숫자를 정확히 입력해주세요.");
-      return;
-    }
-    data.packLB = packLB;
-    addTransaction('production', data);
-    prodForm.reset();
-    document.getElementById('prodDate').value = new Date().toISOString().slice(0, 10);
-  });
-
-  outForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const data = Object.fromEntries(new FormData(outForm).entries());
-    const outLB = parseFloat(data.outLB);
-    if (!Number.isFinite(outLB) || outLB <= 0) {
-      alert("'출고(LB)'에는 0보다 큰 숫자를 정확히 입력해주세요.");
-      return;
-    }
-    data.outLB = outLB;
-    addTransaction('shipment', data);
-    outForm.reset();
-    document.getElementById('outDate').value = new Date().toISOString().slice(0, 10);
-  });
+  const setupForm = (form, type) => {
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(form).entries());
+        const amountKey = type === 'production' ? 'packLB' : 'outLB';
+        const amount = parseFloat(data[amountKey]);
+        if (!Number.isFinite(amount) || amount <= 0) { alert(`'${amountKey === 'packLB' ? '포장' : '출고'}(LB)'에는 0보다 큰 숫자를 입력해주세요.`); return; }
+        data[amountKey] = amount;
+        addTransaction(type, data);
+        form.reset();
+        form.querySelector('input[type="date"]').value = new Date().toISOString().slice(0, 10);
+    });
+  };
+  setupForm(prodForm, 'production');
+  setupForm(outForm, 'shipment');
   
   document.body.addEventListener('click', (e) => { if (e.target.matches('button.ghost[data-id]')) { const { type, id } = e.target.dataset; deleteTransaction(type, id); } });
   
+  prodSearch.addEventListener('input', (e) => { filters.prodQuery = e.target.value; render(); });
+  outSearch.addEventListener('input', (e) => { filters.outQuery = e.target.value; render(); });
+  document.getElementById('prodReset').addEventListener('click', () => { prodSearch.value = ''; filters.prodQuery = ''; render(); });
+  document.getElementById('outReset').addEventListener('click', () => { outSearch.value = ''; filters.outQuery = ''; render(); });
+
   document.getElementById('loadSample').addEventListener('click', () => { if (confirm('샘플 데이터를 불러오면 현재 데이터가 모두 삭제됩니다. 계속하시겠습니까?')) { state = JSON.parse(JSON.stringify(sampleData)); saveState(); render(); } });
-  
-  document.getElementById('exportData').addEventListener('click', () => {
-    if (state.productions.length === 0 && state.shipments.length === 0) {
-      alert("백업할 데이터가 없습니다.");
-      return;
-    }
-    const dataStr = JSON.stringify(state, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `inventory-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  });
-  
+  document.getElementById('exportData').addEventListener('click', () => { if (state.productions.length === 0 && state.shipments.length === 0) { alert("백업할 데이터가 없습니다."); return; } const dataStr = JSON.stringify(state, null, 2); const blob = new Blob([dataStr], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `inventory-backup-${new Date().toISOString().slice(0, 10)}.json`; a.click(); URL.revokeObjectURL(url); });
   document.getElementById('importTrigger').addEventListener('click', () => importInput.click());
   importInput.addEventListener('change', (e) => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (event) => { try { const importedState = JSON.parse(event.target.result); if (importedState.productions && importedState.shipments) { state = importedState; saveState(); render(); alert('데이터를 성공적으로 복원했습니다.'); } else { alert('파일 형식이 올바르지 않습니다.'); } } catch (err) { alert('파일을 읽는 중 오류가 발생했습니다.'); } }; reader.readAsText(file); importInput.value = ''; });
-  
-  document.getElementById('resetData').addEventListener('click', () => { if (confirm('정말로 모든 데이터를 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) { state = { productions: [], shipments: [] }; saveState(); render(); } });
+  document.getElementById('resetData').addEventListener('click', () => { if (confirm('정말로 모든 데이터를 초기화하시겠습니까?')) { state = { productions: [], shipments: [] }; saveState(); render(); } });
 
   // ===================================================
   // 6. 초기화
   // ===================================================
   document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('select').forEach(select => { const options = select.id.toLowerCase().includes('item') ? ITEMS : SIZES; select.innerHTML = `<option value="" disabled selected>선택</option>` + options.map(opt => `<option value="${opt}">${opt}</option>`).join(''); });
+    document.querySelectorAll('select').forEach(select => { const options = select.id.toLowerCase().includes('item') ? ITEMS : SIZES; select.innerHTML = `<option value="" disabled selected>선택</option>${options.map(opt => `<option value="${opt}">${opt}</option>`).join('')}`; });
     const today = new Date().toISOString().slice(0, 10);
-    document.getElementById('prodDate').value = today;
-    document.getElementById('outDate').value = today;
+    document.getElementById('prodDate').value = today; document.getElementById('outDate').value = today;
     loadState();
     render();
   });
