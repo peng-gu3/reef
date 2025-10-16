@@ -156,7 +156,7 @@
   // ===================================================
   const ITEMS = ["ALS910C", "ALS900G", "ALS955W", "ALS970", "ALS990", "ALS420", "ALS610", "ALS620", "ALS623S", "ALS630N", "ALS640K", "ALS350Y"];
   const SIZES = ['1/8"', '3/16"', '1/4"', '5/16"', '3/8"', '7/16"', '1/2"', '9/16"', '5/8"', '11/16"', '3/4"', '13/16"', '(20.6)"', '7/8"', '1"', '1-1/4"'];
-  const STORAGE_KEY = "inventory-ledger-partner-v3"; // 이전 데이터와 충돌 방지를 위해 버전업
+  const STORAGE_KEY = "inventory-ledger-partner-v4"; // 이전 데이터와 충돌 방지를 위해 버전업
   const PACK_UNIT_LB = 10;
   const RECENT_DAYS = 3;
   const sampleData = { productions: [ { id: "p1", lot: "LOT-2501", date: new Date().toISOString().slice(0, 10), item: "ALS910C", size: '1/4"', packLB: 120, rawLot: "RM-A", worker: "김민준" }, { id: "p2", lot: "LOT-2502", date: new Date(Date.now() - 864e5).toISOString().slice(0, 10), item: "ALS955W", size: '3/8"', packLB: 90, rawLot: "RM-B", worker: "이서아" }, { id: "p3", lot: "LOT-2503", date: new Date(Date.now() - 1728e5).toISOString().slice(0, 10), item: "ALS910C", size: '1/4"', packLB: 55.5, rawLot: "RM-C", worker: "박도윤" }, { id: "p4", lot: "LOT-2504", date: new Date(Date.now() - 1728e5).toISOString().slice(0, 10), item: "ALS970", size: '1/2"', packLB: 200, rawLot: "RM-D", worker: "최지우" } ], shipments: [ { id: "s1", date: new Date().toISOString().slice(0, 10), orderNo: "ORD-101", plant: "고리", item: "ALS910C", size: '1/4"', outLB: 40, prodLot: "LOT-2501", worker: "김민준" }, { id: "s2", date: new Date(Date.now() - 864e5).toISOString().slice(0, 10), orderNo: "ORD-102", plant: "한울", item: "ALS955W", size: '3/8"', outLB: 35.2, prodLot: "LOT-2502", worker: "이서아" } ] };
