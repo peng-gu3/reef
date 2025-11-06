@@ -181,6 +181,7 @@
   </div>
 
   <script>
+    const addTradeBtn = document.getElementById("addTrade");
     const trades = JSON.parse(localStorage.getItem("stock_trades") || "[]");
     let chartMode = "daily";
     let chartInstance, donutChart;
