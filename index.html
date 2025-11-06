@@ -115,10 +115,23 @@ window.onload = () => {
     const fee = parseFloat(document.getElementById("fee").value) || 0;
     const note = document.getElementById("note").value.trim();
 
-    if (!stock || !date || !qty || !buy) return alert("필수 항목을 입력해주세요!");
+    if (!stock || !date || !qty) {
+      alert("종목명, 날짜, 수량은 필수입니다!");
+      return;
+    }
+
+    // ✅ 매수/매도 별로 필수 입력 구분
+    if (type === "매수" && !buy) {
+      alert("매입가를 입력해주세요!");
+      return;
+    }
+    if (type === "매도" && !sell) {
+      alert("매도가를 입력해주세요!");
+      return;
+    }
 
     const profit = type === "매도" ? (sell - buy) * qty - fee : 0;
-    const rate = type === "매도" ? ((sell - buy) / buy) * 100 : 0;
+    const rate = type === "매도" && buy > 0 ? ((sell - buy) / buy) * 100 : 0;
     const newTrade = { stock, date, type, qty, buy, sell, fee, profit, rate, note };
 
     if (editIndex !== null) {
@@ -131,11 +144,11 @@ window.onload = () => {
 
     saveTrades();
     refreshUI();
-    document.querySelectorAll("input").forEach(i => i.value = "");
+    document.querySelectorAll("input").forEach(i => (i.value = ""));
     preview.textContent = "";
   }
 
-  // 🥧 차트
+  // 🥧 손익 비율 차트
   function drawDonut() {
     if (donutChart) donutChart.destroy();
     const win = trades.filter(t => t.profit > 0).length;
@@ -154,7 +167,7 @@ window.onload = () => {
     });
   }
 
-  // 💬 미리보기
+  // 💬 실시간 손익 미리보기
   ["buy","sell","qty"].forEach(id=>{
     document.getElementById(id).addEventListener("input",()=>{
       const b=parseFloat(buy.value)||0;
@@ -169,7 +182,7 @@ window.onload = () => {
     });
   });
 
-  // 📌 클릭 이벤트 위임
+  // ⚡ 클릭 이벤트 위임
   tradeList.addEventListener("click", e => {
     const btn = e.target.closest("button");
     if (!btn) return;
