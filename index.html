@@ -3,289 +3,494 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>자동 재고관리 대장 (코딩 파트너 Ver.)</title>
+  <title>📈 펭구님 주식 매매일지 (원형차트+캘린더)</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
   <style>
-    :root {
-      --primary-color: #007bff; --primary-hover: #0056b3; --danger-color: #dc3545; --danger-hover: #c82333;
-      --light-gray: #f8f9fa; --medium-gray: #dee2e6; --dark-gray: #343a40; --white: #ffffff;
-      --border-radius: 8px; --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    body {
+      background-color: #0f172a;
+      color: #f1f5f9;
+      font-family: 'Pretendard', sans-serif;
+      margin: 0;
+      padding: 16px;
     }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 24px; background-color: var(--light-gray); color: var(--dark-gray); }
-    .container { display: grid; gap: 24px; }
-    .card { background-color: var(--white); border-radius: var(--border-radius); padding: 24px; box-shadow: var(--shadow); }
-    h1, h2 { margin-top: 0; }
-    h2 { font-size: 1.4rem; }
-    p.muted { color: #6c757d; font-size: 0.9rem; margin-top: -8px; }
-    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; align-items: end; }
-    label { font-weight: 600; font-size: 0.85rem; margin-bottom: 4px; display: block; }
-    input, select, button { font-size: 1rem; }
-    input, select { width: 100%; padding: 10px; border: 1px solid var(--medium-gray); border-radius: 6px; box-sizing: border-box; }
-    button { border: none; border-radius: 6px; padding: 10px 16px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
-    button.primary { background-color: var(--primary-color); color: var(--white); }
-    button.primary:hover { background-color: var(--primary-hover); }
-    button.danger { background-color: var(--danger-color); color: var(--white); }
-    button.danger:hover { background-color: var(--danger-hover); }
-    button.secondary { background-color: #6c757d; color: var(--white); }
-    button.secondary:hover { background-color: #5a6268; }
-    button.ghost { background: transparent; color: var(--danger-color); padding: 4px; }
-    .table-wrapper { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-    th, td { border: 1px solid var(--medium-gray); padding: 12px; font-size: 0.9rem; text-align: center; white-space: nowrap; }
-    thead { background-color: #e9ecef; }
-    .empty-row td { color: #6c757d; }
-    #matrixTable th:first-child, #matrixTable td:first-child { background-color: #e9ecef; font-weight: 600; position: sticky; left: 0; z-index: 1; }
-    .lot-cell { display: flex; flex-direction: column; gap: 4px; min-width: 150px; padding: 8px; }
-    .lot-pill { display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; border-radius: 12px; background-color: #e7f3ff; font-size: 0.8rem; font-weight: 500; }
-    .lot-pill .amount { color: var(--primary-color); font-weight: 700; }
-    .tab-nav { display: flex; border-bottom: 2px solid var(--medium-gray); }
-    .tab-btn { background: none; border: none; padding: 12px 18px; font-size: 1rem; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; }
-    .tab-btn.active { border-bottom-color: var(--primary-color); color: var(--primary-color); font-weight: 600; }
-    .tab-content { display: none; padding-top: 24px; }
-    .tab-content.active { display: block; }
-    .data-actions { display: flex; flex-wrap: wrap; gap: 12px; }
-    .filter-controls { display: grid; grid-template-columns: 1fr auto; gap: 12px; margin-bottom: 16px; }
+    h1 {
+      text-align: center;
+      font-size: clamp(1.5rem, 2vw, 2.3rem);
+      margin-bottom: 1rem;
+    }
+    .card {
+      background-color: #1e293b;
+      border-radius: 16px;
+      padding: 1.5rem;
+      max-width: 1000px;
+      margin: 0 auto;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    }
+    input, select, button {
+      background-color: #334155;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px;
+      margin: 5px;
+      width: 100%;
+      font-size: clamp(0.9rem, 1vw, 1rem);
+    }
+    button {
+      background-color: #2563eb;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover { background-color: #1d4ed8; }
+    .row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 8px;
+    }
+    .preview {
+      text-align: center;
+      padding: 10px;
+      border-radius: 8px;
+      margin: 10px 0;
+      font-weight: bold;
+      font-size: clamp(1rem, 1.5vw, 1.2rem);
+    }
+    .profit { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+    .loss { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+    canvas { background-color: #1e293b; border-radius: 8px; width: 100% !important; height: auto !important; }
+    .list-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: #334155;
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin: 4px 0;
+      font-size: clamp(0.9rem, 1vw, 1rem);
+    }
+    .green { color: #4ade80; }
+    .red { color: #f87171; }
+    .tab-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-bottom: 10px;
+    }
+    .tab-buttons button {
+      flex: 1;
+      padding: 10px;
+      font-size: clamp(0.9rem, 1vw, 1rem);
+      background-color: #334155;
+    }
+    .tab-buttons .active { background-color: #2563eb; }
+    .hidden { display: none; }
+    #chart, #chartCumulative, #chartDonut {
+      max-height: 300px;
+      margin-top: 1rem;
+    }
+    #calendar {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+      margin-top: 10px;
+    }
+    .day {
+      text-align: center;
+      padding: 6px 0;
+      border-radius: 6px;
+      background-color: #334155;
+      color: #cbd5e1;
+      font-size: 0.9rem;
+    }
+    .day.profit { background-color: rgba(34,197,94,0.3); color: #bbf7d0; }
+    .day.loss { background-color: rgba(239,68,68,0.3); color: #fecaca; }
+    .day.empty { background-color: transparent; }
+    @media (max-width: 768px) {
+      .card { padding: 1rem; }
+      button { padding: 12px; font-size: 1rem; }
+      input, select { font-size: 1rem; padding: 12px; }
+      .tab-buttons { flex-direction: column; }
+      .tab-buttons button { width: 100%; }
+      h1 { font-size: 1.6rem; }
+    }
   </style>
 </head>
 <body>
-
-<div class="container">
-  <header>
-    <h1>⚙️ 자동 재고관리 대장 (코딩 파트너 Ver.)</h1>
-    <p class="muted">생산/출고 데이터를 기반으로 LOT별 잔량과 재고 매트릭스를 자동으로 계산합니다.</p>
-  </header>
-
-  <section class="card">
-    <div class="tab-nav">
-      <button class="tab-btn active" data-tab="prod">생산 입력</button>
-      <button class="tab-btn" data-tab="out">출고 입력</button>
+  <h1>📈 펭구님 주식 매매일지</h1>
+  <div class="card">
+    <div class="tab-buttons">
+      <button id="tabInput" class="active">기록 추가</button>
+      <button id="tabStats">통계 보기</button>
+      <button id="tabMonth">월별 요약</button>
     </div>
-    
-    <div id="prodTab" class="tab-content active">
-      <h2>생산 데이터 입력</h2>
-      <form id="prodForm" class="form-grid">
-        <div><label for="prodLot">LOT</label><input id="prodLot" name="lot" required /></div>
-        <div><label for="prodDate">생산일자</label><input id="prodDate" name="date" type="date" required /></div>
-        <div><label for="prodItem">ITEM</label><select id="prodItem" name="item" required></select></div>
-        <div><label for="prodSize">SIZE</label><select id="prodSize" name="size" required></select></div>
-        <div><label for="prodPack">포장(LB)</label><input id="prodPack" name="packLB" type="number" min="0.1" step="0.1" required /></div>
-        <div><label for="prodRaw">원자재 LOT</label><input id="prodRaw" name="rawLot" /></div>
-        <div><label for="prodWorker">작업자</label><input id="prodWorker" name="worker" /></div>
-        <div><button class="primary" type="submit">생산 추가</button></div>
-      </form>
+
+    <div id="tabInputContent">
+      <div class="row">
+        <input id="stock" placeholder="종목명" />
+        <input id="date" type="date" />
+        <select id="type"><option>매수</option><option>매도</option></select>
+        <input id="qty" type="number" placeholder="수량(주)" />
+        <input id="buy" type="number" placeholder="매입가(원)" />
+        <input id="sell" type="number" placeholder="매도가(원)" />
+        <input id="fee" type="number" placeholder="수수료(원)" />
+        <input id="note" placeholder="비고 (진입 이유 등)" />
+      </div>
+      <div id="preview" class="preview hidden"></div>
+      <button id="addTrade">기록 추가</button>
     </div>
-    
-    <div id="outTab" class="tab-content">
-      <h2>출고 데이터 입력</h2>
-      <form id="outForm" class="form-grid">
-        <div><label for="outDate">출고일자</label><input id="outDate" name="date" type="date" required /></div>
-        <div><label for="outOrder">Order No</label><input id="outOrder" name="orderNo" /></div>
-        <div><label for="outPlant">발전소</label><input id="outPlant" name="plant" /></div>
-        <div><label for="outItem">ITEM</label><select id="outItem" name="item" required></select></div>
-        <div><label for="outSize">SIZE</label><select id="outSize" name="size" required></select></div>
-        <div><label for="outLb">출고(LB)</label><input id="outLb" name="outLB" type="number" min="0.1" step="0.1" required /></div>
-        <div><label for="outLot">생산 LOT</label><input id="outLot" name="prodLot" required /></div>
-        <div><label for="outWorker">출고자</label><input id="outWorker" name="worker" /></div>
-        <div><button class="primary" type="submit">출고 추가</button></div>
-      </form>
+
+    <div id="tabStatsContent" class="hidden">
+      <p>
+        목표 수익률:
+        <input type="number" id="goalRate" value="10" style="width: 80px; display: inline" />%
+      </p>
+      <p id="summary"></p>
+      <div class="row">
+        <button id="toggleChart">월별 그래프 보기</button>
+        <button id="exportPDF">PDF 내보내기</button>
+        <button id="exportCSV">CSV 내보내기</button>
+      </div>
+
+      <canvas id="chart"></canvas>
+      <h3>💰 누적 손익 추이</h3>
+      <canvas id="chartCumulative"></canvas>
+      <h3>📊 손익 비율</h3>
+      <canvas id="chartDonut"></canvas>
+      <h3>🗓️ 일자별 수익 캘린더</h3>
+      <div id="calendar"></div>
+      <h3>🏆 수익 TOP5</h3>
+      <div id="topWinners"></div>
+      <h3>📉 손실 TOP5</h3>
+      <div id="topLosers"></div>
+      <h3>📜 거래 목록</h3>
+      <input id="search" placeholder="검색 (종목명)" />
+      <select id="filterType">
+        <option value="all">전체</option>
+        <option value="매수">매수</option>
+        <option value="매도">매도</option>
+      </select>
+      <div id="tradeList"></div>
     </div>
-  </section>
 
-  <section class="card">
-    <h2>재고 매트릭스 (SIZE × ITEM)</h2>
-    <div class="table-wrapper">
-      <table id="matrixTable">
-        <thead></thead>
-        <tbody></tbody>
-      </table>
+    <div id="tabMonthContent" class="hidden">
+      <h3>🗓 월별 손익 요약</h3>
+      <div id="monthSummary"></div>
     </div>
-  </section>
+  </div>
 
-  <section class="card">
-    <h2>생산 내역</h2>
-    <p class="muted">기본으로 최근 3일치 내역이 보이며, 검색 시 전체 데이터에서 조회합니다.</p>
-    <div class="filter-controls">
-      <input id="prodSearch" type="search" placeholder="LOT, 원자재 LOT, 작업자 등으로 검색..." />
-      <button id="prodReset" class="secondary">초기화</button>
-    </div>
-    <div class="table-wrapper">
-      <table id="prodTable">
-        <thead>
-          <tr>
-            <th>LOT</th><th>생산일자</th><th>ITEM</th><th>SIZE</th><th>포장(LB)</th><th>잔량(LB)</th><th>원자재 LOT</th><th>작업자</th><th>작업</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-  </section>
+  <script>
+    const trades = JSON.parse(localStorage.getItem("stock_trades") || "[]");
+    let chartMode = "daily";
+    let chartInstance, donutChart;
 
-  <section class="card">
-    <h2>출고 내역</h2>
-    <p class="muted">기본으로 최근 3일치 내역이 보이며, 검색 시 전체 데이터에서 조회합니다.</p>
-    <div class="filter-controls">
-        <input id="outSearch" type="search" placeholder="Order No, 발전소, 생산 LOT 등으로 검색..." />
-        <button id="outReset" class="secondary">초기화</button>
-    </div>
-    <div class="table-wrapper">
-      <table id="outTable">
-        <thead>
-          <tr>
-            <th>출고일자</th><th>Order No</th><th>발전소</th><th>ITEM</th><th>SIZE</th><th>출고(LB)</th><th>생산 LOT</th><th>출고자</th><th>작업</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-  </section>
+    function saveTrades() {
+      localStorage.setItem("stock_trades", JSON.stringify(trades));
+    }
 
-  <section class="card">
-    <h2>데이터 관리</h2>
-    <div class="data-actions">
-      <button id="loadSample" class="secondary">샘플 데이터 로드</button>
-      <button id="exportData" class="secondary">데이터 백업</button>
-      <button id="importTrigger" class="secondary">데이터 복원</button>
-      <button id="resetData" class="danger">전체 데이터 초기화</button>
-    </div>
-    <input id="importInput" type="file" accept=".json" hidden />
-  </section>
-</div>
+    function getFilteredTrades() {
+      const q = search.value.toLowerCase();
+      const f = filterType.value;
+      return trades.filter(
+        (t) =>
+          (!q || t.stock.toLowerCase().includes(q)) &&
+          (f === "all" || t.type === f)
+      );
+    }
 
-<script>
-  // ===================================================
-  // 1. 상수 및 초기 상태 정의
-  // ===================================================
-  const ITEMS = ["ALS910C", "ALS900G", "ALS955W", "ALS970", "ALS990", "ALS420", "ALS610", "ALS620", "ALS623S", "ALS630N", "ALS640K", "ALS350Y"];
-  const SIZES = ['1/8"', '3/16"', '1/4"', '5/16"', '3/8"', '7/16"', '1/2"', '9/16"', '5/8"', '11/16"', '3/4"', '13/16"', '(20.6)"', '7/8"', '1"', '1-1/4"'];
-  const STORAGE_KEY = "inventory-ledger-partner-v5"; // 이전 데이터와 완벽한 분리를 위해 버전업!
-  const PACK_UNIT_LB = 10;
-  const RECENT_DAYS = 3;
-  const sampleData = { productions: [ { id: "p1", lot: "LOT-2501", date: new Date().toISOString().slice(0, 10), item: "ALS910C", size: '1/4"', packLB: 120, rawLot: "RM-A", worker: "김민준" }, { id: "p2", lot: "LOT-2502", date: new Date(Date.now() - 864e5).toISOString().slice(0, 10), item: "ALS955W", size: '3/8"', packLB: 90, rawLot: "RM-B", worker: "이서아" }, { id: "p3", lot: "LOT-2503", date: new Date(Date.now() - 1728e5).toISOString().slice(0, 10), item: "ALS910C", size: '1/4"', packLB: 55.5, rawLot: "RM-C", worker: "박도윤" }, { id: "p4", lot: "LOT-2504", date: new Date(Date.now() - 1728e5).toISOString().slice(0, 10), item: "ALS970", size: '1/2"', packLB: 200, rawLot: "RM-D", worker: "최지우" } ], shipments: [ { id: "s1", date: new Date().toISOString().slice(0, 10), orderNo: "ORD-101", plant: "고리", item: "ALS910C", size: '1/4"', outLB: 40, prodLot: "LOT-2501", worker: "김민준" }, { id: "s2", date: new Date(Date.now() - 864e5).toISOString().slice(0, 10), orderNo: "ORD-102", plant: "한울", item: "ALS955W", size: '3/8"', outLB: 35.2, prodLot: "LOT-2502", worker: "이서아" } ] };
-  
-  let state = { productions: [], shipments: [] };
-  let filters = { prodQuery: '', outQuery: '' };
+    function refreshUI() {
+      const totalProfit = trades.reduce((a, t) => a + t.profit, 0);
+      const avgRate = trades.length
+        ? (trades.reduce((a, t) => a + t.rate, 0) / trades.length).toFixed(2)
+        : 0;
+      const goalRate = parseFloat(goalRateInput.value) || 10;
+      const achieve = ((avgRate / goalRate) * 100).toFixed(1);
+      summary.innerHTML = `총 거래 ${trades.length}회<br>총 수익: ${totalProfit.toLocaleString()}원<br>평균 수익률: ${avgRate}%<br>달성률: ${achieve}%`;
 
-  // ===================================================
-  // 2. DOM 요소 참조
-  // ===================================================
-  const prodForm = document.getElementById("prodForm"), outForm = document.getElementById("outForm");
-  const matrixHead = document.querySelector("#matrixTable thead"), matrixBody = document.querySelector("#matrixTable tbody");
-  const prodBody = document.querySelector("#prodTable tbody"), outBody = document.querySelector("#outTable tbody");
-  const importInput = document.getElementById("importInput");
-  const prodSearch = document.getElementById("prodSearch"), outSearch = document.getElementById("outSearch");
+      tradeList.innerHTML = getFilteredTrades()
+        .map(
+          (t) => `
+        <div class='list-item'>
+          <span>${t.date} | ${t.stock} (${t.type})</span>
+          <span class='${t.profit >= 0 ? "green" : "red"}'>
+            ${t.profit.toLocaleString()}원 (${t.rate.toFixed(2)}%)
+          </span>
+        </div>`
+        )
+        .join("");
 
-  // ===================================================
-  // 3. 헬퍼 및 데이터 처리 함수
-  // ===================================================
-  const uid = () => `id_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  const formatNum = (num) => Number.isFinite(parseFloat(num)) ? parseFloat(num).toLocaleString() : "0";
-  const saveState = () => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { console.error("데이터 저장 실패", e); } };
-  const loadState = () => { try { const storedState = localStorage.getItem(STORAGE_KEY); if (storedState) { state = JSON.parse(storedState); } } catch (e) { console.error("데이터 로드 실패", e); state = { productions: [], shipments: [] }; } };
-  const addTransaction = (type, data) => { const store = type === 'production' ? state.productions : state.shipments; store.push({ ...data, id: uid() }); saveState(); render(); };
-  const deleteTransaction = (type, id) => { if (!confirm("삭제하시겠습니까?")) return; if (type === 'production') state.productions = state.productions.filter(p => p.id !== id); else state.shipments = state.shipments.filter(s => s.id !== id); saveState(); render(); };
-  
-  const calculateInventory = () => {
-    const shipmentMap = new Map();
-    state.shipments.forEach(s => { const outAmount = parseFloat(s.outLB); if (Number.isFinite(outAmount)) { shipmentMap.set(s.prodLot, (shipmentMap.get(s.prodLot) || 0) + outAmount); } });
-    return state.productions.map(p => { const packAmount = parseFloat(p.packLB); const validPackAmount = Number.isFinite(packAmount) ? packAmount : 0; return { ...p, remainingLB: validPackAmount - (shipmentMap.get(p.lot) || 0) }; });
-  };
+      drawChart();
+      drawCumulative();
+      drawDonut();
+      drawCalendar();
+      drawTopLists();
+      drawMonthSummary();
+    }
 
-  const deriveSequentialLot = (baseLot, index) => { if (index <= 1) return baseLot; const match = baseLot.match(/^(.*?)(\d+)$/); if (match) { const [, prefix, numStr] = match; const nextNum = parseInt(numStr, 10) + index - 1; return `${prefix}${String(nextNum).padStart(numStr.length, '0')}`; } return `${baseLot}-${String(index).padStart(2, '0')}`; };
+    function addTrade() {
+      const t = {
+        stock: stock.value,
+        date: date.value,
+        type: type.value,
+        qty: +qty.value,
+        buy: +buy.value,
+        sell: +sell.value,
+        fee: +fee.value,
+        note: note.value,
+      };
+      if (!t.stock || !t.date || !t.qty || !t.buy) return;
+      t.profit =
+        t.type === "매도" ? (t.sell - t.buy) * t.qty - t.fee : 0;
+      t.rate =
+        t.type === "매도" ? ((t.sell - t.buy) / t.buy) * 100 : 0;
+      trades.push(t);
+      saveTrades();
+      refreshUI();
+      document.querySelectorAll("input").forEach((i) => (i.value = ""));
+    }
 
-  // ===================================================
-  // 4. 렌더링 함수
-  // ===================================================
-  const render = () => {
-    const inventory = calculateInventory();
-    const prodQuery = filters.prodQuery.toLowerCase();
-    const outQuery = filters.outQuery.toLowerCase();
-    
-    const filteredProd = prodQuery ? inventory.filter(p => `${p.lot} ${p.rawLot} ${p.worker}`.toLowerCase().includes(prodQuery)) : inventory;
-    const filteredOut = outQuery ? state.shipments.filter(s => `${s.orderNo} ${s.plant} ${s.prodLot}`.toLowerCase().includes(outQuery)) : state.shipments;
+    function drawChart() {
+      if (chartInstance) chartInstance.destroy();
+      const data =
+        chartMode === "daily"
+          ? trades
+          : Object.entries(
+              trades.reduce((a, t) => {
+                const m = t.date.slice(0, 7);
+                if (!a[m]) a[m] = { s: 0, c: 0 };
+                a[m].s += t.rate;
+                a[m].c++;
+                return a;
+              }, {})
+            ).map(([m, v]) => ({ label: m, rate: v.s / v.c }));
+      chartInstance = new Chart(chart, {
+        type: "line",
+        data: {
+          labels: data.map((d) => d.date || d.label),
+          datasets: [
+            {
+              label: "수익률(%)",
+              data: data.map((d) => d.rate),
+              borderColor: "#00d8ff",
+              tension: 0.3,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          scales: {
+            x: { ticks: { color: "#ccc" } },
+            y: { ticks: { color: "#ccc" } },
+          },
+        },
+      });
+    }
 
-    const getRecent = (data) => {
-        const sorted = [...data].sort((a,b) => (b.date || '').localeCompare(a.date || ''));
-        const recentDates = [...new Set(sorted.map(d => d.date).filter(Boolean))].slice(0, RECENT_DAYS);
-        return sorted.filter(d => recentDates.includes(d.date));
+    function drawCumulative() {
+      const cum = [];
+      let total = 0;
+      trades.forEach((t, i) => {
+        total += t.profit;
+        cum.push({ x: i + 1, y: total });
+      });
+      new Chart(chartCumulative, {
+        type: "line",
+        data: {
+          labels: cum.map((p) => p.x),
+          datasets: [
+            {
+              label: "누적 손익",
+              data: cum.map((p) => p.y),
+              borderColor: "#22c55e",
+              tension: 0.3,
+            },
+          ],
+        },
+        options: { responsive: true },
+      });
+    }
+
+    function drawDonut() {
+      if (donutChart) donutChart.destroy();
+      const winCount = trades.filter((t) => t.profit > 0).length;
+      const loseCount = trades.filter((t) => t.profit < 0).length;
+      const neutralCount = trades.length - winCount - loseCount;
+      donutChart = new Chart(chartDonut, {
+        type: "doughnut",
+        data: {
+          labels: ["익절", "손절", "보합"],
+          datasets: [
+            {
+              data: [winCount, loseCount, neutralCount],
+              backgroundColor: ["#22c55e", "#ef4444", "#94a3b8"],
+            },
+          ],
+        },
+        options: { responsive: true },
+      });
+    }
+
+    function drawCalendar() {
+      const calendar = document.getElementById("calendar");
+      calendar.innerHTML = "";
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = today.getMonth();
+      const start = new Date(year, month, 1);
+      const end = new Date(year, month + 1, 0);
+      const startDay = start.getDay();
+
+      for (let i = 0; i < startDay; i++) {
+        const e = document.createElement("div");
+        e.className = "day empty";
+        calendar.appendChild(e);
+      }
+
+      for (let d = 1; d <= end.getDate(); d++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+        const dailyProfit = trades
+          .filter((t) => t.date === dateStr)
+          .reduce((a, t) => a + t.profit, 0);
+        const div = document.createElement("div");
+        div.className = "day";
+        div.textContent = d;
+        if (dailyProfit > 0) div.classList.add("profit");
+        else if (dailyProfit < 0) div.classList.add("loss");
+        calendar.appendChild(div);
+      }
+    }
+
+    function drawTopLists() {
+      const wins = [...trades]
+        .filter((t) => t.profit > 0)
+        .sort((a, b) => b.profit - a.profit)
+        .slice(0, 5);
+      const loss = [...trades]
+        .filter((t) => t.profit < 0)
+        .sort((a, b) => a.profit - b.profit)
+        .slice(0, 5);
+      topWinners.innerHTML = wins
+        .map(
+          (t, i) =>
+            `<div class='list-item green'>${i + 1}. ${t.stock} ${t.profit.toLocaleString()}원 (${t.rate.toFixed(2)}%)</div>`
+        )
+        .join("");
+      topLosers.innerHTML = loss
+        .map(
+          (t, i) =>
+            `<div class='list-item red'>${i + 1}. ${t.stock} ${t.profit.toLocaleString()}원 (${t.rate.toFixed(2)}%)</div>`
+        )
+        .join("");
+    }
+
+    function drawMonthSummary() {
+      const msum = trades.reduce((a, t) => {
+        const m = t.date.slice(0, 7);
+        if (!a[m]) a[m] = { p: 0, c: 0 };
+        a[m].p += t.profit;
+        a[m].c++;
+        return a;
+      }, {});
+      monthSummary.innerHTML = Object.entries(msum)
+        .map(
+          ([m, v]) =>
+            `<div class='list-item'><span>${m}</span><span class='${
+              v.p >= 0 ? "green" : "red"
+            }'>${v.p.toLocaleString()}원 (${v.c}건)</span></div>`
+        )
+        .join("");
+    }
+
+    addTradeBtn.onclick = addTrade;
+    goalRateInput.onchange = refreshUI;
+    search.oninput = refreshUI;
+    filterType.onchange = refreshUI;
+    toggleChart.onclick = () => {
+      chartMode = chartMode === "daily" ? "monthly" : "daily";
+      toggleChart.innerText =
+        chartMode === "daily" ? "월별 그래프 보기" : "일별 그래프 보기";
+      drawChart();
     };
 
-    renderMatrix(inventory);
-    renderProdTable(prodQuery ? filteredProd : getRecent(filteredProd));
-    renderOutTable(outQuery ? filteredOut : getRecent(filteredOut));
-  };
+    exportCSV.onclick = () => {
+      const csv = [
+        "날짜,종목,유형,수량,매입가,매도가,수익,수익률,비고",
+      ];
+      trades.forEach((t) =>
+        csv.push(
+          `${t.date},${t.stock},${t.type},${t.qty},${t.buy},${t.sell},${t.profit},${t.rate.toFixed(
+            2
+          )},${t.note}`
+        )
+      );
+      const blob = new Blob([csv.join("\\n")], {
+        type: "text/csv;charset=utf-8;",
+      });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "펭구님_주식매매일지.csv";
+      link.click();
+    };
 
-  const renderMatrix = (inventory) => {
-    matrixHead.innerHTML = `<tr><th>SIZE \\ ITEM</th>${ITEMS.map(item => `<th>${item}</th>`).join('')}</tr>`;
-    matrixBody.innerHTML = SIZES.map(size => `<tr><td>${size}</td> ${ITEMS.map(item => {
-        const lots = inventory.filter(p => p.item === item && p.size === size && p.remainingLB > 0.001);
-        if (lots.length === 0) return '<td>-</td>';
-        const pills = lots.flatMap(lot => {
-            const chunks = []; let remaining = lot.remainingLB;
-            const fullChunks = Math.floor(remaining / PACK_UNIT_LB);
-            const partialChunk = remaining % PACK_UNIT_LB;
-            for (let i = 1; i <= fullChunks; i++) chunks.push({ lot: deriveSequentialLot(lot.lot, i), amount: PACK_UNIT_LB, source: lot.lot });
-            if (partialChunk > 0.001) chunks.push({ lot: deriveSequentialLot(lot.lot, fullChunks + 1), amount: partialChunk, source: lot.lot });
-            return chunks;
-        }).map(c => `<div class="lot-pill" title="원래 LOT: ${c.source}"><span class="lot-id">${c.lot}</span><span class="amount">${formatNum(c.amount)}</span></div>`).join('');
-        return `<td><div class="lot-cell">${pills}</div></td>`;
-    }).join('')}</tr>`).join('');
-  };
+    exportPDF.onclick = () => {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.text("📈 펭구님 주식 매매일지 보고서", 20, 20);
+      const tableData = trades.map((t) => [
+        t.date,
+        t.stock,
+        t.type,
+        t.qty,
+        t.buy,
+        t.sell,
+        t.profit.toLocaleString(),
+        `${t.rate.toFixed(2)}%`,
+        t.note,
+      ]);
+      doc.autoTable({
+        head: [
+          ["날짜", "종목", "유형", "수량", "매입가", "매도가", "수익", "수익률", "비고"],
+        ],
+        body: tableData,
+        startY: 30,
+      });
+      doc.save("펭구님_주식매매일지.pdf");
+    };
 
-  const renderTable = (tbody, data, rowTemplate, colSpan) => {
-    const sorted = [...data].sort((a,b) => (b.date || '').localeCompare(a.date || ''));
-    if (sorted.length === 0) { tbody.innerHTML = `<tr class="empty-row"><td colspan="${colSpan}">데이터가 없습니다.</td></tr>`; return; }
-    tbody.innerHTML = sorted.map(rowTemplate).join('');
-  }
-
-  const renderProdTable = (data) => renderTable(prodBody, data, p =>
-    `<tr><td>${p.lot}</td><td>${p.date}</td><td>${p.item}</td><td>${p.size}</td><td>${formatNum(p.packLB)}</td><td style="font-weight:600;">${formatNum(p.remainingLB)}</td><td>${p.rawLot}</td><td>${p.worker}</td><td><button class="ghost" data-type="production" data-id="${p.id}">❌</button></td></tr>`, 9);
-
-  const renderOutTable = (data) => renderTable(outBody, data, s =>
-    `<tr><td>${s.date}</td><td>${s.orderNo}</td><td>${s.plant}</td><td>${s.item}</td><td>${s.size}</td><td>${formatNum(s.outLB)}</td><td>${s.prodLot}</td><td>${s.worker}</td><td><button class="ghost" data-type="shipment" data-id="${s.id}">❌</button></td></tr>`, 9);
-
-  // ===================================================
-  // 5. 이벤트 리스너 설정
-  // ===================================================
-  document.querySelector('.tab-nav').addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON') { document.querySelectorAll('.tab-btn, .tab-content').forEach(el => el.classList.remove('active')); const tab = e.target.dataset.tab; e.target.classList.add('active'); document.getElementById(`${tab}Tab`).classList.add('active'); } });
-  
-  const setupForm = (form, type) => {
-    form.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const data = Object.fromEntries(new FormData(form).entries());
-        const amountKey = type === 'production' ? 'packLB' : 'outLB';
-        const amount = parseFloat(data[amountKey]);
-        if (!Number.isFinite(amount) || amount <= 0) { alert(`'${amountKey === 'packLB' ? '포장' : '출고'}(LB)'에는 0보다 큰 숫자를 입력해주세요.`); return; }
-        data[amountKey] = amount;
-        addTransaction(type, data);
-        form.reset();
-        form.querySelector('input[type="date"]').value = new Date().toISOString().slice(0, 10);
+    [tabInput, tabStats, tabMonth].forEach((btn) => {
+      btn.onclick = () => {
+        document
+          .querySelectorAll(".tab-buttons button")
+          .forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        tabInputContent.classList.add("hidden");
+        tabStatsContent.classList.add("hidden");
+        tabMonthContent.classList.add("hidden");
+        if (btn === tabInput) tabInputContent.classList.remove("hidden");
+        if (btn === tabStats) tabStatsContent.classList.remove("hidden");
+        if (btn === tabMonth) tabMonthContent.classList.remove("hidden");
+      };
     });
-  };
-  setupForm(prodForm, 'production');
-  setupForm(outForm, 'shipment');
-  
-  document.body.addEventListener('click', (e) => { if (e.target.matches('button.ghost[data-id]')) { const { type, id } = e.target.dataset; deleteTransaction(type, id); } });
-  
-  prodSearch.addEventListener('input', (e) => { filters.prodQuery = e.target.value; render(); });
-  outSearch.addEventListener('input', (e) => { filters.outQuery = e.target.value; render(); });
-  document.getElementById('prodReset').addEventListener('click', () => { prodSearch.value = ''; filters.prodQuery = ''; render(); });
-  document.getElementById('outReset').addEventListener('click', () => { outSearch.value = ''; filters.outQuery = ''; render(); });
 
-  document.getElementById('loadSample').addEventListener('click', () => { if (confirm('샘플 데이터를 불러오면 현재 데이터가 모두 삭제됩니다. 계속하시겠습니까?')) { state = JSON.parse(JSON.stringify(sampleData)); saveState(); render(); } });
-  document.getElementById('exportData').addEventListener('click', () => { if (state.productions.length === 0 && state.shipments.length === 0) { alert("백업할 데이터가 없습니다."); return; } const dataStr = JSON.stringify(state, null, 2); const blob = new Blob([dataStr], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `inventory-backup-${new Date().toISOString().slice(0, 10)}.json`; a.click(); URL.revokeObjectURL(url); });
-  document.getElementById('importTrigger').addEventListener('click', () => importInput.click());
-  importInput.addEventListener('change', (e) => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (event) => { try { const importedState = JSON.parse(event.target.result); if (importedState.productions && importedState.shipments) { state = importedState; saveState(); render(); alert('데이터를 성공적으로 복원했습니다.'); } else { alert('파일 형식이 올바르지 않습니다.'); } } catch (err) { alert('파일을 읽는 중 오류가 발생했습니다.'); } }; reader.readAsText(file); importInput.value = ''; });
-  document.getElementById('resetData').addEventListener('click', () => { if (confirm('정말로 모든 데이터를 초기화하시겠습니까?')) { state = { productions: [], shipments: [] }; saveState(); render(); } });
+    ["buy", "sell", "qty"].forEach((id) =>
+      document.getElementById(id).addEventListener("input", () => {
+        const b = parseFloat(buy.value) || 0;
+        const s = parseFloat(sell.value) || 0;
+        const q = parseFloat(qty.value) || 0;
+        const pv = preview;
+        if (b && s && q) {
+          const p = (s - b) * q;
+          const r = ((s - b) / b) * 100;
+          pv.innerHTML = `예상 손익: ${p.toLocaleString()}원 (${r.toFixed(2)}%)`;
+          pv.classList.remove("hidden");
+          pv.className = "preview " + (p >= 0 ? "profit" : "loss");
+        } else pv.classList.add("hidden");
+      })
+    );
 
-  // ===================================================
-  // 6. 초기화
-  // ===================================================
-  document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('select').forEach(select => { const options = select.id.toLowerCase().includes('item') ? ITEMS : SIZES; select.innerHTML = `<option value="" disabled selected>선택</option>${options.map(opt => `<option value="${opt}">${opt}</option>`).join('')}`; });
-    const today = new Date().toISOString().slice(0, 10);
-    document.getElementById('prodDate').value = today; document.getElementById('outDate').value = today;
-    loadState();
-    render();
-  });
-</script>
+    const goalRateInput = document.getElementById("goalRate");
+    refreshUI();
+  </script>
 </body>
 </html>
