@@ -48,23 +48,24 @@
   </div>
 
 <script>
-window.onload = () => {
+document.addEventListener("DOMContentLoaded", () => {
   const addTradeBtn = document.getElementById("addTrade");
   const tradeList = document.getElementById("tradeList");
   const preview = document.getElementById("preview");
   const chartDonut = document.getElementById("chartDonut");
   let donutChart;
-  const trades = JSON.parse(localStorage.getItem("stock_trades") || "[]");
   let editIndex = null;
 
-  // 💾 저장
+  const trades = JSON.parse(localStorage.getItem("stock_trades") || "[]");
+
   function saveTrades() {
     localStorage.setItem("stock_trades", JSON.stringify(trades));
   }
 
-  // 🔄 화면 갱신
   function refreshUI() {
-    tradeList.innerHTML = trades.map((t, i) => `
+    tradeList.innerHTML = trades
+      .map(
+        (t, i) => `
       <div class="list-item">
         <div class="list-header">
           <span>${t.date} | ${t.stock} (${t.type})</span>
@@ -76,12 +77,12 @@ window.onload = () => {
         <span class="${t.profit >= 0 ? "green" : "red"}">
           ${t.profit.toLocaleString()}원 (${t.rate.toFixed(2)}%)
         </span>
-      </div>
-    `).join("");
+      </div>`
+      )
+      .join("");
     drawDonut();
   }
 
-  // ✏ 수정
   function editTrade(index) {
     const t = trades[index];
     document.getElementById("stock").value = t.stock;
@@ -96,15 +97,14 @@ window.onload = () => {
     addTradeBtn.textContent = "✅ 수정 완료";
   }
 
-  // 🗑 삭제
   function deleteTrade(index) {
-    if (!confirm("정말 삭제하시겠습니까?")) return;
-    trades.splice(index, 1);
-    saveTrades();
-    refreshUI();
+    if (confirm("정말 삭제하시겠습니까?")) {
+      trades.splice(index, 1);
+      saveTrades();
+      refreshUI();
+    }
   }
 
-  // ➕ 추가 또는 수정
   function addTrade() {
     const stock = document.getElementById("stock").value.trim();
     const date = document.getElementById("date").value;
@@ -119,8 +119,6 @@ window.onload = () => {
       alert("종목명, 날짜, 수량은 필수입니다!");
       return;
     }
-
-    // ✅ 매수/매도 별로 필수 입력 구분
     if (type === "매수" && !buy) {
       alert("매입가를 입력해주세요!");
       return;
@@ -132,6 +130,7 @@ window.onload = () => {
 
     const profit = type === "매도" ? (sell - buy) * qty - fee : 0;
     const rate = type === "매도" && buy > 0 ? ((sell - buy) / buy) * 100 : 0;
+
     const newTrade = { stock, date, type, qty, buy, sell, fee, profit, rate, note };
 
     if (editIndex !== null) {
@@ -144,46 +143,48 @@ window.onload = () => {
 
     saveTrades();
     refreshUI();
-    document.querySelectorAll("input").forEach(i => (i.value = ""));
+    document.querySelectorAll("input").forEach((i) => (i.value = ""));
     preview.textContent = "";
   }
 
-  // 🥧 손익 비율 차트
   function drawDonut() {
     if (donutChart) donutChart.destroy();
-    const win = trades.filter(t => t.profit > 0).length;
-    const lose = trades.filter(t => t.profit < 0).length;
+    const win = trades.filter((t) => t.profit > 0).length;
+    const lose = trades.filter((t) => t.profit < 0).length;
     const even = trades.length - win - lose;
     donutChart = new Chart(chartDonut, {
       type: "doughnut",
       data: {
         labels: ["익절", "손절", "보합"],
-        datasets: [{
-          data: [win, lose, even],
-          backgroundColor: ["#22c55e", "#ef4444", "#94a3b8"]
-        }]
+        datasets: [
+          {
+            data: [win, lose, even],
+            backgroundColor: ["#22c55e", "#ef4444", "#94a3b8"],
+          },
+        ],
       },
-      options: { plugins:{ legend:{ labels:{ color:"#f1f5f9" } } } }
+      options: { plugins: { legend: { labels: { color: "#f1f5f9" } } } },
     });
   }
 
-  // 💬 실시간 손익 미리보기
-  ["buy","sell","qty"].forEach(id=>{
-    document.getElementById(id).addEventListener("input",()=>{
-      const b=parseFloat(buy.value)||0;
-      const s=parseFloat(sell.value)||0;
-      const q=parseFloat(qty.value)||0;
-      if(b&&s&&q){
-        const p=(s-b)*q;
-        const r=((s-b)/b)*100;
-        preview.textContent=`예상 손익: ${p.toLocaleString()}원 (${r.toFixed(2)}%)`;
-        preview.className="preview "+(p>=0?"profit":"loss");
-      }else{preview.textContent="";preview.className="preview";}
+  ["buy", "sell", "qty"].forEach((id) => {
+    document.getElementById(id).addEventListener("input", () => {
+      const b = parseFloat(buy.value) || 0;
+      const s = parseFloat(sell.value) || 0;
+      const q = parseFloat(qty.value) || 0;
+      if (b && s && q) {
+        const p = (s - b) * q;
+        const r = ((s - b) / b) * 100;
+        preview.textContent = `예상 손익: ${p.toLocaleString()}원 (${r.toFixed(2)}%)`;
+        preview.className = "preview " + (p >= 0 ? "profit" : "loss");
+      } else {
+        preview.textContent = "";
+        preview.className = "preview";
+      }
     });
   });
 
-  // ⚡ 클릭 이벤트 위임
-  tradeList.addEventListener("click", e => {
+  tradeList.addEventListener("click", (e) => {
     const btn = e.target.closest("button");
     if (!btn) return;
     const index = parseInt(btn.dataset.index);
@@ -192,9 +193,10 @@ window.onload = () => {
     else if (action === "delete") deleteTrade(index);
   });
 
-  addTradeBtn.onclick = addTrade;
+  addTradeBtn.addEventListener("click", addTrade);
+
   refreshUI();
-};
+});
 </script>
 </body>
 </html>
