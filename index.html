@@ -1,497 +1,115 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>📈 펭구님 주식 매매일지 (원형차트+캘린더)</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📈 펭구님 주식 매매일지</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
   <style>
-    body {
-      background-color: #0f172a;
-      color: #f1f5f9;
-      font-family: 'Pretendard', sans-serif;
-      margin: 0;
-      padding: 16px;
-    }
-    h1 {
-      text-align: center;
-      font-size: clamp(1.5rem, 2vw, 2.3rem);
-      margin-bottom: 1rem;
-    }
-    .card {
-      background-color: #1e293b;
-      border-radius: 16px;
-      padding: 1.5rem;
-      max-width: 1000px;
-      margin: 0 auto;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-    }
-    input, select, button {
-      background-color: #334155;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      padding: 10px;
-      margin: 5px;
-      width: 100%;
-      font-size: clamp(0.9rem, 1vw, 1rem);
-    }
-    button {
-      background-color: #2563eb;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    button:hover { background-color: #1d4ed8; }
-    .row {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 8px;
-    }
-    .preview {
-      text-align: center;
-      padding: 10px;
-      border-radius: 8px;
-      margin: 10px 0;
-      font-weight: bold;
-      font-size: clamp(1rem, 1.5vw, 1.2rem);
-    }
-    .profit { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
-    .loss { background: rgba(239, 68, 68, 0.2); color: #f87171; }
-    canvas { background-color: #1e293b; border-radius: 8px; width: 100% !important; height: auto !important; }
-    .list-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background-color: #334155;
-      padding: 8px 12px;
-      border-radius: 6px;
-      margin: 4px 0;
-      font-size: clamp(0.9rem, 1vw, 1rem);
-    }
-    .green { color: #4ade80; }
-    .red { color: #f87171; }
-    .tab-buttons {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 5px;
-      margin-bottom: 10px;
-    }
-    .tab-buttons button {
-      flex: 1;
-      padding: 10px;
-      font-size: clamp(0.9rem, 1vw, 1rem);
-      background-color: #334155;
-    }
-    .tab-buttons .active { background-color: #2563eb; }
-    .hidden { display: none; }
-    #chart, #chartCumulative, #chartDonut {
-      max-height: 300px;
-      margin-top: 1rem;
-    }
-    #calendar {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 4px;
-      margin-top: 10px;
-    }
-    .day {
-      text-align: center;
-      padding: 6px 0;
-      border-radius: 6px;
-      background-color: #334155;
-      color: #cbd5e1;
-      font-size: 0.9rem;
-    }
-    .day.profit { background-color: rgba(34,197,94,0.3); color: #bbf7d0; }
-    .day.loss { background-color: rgba(239,68,68,0.3); color: #fecaca; }
-    .day.empty { background-color: transparent; }
-    @media (max-width: 768px) {
-      .card { padding: 1rem; }
-      button { padding: 12px; font-size: 1rem; }
-      input, select { font-size: 1rem; padding: 12px; }
-      .tab-buttons { flex-direction: column; }
-      .tab-buttons button { width: 100%; }
-      h1 { font-size: 1.6rem; }
-    }
+    body { background:#0f172a; color:#f1f5f9; font-family:sans-serif; margin:0; padding:16px; }
+    h1 { text-align:center; }
+    .card { background:#1e293b; border-radius:16px; padding:20px; max-width:900px; margin:auto; }
+    input, select, button { background:#334155; color:white; border:none; border-radius:6px; padding:8px; margin:4px; width:100%; }
+    button { background:#2563eb; cursor:pointer; }
+    button:hover { background:#1d4ed8; }
+    .row { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:6px; }
+    .preview { text-align:center; padding:10px; border-radius:8px; margin:8px 0; }
+    .profit{background:rgba(34,197,94,0.2);color:#4ade80;}
+    .loss{background:rgba(239,68,68,0.2);color:#f87171;}
+    canvas{background:#1e293b;border-radius:8px;width:100%;max-height:300px;margin-top:10px;}
+    .list-item{display:flex;justify-content:space-between;background:#334155;margin:3px 0;padding:6px 10px;border-radius:6px;}
+    .green{color:#4ade80}.red{color:#f87171}
   </style>
 </head>
 <body>
   <h1>📈 펭구님 주식 매매일지</h1>
   <div class="card">
-    <div class="tab-buttons">
-      <button id="tabInput" class="active">기록 추가</button>
-      <button id="tabStats">통계 보기</button>
-      <button id="tabMonth">월별 요약</button>
+    <div class="row">
+      <input id="stock" placeholder="종목명">
+      <input id="date" type="date">
+      <select id="type"><option>매수</option><option>매도</option></select>
+      <input id="qty" type="number" placeholder="수량(주)">
+      <input id="buy" type="number" placeholder="매입가(원)">
+      <input id="sell" type="number" placeholder="매도가(원)">
+      <input id="fee" type="number" placeholder="수수료(원)">
+      <input id="note" placeholder="비고">
     </div>
+    <div id="preview" class="preview hidden"></div>
+    <button id="addTrade">기록 추가</button>
 
-    <div id="tabInputContent">
-      <div class="row">
-        <input id="stock" placeholder="종목명" />
-        <input id="date" type="date" />
-        <select id="type"><option>매수</option><option>매도</option></select>
-        <input id="qty" type="number" placeholder="수량(주)" />
-        <input id="buy" type="number" placeholder="매입가(원)" />
-        <input id="sell" type="number" placeholder="매도가(원)" />
-        <input id="fee" type="number" placeholder="수수료(원)" />
-        <input id="note" placeholder="비고 (진입 이유 등)" />
-      </div>
-      <div id="preview" class="preview hidden"></div>
-      <button id="addTrade">기록 추가</button>
-    </div>
-
-    <div id="tabStatsContent" class="hidden">
-      <p>
-        목표 수익률:
-        <input type="number" id="goalRate" value="10" style="width: 80px; display: inline" />%
-      </p>
-      <p id="summary"></p>
-      <div class="row">
-        <button id="toggleChart">월별 그래프 보기</button>
-        <button id="exportPDF">PDF 내보내기</button>
-        <button id="exportCSV">CSV 내보내기</button>
-      </div>
-
-      <canvas id="chart"></canvas>
-      <h3>💰 누적 손익 추이</h3>
-      <canvas id="chartCumulative"></canvas>
-      <h3>📊 손익 비율</h3>
-      <canvas id="chartDonut"></canvas>
-      <h3>🗓️ 일자별 수익 캘린더</h3>
-      <div id="calendar"></div>
-      <h3>🏆 수익 TOP5</h3>
-      <div id="topWinners"></div>
-      <h3>📉 손실 TOP5</h3>
-      <div id="topLosers"></div>
-      <h3>📜 거래 목록</h3>
-      <input id="search" placeholder="검색 (종목명)" />
-      <select id="filterType">
-        <option value="all">전체</option>
-        <option value="매수">매수</option>
-        <option value="매도">매도</option>
-      </select>
-      <div id="tradeList"></div>
-    </div>
-
-    <div id="tabMonthContent" class="hidden">
-      <h3>🗓 월별 손익 요약</h3>
-      <div id="monthSummary"></div>
-    </div>
+    <h3>📜 거래 목록</h3>
+    <div id="tradeList"></div>
+    <h3>📊 손익 비율</h3>
+    <canvas id="chartDonut"></canvas>
   </div>
 
-  <script>
-    const addTradeBtn = document.getElementById("addTrade");
-    const trades = JSON.parse(localStorage.getItem("stock_trades") || "[]");
-    let chartMode = "daily";
-    let chartInstance, donutChart;
+<script>
+  const addTradeBtn = document.getElementById("addTrade");
+  const tradeList = document.getElementById("tradeList");
+  const preview = document.getElementById("preview");
+  const chartDonut = document.getElementById("chartDonut");
+  let donutChart;
+  const trades = JSON.parse(localStorage.getItem("stock_trades") || "[]");
 
-    function saveTrades() {
-      localStorage.setItem("stock_trades", JSON.stringify(trades));
-    }
+  function saveTrades() {
+    localStorage.setItem("stock_trades", JSON.stringify(trades));
+  }
 
-    function getFilteredTrades() {
-      const q = search.value.toLowerCase();
-      const f = filterType.value;
-      return trades.filter(
-        (t) =>
-          (!q || t.stock.toLowerCase().includes(q)) &&
-          (f === "all" || t.type === f)
-      );
-    }
+  function refreshUI() {
+    tradeList.innerHTML = trades.map(t =>
+      `<div class='list-item'><span>${t.date} | ${t.stock} (${t.type})</span>
+       <span class='${t.profit>=0?"green":"red"}'>
+       ${t.profit.toLocaleString()}원 (${t.rate.toFixed(2)}%)</span></div>`).join("");
+    drawDonut();
+  }
 
-    function refreshUI() {
-      const totalProfit = trades.reduce((a, t) => a + t.profit, 0);
-      const avgRate = trades.length
-        ? (trades.reduce((a, t) => a + t.rate, 0) / trades.length).toFixed(2)
-        : 0;
-      const goalRate = parseFloat(goalRateInput.value) || 10;
-      const achieve = ((avgRate / goalRate) * 100).toFixed(1);
-      summary.innerHTML = `총 거래 ${trades.length}회<br>총 수익: ${totalProfit.toLocaleString()}원<br>평균 수익률: ${avgRate}%<br>달성률: ${achieve}%`;
-
-      tradeList.innerHTML = getFilteredTrades()
-        .map(
-          (t) => `
-        <div class='list-item'>
-          <span>${t.date} | ${t.stock} (${t.type})</span>
-          <span class='${t.profit >= 0 ? "green" : "red"}'>
-            ${t.profit.toLocaleString()}원 (${t.rate.toFixed(2)}%)
-          </span>
-        </div>`
-        )
-        .join("");
-
-      drawChart();
-      drawCumulative();
-      drawDonut();
-      drawCalendar();
-      drawTopLists();
-      drawMonthSummary();
-    }
-
-    function addTrade() {
-      const t = {
-        stock: stock.value,
-        date: date.value,
-        type: type.value,
-        qty: +qty.value,
-        buy: +buy.value,
-        sell: +sell.value,
-        fee: +fee.value,
-        note: note.value,
-      };
-      if (!t.stock || !t.date || !t.qty || !t.buy) return;
-      t.profit =
-        t.type === "매도" ? (t.sell - t.buy) * t.qty - t.fee : 0;
-      t.rate =
-        t.type === "매도" ? ((t.sell - t.buy) / t.buy) * 100 : 0;
-      trades.push(t);
-      saveTrades();
-      refreshUI();
-      document.querySelectorAll("input").forEach((i) => (i.value = ""));
-    }
-
-    function drawChart() {
-      if (chartInstance) chartInstance.destroy();
-      const data =
-        chartMode === "daily"
-          ? trades
-          : Object.entries(
-              trades.reduce((a, t) => {
-                const m = t.date.slice(0, 7);
-                if (!a[m]) a[m] = { s: 0, c: 0 };
-                a[m].s += t.rate;
-                a[m].c++;
-                return a;
-              }, {})
-            ).map(([m, v]) => ({ label: m, rate: v.s / v.c }));
-      chartInstance = new Chart(chart, {
-        type: "line",
-        data: {
-          labels: data.map((d) => d.date || d.label),
-          datasets: [
-            {
-              label: "수익률(%)",
-              data: data.map((d) => d.rate),
-              borderColor: "#00d8ff",
-              tension: 0.3,
-            },
-          ],
-        },
-        options: {
-          responsive: true,
-          scales: {
-            x: { ticks: { color: "#ccc" } },
-            y: { ticks: { color: "#ccc" } },
-          },
-        },
-      });
-    }
-
-    function drawCumulative() {
-      const cum = [];
-      let total = 0;
-      trades.forEach((t, i) => {
-        total += t.profit;
-        cum.push({ x: i + 1, y: total });
-      });
-      new Chart(chartCumulative, {
-        type: "line",
-        data: {
-          labels: cum.map((p) => p.x),
-          datasets: [
-            {
-              label: "누적 손익",
-              data: cum.map((p) => p.y),
-              borderColor: "#22c55e",
-              tension: 0.3,
-            },
-          ],
-        },
-        options: { responsive: true },
-      });
-    }
-
-    function drawDonut() {
-      if (donutChart) donutChart.destroy();
-      const winCount = trades.filter((t) => t.profit > 0).length;
-      const loseCount = trades.filter((t) => t.profit < 0).length;
-      const neutralCount = trades.length - winCount - loseCount;
-      donutChart = new Chart(chartDonut, {
-        type: "doughnut",
-        data: {
-          labels: ["익절", "손절", "보합"],
-          datasets: [
-            {
-              data: [winCount, loseCount, neutralCount],
-              backgroundColor: ["#22c55e", "#ef4444", "#94a3b8"],
-            },
-          ],
-        },
-        options: { responsive: true },
-      });
-    }
-
-    function drawCalendar() {
-      const calendar = document.getElementById("calendar");
-      calendar.innerHTML = "";
-      const today = new Date();
-      const year = today.getFullYear();
-      const month = today.getMonth();
-      const start = new Date(year, month, 1);
-      const end = new Date(year, month + 1, 0);
-      const startDay = start.getDay();
-
-      for (let i = 0; i < startDay; i++) {
-        const e = document.createElement("div");
-        e.className = "day empty";
-        calendar.appendChild(e);
-      }
-
-      for (let d = 1; d <= end.getDate(); d++) {
-        const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-        const dailyProfit = trades
-          .filter((t) => t.date === dateStr)
-          .reduce((a, t) => a + t.profit, 0);
-        const div = document.createElement("div");
-        div.className = "day";
-        div.textContent = d;
-        if (dailyProfit > 0) div.classList.add("profit");
-        else if (dailyProfit < 0) div.classList.add("loss");
-        calendar.appendChild(div);
-      }
-    }
-
-    function drawTopLists() {
-      const wins = [...trades]
-        .filter((t) => t.profit > 0)
-        .sort((a, b) => b.profit - a.profit)
-        .slice(0, 5);
-      const loss = [...trades]
-        .filter((t) => t.profit < 0)
-        .sort((a, b) => a.profit - b.profit)
-        .slice(0, 5);
-      topWinners.innerHTML = wins
-        .map(
-          (t, i) =>
-            `<div class='list-item green'>${i + 1}. ${t.stock} ${t.profit.toLocaleString()}원 (${t.rate.toFixed(2)}%)</div>`
-        )
-        .join("");
-      topLosers.innerHTML = loss
-        .map(
-          (t, i) =>
-            `<div class='list-item red'>${i + 1}. ${t.stock} ${t.profit.toLocaleString()}원 (${t.rate.toFixed(2)}%)</div>`
-        )
-        .join("");
-    }
-
-    function drawMonthSummary() {
-      const msum = trades.reduce((a, t) => {
-        const m = t.date.slice(0, 7);
-        if (!a[m]) a[m] = { p: 0, c: 0 };
-        a[m].p += t.profit;
-        a[m].c++;
-        return a;
-      }, {});
-      monthSummary.innerHTML = Object.entries(msum)
-        .map(
-          ([m, v]) =>
-            `<div class='list-item'><span>${m}</span><span class='${
-              v.p >= 0 ? "green" : "red"
-            }'>${v.p.toLocaleString()}원 (${v.c}건)</span></div>`
-        )
-        .join("");
-    }
-
-    addTradeBtn.onclick = addTrade;
-    goalRateInput.onchange = refreshUI;
-    search.oninput = refreshUI;
-    filterType.onchange = refreshUI;
-    toggleChart.onclick = () => {
-      chartMode = chartMode === "daily" ? "monthly" : "daily";
-      toggleChart.innerText =
-        chartMode === "daily" ? "월별 그래프 보기" : "일별 그래프 보기";
-      drawChart();
-    };
-
-    exportCSV.onclick = () => {
-      const csv = [
-        "날짜,종목,유형,수량,매입가,매도가,수익,수익률,비고",
-      ];
-      trades.forEach((t) =>
-        csv.push(
-          `${t.date},${t.stock},${t.type},${t.qty},${t.buy},${t.sell},${t.profit},${t.rate.toFixed(
-            2
-          )},${t.note}`
-        )
-      );
-      const blob = new Blob([csv.join("\\n")], {
-        type: "text/csv;charset=utf-8;",
-      });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = "펭구님_주식매매일지.csv";
-      link.click();
-    };
-
-    exportPDF.onclick = () => {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      doc.text("📈 펭구님 주식 매매일지 보고서", 20, 20);
-      const tableData = trades.map((t) => [
-        t.date,
-        t.stock,
-        t.type,
-        t.qty,
-        t.buy,
-        t.sell,
-        t.profit.toLocaleString(),
-        `${t.rate.toFixed(2)}%`,
-        t.note,
-      ]);
-      doc.autoTable({
-        head: [
-          ["날짜", "종목", "유형", "수량", "매입가", "매도가", "수익", "수익률", "비고"],
-        ],
-        body: tableData,
-        startY: 30,
-      });
-      doc.save("펭구님_주식매매일지.pdf");
-    };
-
-    [tabInput, tabStats, tabMonth].forEach((btn) => {
-      btn.onclick = () => {
-        document
-          .querySelectorAll(".tab-buttons button")
-          .forEach((b) => b.classList.remove("active"));
-        btn.classList.add("active");
-        tabInputContent.classList.add("hidden");
-        tabStatsContent.classList.add("hidden");
-        tabMonthContent.classList.add("hidden");
-        if (btn === tabInput) tabInputContent.classList.remove("hidden");
-        if (btn === tabStats) tabStatsContent.classList.remove("hidden");
-        if (btn === tabMonth) tabMonthContent.classList.remove("hidden");
-      };
-    });
-
-    ["buy", "sell", "qty"].forEach((id) =>
-      document.getElementById(id).addEventListener("input", () => {
-        const b = parseFloat(buy.value) || 0;
-        const s = parseFloat(sell.value) || 0;
-        const q = parseFloat(qty.value) || 0;
-        const pv = preview;
-        if (b && s && q) {
-          const p = (s - b) * q;
-          const r = ((s - b) / b) * 100;
-          pv.innerHTML = `예상 손익: ${p.toLocaleString()}원 (${r.toFixed(2)}%)`;
-          pv.classList.remove("hidden");
-          pv.className = "preview " + (p >= 0 ? "profit" : "loss");
-        } else pv.classList.add("hidden");
-      })
-    );
-
-    const goalRateInput = document.getElementById("goalRate");
+  function addTrade() {
+    const stock = document.getElementById("stock").value;
+    const date = document.getElementById("date").value;
+    const type = document.getElementById("type").value;
+    const qty = parseFloat(document.getElementById("qty").value) || 0;
+    const buy = parseFloat(document.getElementById("buy").value) || 0;
+    const sell = parseFloat(document.getElementById("sell").value) || 0;
+    const fee = parseFloat(document.getElementById("fee").value) || 0;
+    const note = document.getElementById("note").value;
+    if (!stock || !date || !qty || !buy) return alert("필수 항목을 입력하세요!");
+    const profit = type === "매도" ? (sell - buy) * qty - fee : 0;
+    const rate = type === "매도" ? ((sell - buy) / buy) * 100 : 0;
+    trades.push({ stock, date, type, qty, buy, sell, fee, profit, rate, note });
+    saveTrades();
     refreshUI();
-  </script>
+  }
+
+  function drawDonut() {
+    if (donutChart) donutChart.destroy();
+    const win = trades.filter(t => t.profit > 0).length;
+    const lose = trades.filter(t => t.profit < 0).length;
+    const even = trades.length - win - lose;
+    donutChart = new Chart(chartDonut, {
+      type: "doughnut",
+      data: {
+        labels: ["익절", "손절", "보합"],
+        datasets: [{ data: [win, lose, even], backgroundColor: ["#22c55e", "#ef4444", "#94a3b8"] }]
+      }
+    });
+  }
+
+  ["buy","sell","qty"].forEach(id=>{
+    document.getElementById(id).addEventListener("input",()=>{
+      const b=parseFloat(buy.value)||0;
+      const s=parseFloat(sell.value)||0;
+      const q=parseFloat(qty.value)||0;
+      if(b&&s&&q){
+        const p=(s-b)*q;
+        const r=((s-b)/b)*100;
+        preview.textContent=`예상 손익: ${p.toLocaleString()}원 (${r.toFixed(2)}%)`;
+        preview.className="preview "+(p>=0?"profit":"loss");
+      }else preview.textContent=\"\";
+    });
+  });
+
+  addTradeBtn.onclick = addTrade;
+  refreshUI();
+</script>
 </body>
 </html>
