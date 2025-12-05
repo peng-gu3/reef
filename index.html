@@ -1,202 +1,352 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>📈 오둥이삐 주식 매매일지</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<style>
-  body { background:#0f172a; color:#f1f5f9; font-family:"Noto Sans KR",sans-serif; margin:0; padding:20px;}
-  h1 { text-align:center; margin-bottom:20px;}
-  .container { background:#1e293b; border-radius:14px; padding:20px; max-width:900px; margin:auto;}
-  input,select,button { background:#334155; color:white; border:none; border-radius:6px; padding:8px; margin:4px; width:100%;}
-  button { background:#2563eb; cursor:pointer;}
-  button:hover { background:#1d4ed8;}
-  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:8px;}
-  .preview { text-align:center; margin:10px 0; padding:10px; border-radius:8px;}
-  .profit { background:rgba(34,197,94,0.2); color:#4ade80;}
-  .loss { background:rgba(239,68,68,0.2); color:#f87171;}
-  .list-item { background:#334155; padding:8px 12px; border-radius:6px; margin:4px 0;}
-  .list-header {display:flex; justify-content:space-between; align-items:center;}
-  .btn-sm { background:#475569; border:none; color:#f1f5f9; border-radius:4px; padding:4px 8px; margin-left:4px; cursor:pointer; font-size:12px;}
-  .btn-sm:hover { background:#64748b;}
-  .green{color:#4ade80;} .red{color:#f87171;}
-  canvas{background:#1e293b;border-radius:8px;width:100%;max-height:300px;margin-top:10px;}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>월별 자동통계 가계부</title>
+    <style>
+        body { font-family: 'Pretendard', 'Malgun Gothic', sans-serif; background-color: #f0f2f5; padding: 20px; margin: 0; color:#333; }
+        .container { max-width: 1000px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); }
+        h2 { text-align: center; color: #333; margin-bottom: 20px; font-weight: 800; letter-spacing: -1px;}
+
+        /* 전체 요약 카드 */
+        .dashboard { display: flex; justify-content: space-between; gap: 15px; margin-bottom: 30px; }
+        .card { flex: 1; padding: 20px; border-radius: 10px; text-align: center; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .card h3 { margin: 0 0 10px 0; font-size: 0.95rem; opacity: 0.9; font-weight: 400; }
+        .card p { margin: 0; font-size: 1.6rem; font-weight: bold; }
+        .card.income { background: linear-gradient(135deg, #3a7bd5 0%, #3a6073 100%); }
+        .card.expense { background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%); }
+        .card.balance { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+
+        /* 월별 통계 영역 (새로 추가됨) */
+        .monthly-section { margin-bottom: 30px; border: 1px solid #e1e4e8; border-radius: 10px; overflow: hidden; }
+        .monthly-header { background: #f8f9fa; padding: 10px 20px; font-weight: bold; border-bottom: 1px solid #e1e4e8; color: #555; }
+        .monthly-table { width: 100%; border-collapse: collapse; }
+        .monthly-table th, .monthly-table td { padding: 10px; text-align: center; border-bottom: 1px solid #eee; font-size: 14px; }
+        .monthly-table th { background: #fff; color: #777; font-weight: 600; }
+        .monthly-row:last-child td { border-bottom: none; }
+        .net-profit.plus { color: #28a745; font-weight: bold; }
+        .net-profit.minus { color: #dc3545; font-weight: bold; }
+
+        /* 입력 폼 */
+        .input-group { background-color: #f1f3f5; padding: 20px; border-radius: 10px; display: grid; grid-template-columns: 100px 130px 120px 1fr 150px 100px 80px; gap: 10px; align-items: center; margin-bottom: 20px; border: 1px solid #e9ecef;}
+        input, select { padding: 0 10px; border: 1px solid #ddd; border-radius: 6px; height: 42px; box-sizing: border-box; font-size: 14px; outline: none; }
+        input:focus, select:focus { border-color: #3a7bd5; }
+        
+        button.add-btn { background-color: #333; color: white; border: none; border-radius: 6px; cursor: pointer; height: 42px; font-weight: bold; transition: 0.2s; }
+        button.add-btn:hover { background-color: #000; }
+
+        /* 상단 초기화 버튼 */
+        .header-controls { position: absolute; right: 0; top: 0; }
+        button.reset-btn { background-color: #adb5bd; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        button.reset-btn:hover { background-color: #868e96; }
+
+        /* 메인 리스트 테이블 */
+        .list-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        .list-table th { background-color: #f8f9fa; color: #495057; font-weight: 600; padding: 12px; border-bottom: 2px solid #e9ecef; }
+        .list-table td { padding: 12px; border-bottom: 1px solid #eee; text-align: center; font-size: 15px; color: #444; }
+        
+        .money-income { color: #3a7bd5; font-weight: bold; }
+        .money-expense { color: #ff4b2b; font-weight: bold; }
+        
+        .delete-btn { background-color: #ff6b6b; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        
+        @media (max-width: 900px) {
+            .input-group { grid-template-columns: 1fr 1fr; }
+            .input-group > input[type="text"]#descInput { grid-column: span 2; }
+            button.add-btn { grid-column: span 2; }
+            .dashboard { flex-direction: column; }
+        }
+    </style>
 </head>
 <body>
-  <h1>📈 펭구님 주식 매매일지</h1>
-  <div class="container">
-    <div class="grid">
-      <input id="stock" placeholder="종목명" />
-      <input id="date" type="date" />
-      <select id="type"><option>매수</option><option>매도</option></select>
-      <input id="qty" type="number" placeholder="수량(주)" />
-      <input id="buy" type="number" placeholder="매입가(원)" />
-      <input id="sell" type="number" placeholder="매도가(원)" />
-      <input id="fee" type="number" placeholder="수수료(원)" />
-      <input id="note" placeholder="비고" />
+
+<div class="container">
+    <div style="position:relative;">
+        <h2>📊 월별 자동통계 가계부</h2>
+        <div class="header-controls">
+            <button class="reset-btn" onclick="resetAllData()">🗑️ 전체 초기화</button>
+        </div>
     </div>
-    <div id="preview" class="preview"></div>
-    <button id="addTrade">기록 추가</button>
 
-    <h3>📜 거래 목록</h3>
-    <div id="tradeList"></div>
+    <div class="dashboard">
+        <div class="card income">
+            <h3>전체 총 수입</h3>
+            <p id="totalIncomeDisplay">0원</p>
+        </div>
+        <div class="card expense">
+            <h3>전체 총 지출</h3>
+            <p id="totalExpenseDisplay">0원</p>
+        </div>
+        <div class="card balance">
+            <h3>현재 총 잔액</h3>
+            <p id="balanceDisplay">0원</p>
+        </div>
+    </div>
 
-    <h3>📊 손익 비율</h3>
-    <canvas id="chartDonut"></canvas>
-  </div>
+    <div class="monthly-section">
+        <div class="monthly-header">📅 월별 요약 리포트</div>
+        <table class="monthly-table">
+            <thead>
+                <tr>
+                    <th>기간 (월)</th>
+                    <th>수입 합계</th>
+                    <th>지출 합계</th>
+                    <th>월 잔액 (수입-지출)</th>
+                </tr>
+            </thead>
+            <tbody id="monthlyTableBody">
+                </tbody>
+        </table>
+    </div>
+
+    <div class="input-group">
+        <select id="typeInput" onchange="changeCategory()" style="font-weight:bold; color:#ff4b2b;">
+            <option value="income" style="color:#3a7bd5;">🔵 수입</option>
+            <option value="expense" selected style="color:#ff4b2b;">🔴 지출</option>
+        </select>
+        <input type="date" id="dateInput">
+        <select id="categoryInput"></select>
+        <input type="text" id="descInput" placeholder="내용 (예: 점심값)">
+        <input type="text" id="amountInput" placeholder="금액" onkeyup="inputNumberFormat(this)" style="text-align:right;">
+        <input type="text" id="noteInput" placeholder="비고">
+        <button class="add-btn" onclick="addEntry()">등록</button>
+    </div>
+
+    <table class="list-table">
+        <colgroup>
+            <col width="12%"><col width="10%"><col width="12%"><col width="*"><col width="15%"><col width="15%"><col width="8%">
+        </colgroup>
+        <thead>
+            <tr>
+                <th>날짜</th><th>구분</th><th>분류</th><th>내용</th><th>금액</th><th>비고</th><th>관리</th>
+            </tr>
+        </thead>
+        <tbody id="accountTableBody"></tbody>
+    </table>
+</div>
 
 <script>
-document.addEventListener("DOMContentLoaded", () => {
-  const addTradeBtn = document.getElementById("addTrade");
-  const tradeList = document.getElementById("tradeList");
-  const preview = document.getElementById("preview");
-  const chartDonut = document.getElementById("chartDonut");
-  let donutChart;
-  let editIndex = null;
+    document.getElementById('dateInput').valueAsDate = new Date();
+    
+    const categories = {
+        income: ["월급", "보너스", "용돈", "금융수익", "사업수입", "기타"],
+        expense: ["식비", "교통/차량", "쇼핑", "주거/통신", "의료/건강", "저축/투자", "문화/여가", "기타"]
+    };
 
-  const trades = JSON.parse(localStorage.getItem("stock_trades") || "[]");
+    function changeCategory() {
+        const type = document.getElementById('typeInput').value;
+        const categorySelect = document.getElementById('categoryInput');
+        
+        categorySelect.innerHTML = "";
+        categories[type].forEach(item => {
+            const option = document.createElement('option');
+            option.value = item;
+            option.innerText = item;
+            categorySelect.appendChild(option);
+        });
 
-  function saveTrades() {
-    localStorage.setItem("stock_trades", JSON.stringify(trades));
-  }
-
-  function refreshUI() {
-    tradeList.innerHTML = trades
-      .map(
-        (t, i) => `
-      <div class="list-item">
-        <div class="list-header">
-          <span>${t.date} | ${t.stock} (${t.type})</span>
-          <div>
-            <button class="btn-sm" data-index="${i}" data-action="edit">✏ 수정</button>
-            <button class="btn-sm" data-index="${i}" data-action="delete">🗑 삭제</button>
-          </div>
-        </div>
-        <span class="${t.profit >= 0 ? "green" : "red"}">
-          ${t.profit.toLocaleString()}원 (${t.rate.toFixed(2)}%)
-        </span>
-      </div>`
-      )
-      .join("");
-    drawDonut();
-  }
-
-  function editTrade(index) {
-    const t = trades[index];
-    document.getElementById("stock").value = t.stock;
-    document.getElementById("date").value = t.date;
-    document.getElementById("type").value = t.type;
-    document.getElementById("qty").value = t.qty;
-    document.getElementById("buy").value = t.buy;
-    document.getElementById("sell").value = t.sell;
-    document.getElementById("fee").value = t.fee;
-    document.getElementById("note").value = t.note;
-    editIndex = index;
-    addTradeBtn.textContent = "✅ 수정 완료";
-  }
-
-  function deleteTrade(index) {
-    if (confirm("정말 삭제하시겠습니까?")) {
-      trades.splice(index, 1);
-      saveTrades();
-      refreshUI();
-    }
-  }
-
-  function addTrade() {
-    const stock = document.getElementById("stock").value.trim();
-    const date = document.getElementById("date").value;
-    const type = document.getElementById("type").value;
-    const qty = parseFloat(document.getElementById("qty").value) || 0;
-    const buy = parseFloat(document.getElementById("buy").value) || 0;
-    const sell = parseFloat(document.getElementById("sell").value) || 0;
-    const fee = parseFloat(document.getElementById("fee").value) || 0;
-    const note = document.getElementById("note").value.trim();
-
-    if (!stock || !date || !qty) {
-      alert("종목명, 날짜, 수량은 필수입니다!");
-      return;
-    }
-    if (type === "매수" && !buy) {
-      alert("매입가를 입력해주세요!");
-      return;
-    }
-    if (type === "매도" && !sell) {
-      alert("매도가를 입력해주세요!");
-      return;
+        const typeInput = document.getElementById('typeInput');
+        typeInput.style.color = (type === 'income') ? "#3a7bd5" : "#ff4b2b";
     }
 
-    const profit = type === "매도" ? (sell - buy) * qty - fee : 0;
-    const rate = type === "매도" && buy > 0 ? ((sell - buy) / buy) * 100 : 0;
+    function inputNumberFormat(obj) { obj.value = comma(uncomma(obj.value)); }
+    function comma(str) { return String(str).replace(/(\d)(?=(?:\d{3})+(?!\d))/g, '$1,'); }
+    function uncomma(str) { return String(str).replace(/[^\d]+/g, ''); }
 
-    const newTrade = { stock, date, type, qty, buy, sell, fee, profit, rate, note };
+    // --- 데이터 저장 및 로드 로직 ---
+    function saveToLocal() {
+        const rows = document.querySelectorAll('#accountTableBody tr');
+        const dataList = [];
 
-    if (editIndex !== null) {
-      trades[editIndex] = newTrade;
-      editIndex = null;
-      addTradeBtn.textContent = "기록 추가";
-    } else {
-      trades.push(newTrade);
+        // 화면에 있는 테이블 데이터를 JSON으로 만듦 (화면 순서 = 최신순)
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            const amountCell = cells[4];
+            
+            dataList.push({
+                date: cells[0].innerText,
+                type: amountCell.getAttribute('data-type'),
+                category: cells[2].innerText,
+                desc: cells[3].innerText,
+                amount: amountCell.getAttribute('data-amount'),
+                note: cells[5].innerText
+            });
+        });
+
+        localStorage.setItem('myAccountBook_v2', JSON.stringify(dataList));
+        
+        // 저장할 때 마다 통계 업데이트
+        updateDashboard();
+        updateMonthlyStats(dataList);
     }
 
-    saveTrades();
-    refreshUI();
-    document.querySelectorAll("input").forEach((i) => (i.value = ""));
-    preview.textContent = "";
-  }
+    function loadFromLocal() {
+        const savedData = localStorage.getItem('myAccountBook_v2');
+        if (!savedData) return;
 
-  function drawDonut() {
-    if (donutChart) donutChart.destroy();
-    const win = trades.filter((t) => t.profit > 0).length;
-    const lose = trades.filter((t) => t.profit < 0).length;
-    const even = trades.length - win - lose;
-    donutChart = new Chart(chartDonut, {
-      type: "doughnut",
-      data: {
-        labels: ["익절", "손절", "보합"],
-        datasets: [
-          {
-            data: [win, lose, even],
-            backgroundColor: ["#22c55e", "#ef4444", "#94a3b8"],
-          },
-        ],
-      },
-      options: { plugins: { legend: { labels: { color: "#f1f5f9" } } } },
-    });
-  }
+        const dataList = JSON.parse(savedData);
+        const tableBody = document.getElementById('accountTableBody');
+        tableBody.innerHTML = ""; 
 
-  ["buy", "sell", "qty"].forEach((id) => {
-    document.getElementById(id).addEventListener("input", () => {
-      const b = parseFloat(buy.value) || 0;
-      const s = parseFloat(sell.value) || 0;
-      const q = parseFloat(qty.value) || 0;
-      if (b && s && q) {
-        const p = (s - b) * q;
-        const r = ((s - b) / b) * 100;
-        preview.textContent = `예상 손익: ${p.toLocaleString()}원 (${r.toFixed(2)}%)`;
-        preview.className = "preview " + (p >= 0 ? "profit" : "loss");
-      } else {
-        preview.textContent = "";
-        preview.className = "preview";
-      }
-    });
-  });
+        // 저장된 데이터가 있다면 역순으로(저장은 최신순이므로) 뿌릴 필요 없이 순서대로
+        // 다만 addEntry가 위로 쌓는 방식이므로, 여기선 forEach로 단순 append하면 됨.
+        
+        dataList.forEach(data => {
+            const row = document.createElement('tr');
+            const typeText = (data.type === 'income') ? "수입" : "지출";
+            const classType = (data.type === 'income') ? "money-income" : "money-expense";
+            const sign = (data.type === 'income') ? "+" : "-";
+            const typeColor = (data.type === 'income') ? "#3a7bd5" : "#ff4b2b";
 
-  tradeList.addEventListener("click", (e) => {
-    const btn = e.target.closest("button");
-    if (!btn) return;
-    const index = parseInt(btn.dataset.index);
-    const action = btn.dataset.action;
-    if (action === "edit") editTrade(index);
-    else if (action === "delete") deleteTrade(index);
-  });
+            row.innerHTML = `
+                <td>${data.date}</td>
+                <td style="color:${typeColor}">${typeText}</td>
+                <td>${data.category}</td>
+                <td style="text-align:left; padding-left:20px;">${data.desc}</td>
+                <td class="${classType}" data-type="${data.type}" data-amount="${data.amount}">
+                    ${sign} ${comma(data.amount)}
+                </td>
+                <td>${data.note}</td>
+                <td><button class="delete-btn" onclick="deleteRow(this)">삭제</button></td>
+            `;
+            tableBody.appendChild(row); // 로딩할 땐 아래로 붙임 (이미 정렬된 데이터라 가정)
+        });
 
-  addTradeBtn.addEventListener("click", addTrade);
+        updateDashboard();
+        updateMonthlyStats(dataList);
+    }
 
-  refreshUI();
-});
+    // --- 핵심: 월별 통계 계산 함수 ---
+    function updateMonthlyStats(dataList) {
+        if(!dataList) return;
+
+        // 1. 월별로 그룹화 ( { "2023-10": {income:0, expense:0}, ... } )
+        let stats = {};
+
+        dataList.forEach(item => {
+            // 날짜 앞 7자리 (YYYY-MM)만 자름
+            let monthKey = item.date.substring(0, 7); 
+            
+            if(!stats[monthKey]) {
+                stats[monthKey] = { income: 0, expense: 0 };
+            }
+
+            let amt = parseInt(item.amount);
+            if(item.type === 'income') {
+                stats[monthKey].income += amt;
+            } else {
+                stats[monthKey].expense += amt;
+            }
+        });
+
+        // 2. 키(월)를 정렬 (최신 월이 먼저 오도록)
+        let sortedMonths = Object.keys(stats).sort().reverse();
+
+        // 3. HTML 그리기
+        const monthlyBody = document.getElementById('monthlyTableBody');
+        monthlyBody.innerHTML = "";
+
+        if(sortedMonths.length === 0) {
+            monthlyBody.innerHTML = "<tr><td colspan='4' style='padding:20px; color:#999;'>데이터가 없습니다. 수입/지출을 등록해보세요!</td></tr>";
+            return;
+        }
+
+        sortedMonths.forEach(month => {
+            let s = stats[month];
+            let net = s.income - s.expense;
+            let netClass = net >= 0 ? "plus" : "minus";
+            let netSign = net >= 0 ? "+" : "";
+
+            const row = document.createElement('tr');
+            row.className = "monthly-row";
+            row.innerHTML = `
+                <td style="font-weight:bold;">${month}</td>
+                <td style="color:#3a7bd5;">${comma(s.income)}원</td>
+                <td style="color:#ff4b2b;">${comma(s.expense)}원</td>
+                <td class="net-profit ${netClass}">${netSign}${comma(net)}원</td>
+            `;
+            monthlyBody.appendChild(row);
+        });
+    }
+
+    function addEntry() {
+        const type = document.getElementById('typeInput').value;
+        const date = document.getElementById('dateInput').value;
+        const category = document.getElementById('categoryInput').value;
+        const desc = document.getElementById('descInput').value;
+        const amountStr = document.getElementById('amountInput').value;
+        const note = document.getElementById('noteInput').value;
+        const amount = parseInt(uncomma(amountStr));
+
+        if (!date || !desc || isNaN(amount) || amount === 0) {
+            alert("내용을 정확히 입력해주세요.");
+            return;
+        }
+
+        const tableBody = document.getElementById('accountTableBody');
+        const row = tableBody.insertRow(0); // 새 항목은 맨 위에
+
+        const typeText = (type === 'income') ? "수입" : "지출";
+        const classType = (type === 'income') ? "money-income" : "money-expense";
+        const sign = (type === 'income') ? "+" : "-";
+
+        row.innerHTML = `
+            <td>${date}</td>
+            <td style="color:${type === 'income' ? '#3a7bd5' : '#ff4b2b'}">${typeText}</td>
+            <td>${category}</td>
+            <td style="text-align:left; padding-left:20px;">${desc}</td>
+            <td class="${classType}" data-type="${type}" data-amount="${amount}">
+                ${sign} ${comma(amount)}
+            </td>
+            <td>${note}</td>
+            <td><button class="delete-btn" onclick="deleteRow(this)">삭제</button></td>
+        `;
+
+        // 입력창 초기화
+        document.getElementById('descInput').value = '';
+        document.getElementById('amountInput').value = '';
+        document.getElementById('noteInput').value = '';
+        document.getElementById('descInput').focus();
+
+        saveToLocal(); 
+    }
+
+    function deleteRow(btn) {
+        btn.parentNode.parentNode.remove();
+        saveToLocal();
+    }
+
+    function updateDashboard() {
+        const rows = document.querySelectorAll('#accountTableBody tr td[data-amount]');
+        let totalIncome = 0;
+        let totalExpense = 0;
+
+        rows.forEach(td => {
+            const amount = parseInt(td.getAttribute('data-amount'));
+            const type = td.getAttribute('data-type');
+            if (type === 'income') totalIncome += amount;
+            else totalExpense += amount;
+        });
+
+        document.getElementById('totalIncomeDisplay').innerText = comma(totalIncome) + "원";
+        document.getElementById('totalExpenseDisplay').innerText = comma(totalExpense) + "원";
+        document.getElementById('balanceDisplay').innerText = comma(totalIncome - totalExpense) + "원";
+    }
+
+    function resetAllData() {
+        if(confirm("❗ 정말 모든 데이터를 삭제하시겠습니까?")) {
+            localStorage.removeItem('myAccountBook_v2');
+            document.getElementById('accountTableBody').innerHTML = "";
+            document.getElementById('monthlyTableBody').innerHTML = "";
+            updateDashboard();
+        }
+    }
+
+    // 초기 실행
+    changeCategory();
+    loadFromLocal();
 </script>
+
 </body>
 </html>
