@@ -1,88 +1,213 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>주식 매매일지</title>
-    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        :root {
-            --primary: #2563eb; 
-            --red: #f87171; --red-bg: #fef2f2; --red-text: #b91c1c;
-            --blue: #60a5fa; --blue-bg: #eff6ff; --blue-text: #1d4ed8;
-            --gray: #64748b; --gray-bg: #f1f5f9; --gray-text: #334155;
-            --bg: #f8fafc; --surface: #ffffff;
-            --text-main: #1e293b; --text-sub: #64748b;
-            --border: #e2e8f0;
-            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>주식 매매일지</title>
 
-        /* 예수금 +금액 초록색 */
-        .badge.deposit { background:#f0fdf4; color:#166534; border:1px solid #bbf7d0; }
-        .deposit-text { color:#16a34a; font-weight:600; }
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 
-        body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: var(--text-main); margin: 0; padding: 40px 20px; }
-        .container { max-width: 1100px; margin: 0 auto; }
+<style>
+:root{
+--bg:#f8fafc;--card:#fff;--border:#e2e8f0;
+--text:#1e293b;--sub:#64748b;
+--red:#ef4444;--blue:#2563eb;--green:#16a34a;
+}
+*{box-sizing:border-box}
+body{
+margin:0;padding:30px;font-family:Pretendard;background:var(--bg);color:var(--text)
+}
+.container{max-width:1100px;margin:auto}
 
-        .badge { font-size:11px; padding:5px 8px; border-radius:6px; }
-        .badge.other { background: var(--gray-bg); color: var(--gray-text); }
-    </style>
+h1{margin:0 0 20px;font-size:24px}
+
+.calendar-header{
+display:flex;justify-content:space-between;align-items:center;
+background:var(--card);padding:15px 20px;border-radius:14px;
+border:1px solid var(--border);margin-bottom:15px
+}
+.calendar{
+display:grid;grid-template-columns:repeat(7,1fr);gap:10px
+}
+.day-header{text-align:center;color:var(--sub);font-weight:600}
+.day{
+background:#fff;border:1px solid var(--border);border-radius:12px;
+padding:8px;min-height:120px;cursor:pointer
+}
+.day:hover{border-color:var(--blue)}
+.day-num{font-weight:700;margin-bottom:4px}
+.badge{
+font-size:11px;padding:4px 6px;border-radius:6px;margin-bottom:3px
+}
+.buy{background:#fef2f2;color:#b91c1c}
+.sell{background:#eff6ff;color:#1d4ed8}
+.deposit{background:#f0fdf4;color:#166534;font-weight:600}
+
+.modal-bg{
+display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);
+align-items:center;justify-content:center
+}
+.modal{
+background:#fff;width:460px;border-radius:16px;
+padding:20px
+}
+.form-group{margin-bottom:10px}
+label{font-size:13px;color:var(--sub);display:block;margin-bottom:4px}
+input,select{
+width:100%;padding:8px;border:1px solid var(--border);border-radius:8px
+}
+.btns{display:flex;gap:10px;margin-top:15px}
+button{
+flex:1;padding:10px;border:none;border-radius:8px;
+font-weight:600;cursor:pointer
+}
+.save{background:#1e293b;color:#fff}
+.close{background:#e5e7eb}
+.log-item{
+border:1px solid var(--border);border-radius:10px;
+padding:8px;margin-bottom:6px;font-size:13px
+}
+</style>
 </head>
-<body>
 
-<!-- ⚠️ HTML 구조, 차트, 모달, JS 전부 기존 그대로 유지 -->
-<!-- 아래 JS에서 예수금 부분만 초록색 분기 처리됨 -->
+<body>
+<div class="container">
+<h1>하루 20만 목표!!!</h1>
+
+<div class="calendar-header">
+<button onclick="moveMonth(-1)">◀</button>
+<div id="monthLabel"></div>
+<button onclick="moveMonth(1)">▶</button>
+</div>
+
+<div class="calendar" id="calendar"></div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-bg" id="modal">
+<div class="modal">
+<h3 id="modalTitle">거래 입력</h3>
+
+<div class="form-group">
+<label>날짜</label>
+<input type="date" id="fDate">
+</div>
+
+<div class="form-group">
+<label>구분</label>
+<select id="fType" onchange="typeChange()">
+<option value="buy">매수</option>
+<option value="sell">매도</option>
+<option value="deposit">기타(예수금)</option>
+</select>
+</div>
+
+<div class="form-group">
+<label id="nameLabel">종목명</label>
+<input id="fName">
+</div>
+
+<div class="form-group">
+<label id="priceLabel">단가</label>
+<input type="number" id="fPrice">
+</div>
+
+<div class="form-group" id="qtyWrap">
+<label>수량</label>
+<input type="number" id="fQty" value="1">
+</div>
+
+<div class="btns">
+<button class="close" onclick="closeModal()">취소</button>
+<button class="save" onclick="save()">저장</button>
+</div>
+
+<hr>
+
+<div id="dayLogs"></div>
+</div>
+</div>
 
 <script>
-/* ===========================
-   달력 렌더링 중 예수금 색상
-   =========================== */
-function renderCalendar(){
-    const grid=document.getElementById('calendarGrid');
-    const y=currentDate.getFullYear(), m=currentDate.getMonth();
-    grid.innerHTML='';
-    for(let i=1;i<=31;i++){
-        const logs=transactions.filter(t=>t.date);
-        logs.forEach(l=>{
-            if(l.type==='other'){
-                const isDeposit=l.price>0;
-                grid.innerHTML+=`
-                <div class="badge ${isDeposit?'deposit':'other'}">
-                    <span>${l.name}</span>
-                    <span class="${isDeposit?'deposit-text':''}">
-                        ${isDeposit?'+':''}${(l.price/10000).toFixed(0)}만
-                    </span>
-                </div>`;
-            }
-        });
-    }
+let cur=new Date();
+let data=JSON.parse(localStorage.getItem('trade_log'))||[];
+let sellTarget=null;
+
+function moveMonth(d){
+cur.setMonth(cur.getMonth()+d);
+render();
 }
 
-/* ===========================
-   기록 목록 예수금 색상
-   =========================== */
-function renderLog(dStr){
-    let l=document.getElementById('dayLogList');
-    let logs=transactions.filter(x=>x.date===dStr);
-    let h='';
-    logs.forEach(g=>{
-        if(g.type==='other'){
-            const isDeposit=g.price>0;
-            h+=`
-            <div class="log-item" style="border-left:4px solid ${isDeposit?'#22c55e':'var(--gray)'}">
-                <div class="log-left">
-                    <span class="log-title">[기타] ${g.name}</span>
-                    <span class="log-desc" style="color:${isDeposit?'#16a34a':'var(--blue-text)'}">
-                        ${isDeposit?'+':''}${g.price.toLocaleString()}
-                    </span>
-                </div>
-            </div>`;
-        }
-    });
-    l.innerHTML=h;
+function render(){
+const y=cur.getFullYear(),m=cur.getMonth();
+document.getElementById('monthLabel').innerText=`${y}년 ${m+1}월`;
+const cal=document.getElementById('calendar');
+cal.innerHTML=`<div class="day-header">일</div><div class="day-header">월</div><div class="day-header">화</div><div class="day-header">수</div><div class="day-header">목</div><div class="day-header">금</div><div class="day-header">토</div>`;
+const first=new Date(y,m,1).getDay();
+const last=new Date(y,m+1,0).getDate();
+for(let i=0;i<first;i++) cal.innerHTML+=`<div></div>`;
+for(let d=1;d<=last;d++){
+const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+const logs=data.filter(x=>x.date===ds);
+let html=`<div class="day" onclick="openModal('${ds}')"><div class="day-num">${d}</div>`;
+logs.forEach(l=>{
+if(l.type==='buy') html+=`<div class="badge buy">매수 ${l.name}</div>`;
+if(l.type==='sell') html+=`<div class="badge sell">매도 ${l.name}</div>`;
+if(l.type==='deposit') html+=`<div class="badge deposit">+${l.price.toLocaleString()}</div>`;
+});
+html+=`</div>`;
+cal.innerHTML+=html;
 }
+}
+
+function openModal(d){
+sellTarget=null;
+document.getElementById('modal').style.display='flex';
+document.getElementById('modalTitle').innerText='거래 입력';
+fDate.value=d;fType.value='buy';fName.value='';fPrice.value='';fQty.value=1;
+typeChange();
+renderLogs(d);
+}
+
+function closeModal(){modal.style.display='none'}
+
+function typeChange(){
+if(fType.value==='deposit'){
+nameLabel.innerText='내용';
+priceLabel.innerText='금액';
+qtyWrap.style.display='none';
+}else{
+nameLabel.innerText='종목명';
+priceLabel.innerText=fType.value==='buy'?'매수 단가':'매도 단가';
+qtyWrap.style.display='block';
+}
+}
+
+function save(){
+const obj={
+id:Date.now(),
+date:fDate.value,
+type:fType.value,
+name:fName.value,
+price:+fPrice.value,
+qty:+fQty.value||1
+};
+if(obj.type==='deposit') obj.qty=1;
+data.push(obj);
+localStorage.setItem('trade_log',JSON.stringify(data));
+closeModal();render();
+}
+
+function renderLogs(d){
+const box=document.getElementById('dayLogs');
+const logs=data.filter(x=>x.date===d);
+box.innerHTML=logs.map(l=>{
+if(l.type==='deposit') return `<div class="log-item deposit">예수금 +${l.price.toLocaleString()}</div>`;
+return `<div class="log-item">${l.type} ${l.name}</div>`;
+}).join('')||'기록 없음';
+}
+
+render();
 </script>
-
 </body>
 </html>
