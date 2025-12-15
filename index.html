@@ -4,139 +4,160 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>주식 매매일지</title>
-<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+<link rel="stylesheet" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css"/>
 <style>
 :root{
 --primary:#2563eb;
---red:#f87171; --red-bg:#fef2f2; --red-text:#b91c1c;
---blue:#60a5fa; --blue-bg:#eff6ff; --blue-text:#1d4ed8;
---gray:#64748b; --gray-bg:#f1f5f9; --gray-text:#334155;
---green-bg:#f0fdf4; --green-text:#166534; --green-border:#22c55e;
---bg:#f8fafc; --surface:#fff;
---text-main:#1e293b; --text-sub:#64748b;
---border:#e2e8f0;
---shadow:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -1px rgba(0,0,0,.06);
+--red:#b91c1c; --blue:#1d4ed8;
+--gray:#64748b;
+--green:#16a34a;
+--bg:#f8fafc; --card:#fff; --border:#e2e8f0;
+--shadow:0 4px 6px rgba(0,0,0,.08);
 }
-body{font-family:Pretendard,sans-serif;background:var(--bg);margin:0;padding:40px 20px}
+body{font-family:Pretendard,sans-serif;background:var(--bg);margin:0;padding:30px}
 .container{max-width:1100px;margin:auto}
-.main-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
-.main-title{font-size:24px;font-weight:800}
-.data-controls button{padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:#fff;cursor:pointer;font-weight:600;font-size:13px}
-.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px;margin-bottom:20px}
-.stat-card{background:#fff;padding:20px;border-radius:16px;border:1px solid var(--border);box-shadow:var(--shadow)}
-.stat-card h3{font-size:13px;color:var(--text-sub);margin:0 0 6px}
-.stat-card p{font-size:22px;font-weight:800;margin:0}
-.text-up{color:var(--red-text)}
-.text-down{color:var(--blue-text)}
+h1{margin:0 0 20px;font-size:26px}
 
-.calendar-header{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:15px 20px;border-radius:16px;border:1px solid var(--border);box-shadow:var(--shadow)}
-.btn-nav{background:var(--bg);border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600}
-.calendar-wrapper{margin-top:10px;background:#fff;padding:20px;border-radius:16px;border:1px solid var(--border);box-shadow:var(--shadow)}
-.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:10px}
-.day-header{text-align:center;font-weight:600;color:var(--text-sub)}
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.box{background:var(--card);padding:16px;border-radius:14px;border:1px solid var(--border);box-shadow:var(--shadow)}
+.box h3{margin:0;font-size:13px;color:#64748b}
+.box p{margin:6px 0 0;font-size:22px;font-weight:800}
+
+.calendar-header{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:14px 18px;border-radius:14px;border:1px solid var(--border)}
+.calendar{margin-top:10px;background:#fff;padding:20px;border-radius:14px;border:1px solid var(--border);display:grid;grid-template-columns:repeat(7,1fr);gap:10px}
+.day-header{text-align:center;font-weight:600;color:#64748b}
 .day{border:1px solid var(--border);border-radius:12px;min-height:110px;padding:8px;cursor:pointer}
-.day.today{border-color:var(--primary)}
-.day-num{font-size:14px;font-weight:600;color:var(--text-sub)}
-.badge{font-size:11px;padding:5px 8px;border-radius:6px;margin-top:4px}
-.badge.buy{background:var(--red-bg);color:var(--red-text)}
-.badge.sell-profit{background:#fff1f2;color:#be123c}
-.badge.sell-loss{background:#eff6ff;color:#1d4ed8}
-.badge.other{background:var(--gray-bg);color:var(--gray-text)}
-.badge.deposit{background:var(--green-bg);color:var(--green-text);border-left:3px solid var(--green-border)}
+.day:hover{border-color:var(--primary)}
+.day-num{font-weight:700;color:#475569}
+.badge{font-size:11px;margin-top:4px;padding:4px 6px;border-radius:6px}
+.buy{background:#fee2e2;color:var(--red)}
+.sellP{background:#fff1f2;color:#be123c}
+.sellL{background:#eff6ff;color:var(--blue)}
+.other{background:#f1f5f9;color:#475569}
+.deposit{background:#f0fdf4;color:var(--green);border-left:3px solid var(--green)}
 
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.4);backdrop-filter:blur(4px);justify-content:center;align-items:center}
-.modal{background:#fff;border-radius:20px;width:480px;max-width:95%;max-height:85vh;overflow:hidden;display:flex;flex-direction:column}
-.modal-header{padding:15px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between}
-.modal-body{padding:20px;overflow-y:auto}
+.modal{background:#fff;border-radius:18px;width:420px;max-width:95%}
+.modal-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between}
+.modal-body{padding:18px}
 .form-group{margin-bottom:12px}
-.form-group label{font-size:13px;font-weight:600;color:var(--text-sub)}
-.form-group input,.form-group select{width:100%;padding:10px;border:1px solid var(--border);border-radius:8px}
-.btn-group{display:flex;gap:10px;margin-top:15px}
-.btn{flex:1;padding:12px;border:none;border-radius:8px;font-weight:700;cursor:pointer}
-.btn-save{background:#111827;color:#fff}
-.btn-close{background:#e5e7eb}
-
-.log-item{border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px;display:flex;justify-content:space-between}
-.log-title{font-weight:700;font-size:14px}
-.log-desc{font-size:12px;color:var(--text-sub)}
-.green-text{color:var(--green-text);font-weight:600}
+label{font-size:13px;font-weight:600}
+input,select{width:100%;padding:9px;border-radius:8px;border:1px solid var(--border)}
+.btns{display:flex;gap:10px;margin-top:15px}
+button{flex:1;padding:11px;border-radius:8px;border:none;font-weight:700;cursor:pointer}
+.save{background:#111827;color:#fff}
+.close{background:#e5e7eb}
 </style>
 </head>
 
 <body>
 <div class="container">
-<div class="main-header">
-<h1 class="main-title">하루 20만 목표!!!</h1>
-<div class="data-controls">
-<button onclick="exportData()">💾 백업</button>
-<button onclick="document.getElementById('fileInput').click()">📂 복구</button>
-<input type="file" id="fileInput" hidden onchange="importData(this)">
-</div>
-</div>
+<h1>하루 20만 목표!!!</h1>
 
-<div class="summary-grid">
-<div class="stat-card"><h3>총 누적 손익</h3><p id="totalProfit">0원</p></div>
-<div class="stat-card"><h3>이번 달 수익</h3><p id="monthProfit">0원</p></div>
-<div class="stat-card"><h3>평균 손익</h3><p id="avgProfit">0원</p></div>
-<div class="stat-card"><h3>베스트 종목</h3><p id="bestStock">-</p></div>
+<div class="summary">
+<div class="box"><h3>총 누적 손익</h3><p id="tp">0원</p></div>
+<div class="box"><h3>이번 달 수익</h3><p id="mp">0원</p></div>
+<div class="box"><h3>평균 손익</h3><p id="avg">0원</p></div>
+<div class="box"><h3>베스트</h3><p id="best">-</p></div>
 </div>
 
 <div class="calendar-header">
-<button class="btn-nav" onclick="changeMonth(-1)">◀</button>
-<h2 id="currentMonthLabel"></h2>
-<button class="btn-nav" onclick="changeMonth(1)">▶</button>
+<button onclick="chg(-1)">◀</button>
+<h2 id="ym"></h2>
+<button onclick="chg(1)">▶</button>
 </div>
-<div class="calendar-wrapper">
-<div class="calendar" id="calendarGrid"></div>
+<div class="calendar" id="cal"></div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal">
+<div class="modal">
+<div class="modal-header">
+<h3>거래 입력</h3>
+<button onclick="closeM()">×</button>
+</div>
+<div class="modal-body">
+<div class="form-group"><label>날짜</label><input type="date" id="d"></div>
+<div class="form-group">
+<label>구분</label>
+<select id="t">
+<option value="buy">매수</option>
+<option value="sell">매도</option>
+<option value="other">기타(예수금)</option>
+</select>
+</div>
+<div class="form-group"><label>종목 / 내용</label><input id="n"></div>
+<div class="form-group"><label>금액</label><input type="number" id="p"></div>
+<div class="btns">
+<button class="close" onclick="closeM()">취소</button>
+<button class="save" onclick="save()">저장</button>
+</div>
+</div>
 </div>
 </div>
 
 <script>
-let currentDate=new Date();
-let transactions=JSON.parse(localStorage.getItem('stockData_final'))||[];
+let cd=new Date();
+let data=JSON.parse(localStorage.getItem('stock_final'))||[];
 
-function formatMoney(n){return n.toLocaleString()+'원'}
+function $(i){return document.getElementById(i)}
+function money(n){return n.toLocaleString()+'원'}
 
-function updateSummary(){
-let tp=0,mp=0,sc=0,sum=0,best=-1,bestName='-';
-let cm=`${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}`;
-transactions.forEach(t=>{
-if(t.type==='sell'){tp+=t.profit;sum+=t.profit;sc++;if(t.date.startsWith(cm))mp+=t.profit;if(t.profit>best){best=t.profit;bestName=t.name}}
+function openM(date){
+$('modal').style.display='flex';
+$('d').value=date;
+$('n').value=''; $('p').value=''; $('t').value='buy';
+}
+function closeM(){ $('modal').style.display='none' }
+
+function save(){
+if(!$('n').value||!$('p').value)return alert('입력 확인');
+data.push({
+id:Date.now(),
+date:$('d').value,
+type:$('t').value,
+name:$('n').value,
+price:Number($('p').value),
+profit:$('t').value==='sell'?Number($('p').value):0
+});
+localStorage.setItem('stock_final',JSON.stringify(data));
+closeM(); render(); summary();
+}
+
+function render(){
+const y=cd.getFullYear(),m=cd.getMonth();
+$('ym').innerText=`${y}년 ${m+1}월`;
+$('cal').innerHTML='';
+['일','월','화','수','목','금','토'].forEach(d=>$('cal').innerHTML+=`<div class="day-header">${d}</div>`);
+for(let i=0;i<new Date(y,m,1).getDay();i++)$('cal').innerHTML+='<div></div>';
+for(let d=1;d<=new Date(y,m+1,0).getDate();d++){
+let ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+let logs=data.filter(x=>x.date===ds);
+let h=`<div class="day" onclick="openM('${ds}')"><div class="day-num">${d}</div>`;
+logs.forEach(l=>{
+if(l.type==='buy')h+=`<div class="badge buy">${l.name}</div>`;
+if(l.type==='sell')h+=`<div class="badge ${l.profit>=0?'sellP':'sellL'}">${l.name}</div>`;
+if(l.type==='other')h+=`<div class="badge ${l.price>0?'deposit':'other'}">${l.name}</div>`;
+});
+$('cal').innerHTML+=h+'</div>';
+}
+}
+
+function summary(){
+let tp=0,mp=0,c=0,sum=0,bp=-1,bn='-';
+let cm=`${cd.getFullYear()}-${String(cd.getMonth()+1).padStart(2,'0')}`;
+data.forEach(t=>{
+if(t.type==='sell'){tp+=t.profit;sum+=t.profit;c++;if(t.date.startsWith(cm))mp+=t.profit;if(t.profit>bp){bp=t.profit;bn=t.name}}
 if(t.type==='other'){tp+=t.price;if(t.date.startsWith(cm))mp+=t.price}
 });
-document.getElementById('totalProfit').innerText=formatMoney(tp);
-document.getElementById('monthProfit').innerText=formatMoney(mp);
-document.getElementById('avgProfit').innerText=formatMoney(sc?Math.round(sum/sc):0);
-document.getElementById('bestStock').innerText=best>0?bestName:'-';
+$('tp').innerText=money(tp);
+$('mp').innerText=money(mp);
+$('avg').innerText=money(c?Math.round(sum/c):0);
+$('best').innerText=bp>0?bn:'-';
 }
 
-function renderCalendar(){
-const grid=document.getElementById('calendarGrid');
-grid.innerHTML='';
-const y=currentDate.getFullYear(),m=currentDate.getMonth();
-document.getElementById('currentMonthLabel').innerText=`${y}년 ${m+1}월`;
-['일','월','화','수','목','금','토'].forEach(d=>grid.innerHTML+=`<div class="day-header">${d}</div>`);
-const first=new Date(y,m,1).getDay();
-const last=new Date(y,m+1,0).getDate();
-for(let i=0;i<first;i++)grid.innerHTML+='<div></div>';
-for(let d=1;d<=last;d++){
-const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-let logs=transactions.filter(t=>t.date===ds);
-let html=`<div class="day"><div class="day-num">${d}</div>`;
-logs.forEach(l=>{
-if(l.type==='buy')html+=`<div class="badge buy">${l.name}</div>`;
-if(l.type==='sell')html+=`<div class="badge ${l.profit>=0?'sell-profit':'sell-loss'}">${l.name}</div>`;
-if(l.type==='other')html+=`<div class="badge ${l.price>0?'deposit':'other'}">${l.name}</div>`;
-});
-grid.innerHTML+=html+'</div>';
-}
-}
-
-function changeMonth(v){currentDate.setMonth(currentDate.getMonth()+v);renderCalendar();updateSummary()}
-function exportData(){const d=JSON.stringify(transactions);const a=document.createElement('a');a.href='data:application/json,'+encodeURIComponent(d);a.download='stock_backup.json';a.click()}
-function importData(i){const r=new FileReader();r.onload=e=>{transactions=JSON.parse(e.target.result);localStorage.setItem('stockData_final',JSON.stringify(transactions));location.reload()};r.readAsText(i.files[0])}
-
-renderCalendar();updateSummary();
+function chg(v){cd.setMonth(cd.getMonth()+v);render();summary()}
+render();summary();
 </script>
 </body>
 </html>
