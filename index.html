@@ -26,7 +26,7 @@
         .data-controls button { padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); background: white; cursor: pointer; font-weight: 600; color: var(--text-sub); font-size: 13px; transition: 0.2s; }
         .data-controls button:hover { background: #f1f5f9; color: var(--text-main); }
 
-        .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px; }
         .stat-card { background: var(--surface); padding: 20px; border-radius: 16px; box-shadow: var(--shadow); border: 1px solid var(--border); display: flex; flex-direction: column; justify-content: center; }
         .stat-card h3 { margin: 0 0 8px 0; font-size: 13px; color: var(--text-sub); font-weight: 600; }
         .stat-card p { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
@@ -101,6 +101,7 @@
     <div class="summary-grid">
         <div class="stat-card"><h3>💰 총 누적 손익</h3><p id="totalProfit" class="text-neutral">0원</p></div>
         <div class="stat-card"><h3>📉 이번 달 수익</h3><p id="monthProfit" class="text-neutral">0원</p></div>
+        <div class="stat-card"><h3>🌞 금일 수익</h3><p id="todayProfit" class="text-neutral">0원</p></div>
         <div class="stat-card"><h3>⚖️ 평균 손익 (1회)</h3><p id="avgProfit" class="text-neutral">0원</p></div>
         <div class="stat-card"><h3>🏆 베스트</h3><p id="bestStock" class="text-neutral">-</p></div>
     </div>
@@ -397,18 +398,33 @@
         localStorage.setItem('stockData_v7', JSON.stringify(transactions));
         renderLog(document.getElementById('inputDate').value); renderHold(); renderCalendar(); updateSummary(); renderChart(); // 차트 업데이트
     }
+    
     function updateSummary(){
-        let tp=0, mp=0, sc=0, sps=0, maxP=-Infinity, maxN="없음", cm=`${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}`;
+        let tp=0, mp=0, dp=0, sc=0, sps=0, maxP=-Infinity, maxN="없음";
+        let todayDate = new Date();
+        // 오늘 날짜 문자열 생성 (YYYY-MM-DD)
+        let todayStr = `${todayDate.getFullYear()}-${String(todayDate.getMonth()+1).padStart(2,'0')}-${String(todayDate.getDate()).padStart(2,'0')}`;
+        // 현재 달력의 월
+        let cm=`${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}`;
+
         transactions.forEach(t=>{
             if(t.type==='sell'){
                 let p=(t.profit||0); tp+=p; sps+=p; sc++;
                 if(t.date.startsWith(cm)){ mp+=p; if(p>maxP){maxP=p; maxN=t.name;} }
+                if(t.date === todayStr) { dp += p; } // 금일 수익
             } else if(t.type==='other'){
-                tp+=t.price; if(t.date.startsWith(cm)) mp+=t.price;
+                tp+=t.price; 
+                if(t.date.startsWith(cm)) mp+=t.price;
+                if(t.date === todayStr) dp += t.price; // 금일 기타 수익
             }
         });
+
         document.getElementById('totalProfit').innerText=formatMoney(tp); document.getElementById('totalProfit').className=tp>=0?'text-up':'text-down';
         document.getElementById('monthProfit').innerText=formatMoney(mp); document.getElementById('monthProfit').className=mp>=0?'text-up':'text-down';
+        
+        // 금일 수익 DOM 업데이트
+        document.getElementById('todayProfit').innerText=formatMoney(dp); document.getElementById('todayProfit').className=dp>=0?'text-up':'text-down';
+
         let avg=sc>0?Math.round(sps/sc):0;
         document.getElementById('avgProfit').innerText=formatMoney(avg); document.getElementById('avgProfit').className=avg>=0?'text-up':'text-down';
         document.getElementById('bestStock').innerHTML = (maxP!==-Infinity && maxP>0) ? `🏆 ${maxN} <span class="sub-text text-up">(+${(maxP/10000).toFixed(0)}만)</span>` : "-";
