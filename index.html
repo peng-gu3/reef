@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>트레이더 매매일지 (Final+Today)</title>
+    <title>매매일지 (Final Design)</title>
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <style>
         :root {
             --red: #ef4444; --red-bg: #fef2f2; --red-text: #b91c1c;
@@ -16,15 +17,15 @@
             --text-main: #0f172a; --text-sub: #64748b;
             --border: #e2e8f0;
             --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            --primary-gradient: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
         }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: var(--text-main); margin: 0; padding: 30px 15px; line-height: 1.4; font-size: 14px; }
-        .container { max-width: 1200px; margin: 0 auto; }
+        
+        /* 캡처 시 배경이 흰색이 되도록 컨테이너 설정 */
+        .container { max-width: 1200px; margin: 0 auto; background: var(--surface); padding: 20px; border-radius: 20px; box-shadow: var(--shadow); }
         
         /* 헤더 & 컨트롤 */
         .main-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
         .main-title { font-size: 24px; font-weight: 900; margin: 0; letter-spacing: -0.5px; display:flex; align-items:center; gap:10px; }
-        
         .control-group { display:flex; gap:8px; align-items:center; }
         .util-btn { padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); background: white; cursor: pointer; font-weight: 700; color: var(--text-sub); font-size: 13px; transition: 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); display:flex; align-items:center; gap:5px; }
         .util-btn:hover { background: #f8fafc; color: var(--text-main); transform: translateY(-1px); }
@@ -40,14 +41,13 @@
         body.privacy-mode .dashboard-row,
         body.privacy-mode .search-bar { display: none !important; }
         body.privacy-mode .day .badge,
-        body.privacy-mode .day .profit-pos,
-        body.privacy-mode .day .profit-neg,
-        body.privacy-mode .day .dot-indicator { display: none !important; }
+        body.privacy-mode .day .profit-val { display: none !important; } /* 수익금 텍스트 숨김 */
+        body.privacy-mode .day-emoji { display:none !important; } /* 이모지 숨김 */
 
         .summary-wrapper { transition: all 0.3s ease; }
         
         .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 20px; }
-        .stat-card { background: var(--surface); padding: 15px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid var(--border); display: flex; flex-direction: column; justify-content: center; position: relative; overflow: hidden; }
+        .stat-card { background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid var(--border); display: flex; flex-direction: column; justify-content: center; }
         .stat-card h3 { margin: 0 0 5px 0; font-size: 11px; color: var(--text-sub); font-weight: 700; text-transform: uppercase; }
         .stat-card p { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -0.5px; z-index: 1; }
         .stat-card .sub-stat { font-size: 11px; color: #94a3b8; font-weight: 500; margin-top: 2px; }
@@ -56,12 +56,12 @@
         /* 차트 영역 */
         .charts-row { display: grid; grid-template-columns: 2fr 1fr; gap: 15px; margin-bottom: 20px; }
         @media (max-width: 768px) { .charts-row { grid-template-columns: 1fr; } }
-        .chart-card { background: var(--surface); padding: 15px; border-radius: 12px; border: 1px solid var(--border); box-shadow: var(--shadow); height: 250px; position: relative; }
+        .chart-card { background: var(--surface); padding: 15px; border-radius: 12px; border: 1px solid var(--border); height: 250px; position: relative; }
         
         /* 대시보드 (리스트) */
         .dashboard-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
         @media (max-width: 768px) { .dashboard-row { grid-template-columns: 1fr; } }
-        .panel { background: var(--surface); border-radius: 12px; padding: 15px; box-shadow: var(--shadow); border: 1px solid var(--border); height: 300px; overflow-y: auto; display: flex; flex-direction: column; }
+        .panel { background: var(--surface); border-radius: 12px; padding: 15px; border: 1px solid var(--border); height: 300px; overflow-y: auto; display: flex; flex-direction: column; }
         .panel-header { font-size: 14px; font-weight: 800; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid var(--bg); padding-bottom: 8px; }
         
         .history-list { flex: 1; overflow-y: auto; }
@@ -72,32 +72,36 @@
         .item-memo { font-size: 11px; color: var(--text-sub); background:#f8fafc; padding:2px 4px; border-radius:4px; margin-top:2px; width:fit-content; }
         .item-val { font-weight: 700; text-align: right; }
         
-        /* 뱃지 */
+        /* 뱃지 (꽉 찬 스타일로 복구) */
         .badge-mini { font-size: 10px; padding: 2px 5px; border-radius: 4px; margin-right: 5px; font-weight: 700; display: inline-block; min-width: 24px; text-align: center; }
         .badge-red { background: var(--red-bg); color: var(--red-text); }
         .badge-blue { background: var(--blue-bg); color: var(--blue-text); }
         .badge-green { background: var(--green-bg); color: var(--green-text); }
 
         /* 달력 */
-        .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: var(--surface); padding: 10px 15px; border-radius: 12px; box-shadow: var(--shadow); }
+        .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: var(--bg); padding: 10px 15px; border-radius: 12px; }
         .calendar-header h2 { margin: 0; font-size: 18px; font-weight: 800; }
-        .btn-nav { background: var(--bg); border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 700; color: var(--text-sub); }
-        .btn-nav:hover { background: #e2e8f0; color: var(--text-main); }
+        .btn-nav { background: white; border: 1px solid var(--border); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 700; color: var(--text-sub); }
+        .btn-nav:hover { background: #f1f5f9; color: var(--text-main); }
 
-        .calendar-wrapper { background: var(--surface); border-radius: 12px; box-shadow: var(--shadow); padding: 15px; border: 1px solid var(--border); }
+        .calendar-wrapper { background: var(--surface); border-radius: 12px; border: 1px solid var(--border); padding: 15px; }
         .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
         .day-header { text-align: center; font-weight: 700; color: var(--text-sub); padding-bottom: 5px; font-size: 12px; }
         .day { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; min-height: 100px; padding: 6px; cursor: pointer; display: flex; flex-direction: column; gap: 4px; position: relative; transition: 0.1s; }
         .day:hover { border-color: var(--blue); z-index: 10; transform: scale(1.02); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .day.today { background: #f8fafc; border-color: var(--blue); }
-        .day-num { font-size: 12px; font-weight: 700; color: var(--text-sub); display:flex; justify-content:space-between; }
-        .day.today .day-num span:first-child { background: var(--blue); color: white; border-radius: 50%; width: 20px; height: 20px; display: flex; justify-content: center; align-items: center; }
+        .day.today { border-color: var(--blue); border-width: 2px; }
         
-        .badge { font-size: 10px; padding: 3px 6px; border-radius: 4px; font-weight: 600; display:flex; flex-direction:column; gap:1px; margin-bottom:2px; box-shadow: 0 1px 1px rgba(0,0,0,0.05); }
-        .badge.red-theme { background: var(--red-bg); color: var(--red-text); border: 1px solid rgba(248,113,113,0.3); }
-        .badge.blue-theme { background: var(--blue-bg); color: var(--blue-text); border: 1px solid rgba(59,130,246,0.3); }
-        .badge.green-theme { background: var(--green-bg); color: var(--green-text); border: 1px solid rgba(34,197,94,0.3); }
-        .badge.sold-out { opacity: 0.5; text-decoration: line-through; filter: grayscale(100%); }
+        .day-num-wrapper { display:flex; justify-content:space-between; align-items:center; margin-bottom:2px; }
+        .day-num { font-size: 12px; font-weight: 700; color: var(--text-sub); }
+        .day.today .day-num { background: var(--blue); color: white; border-radius: 50%; width: 20px; height: 20px; display: flex; justify-content: center; align-items: center; }
+        .day-emoji { font-size:14px; } /* 이모지 스타일 */
+
+        /* 뱃지 (꽉 찬 스타일로 수정) */
+        .badge { font-size: 10px; padding: 3px 6px; border-radius: 4px; font-weight: 600; display:flex; flex-direction:column; gap:1px; margin-bottom:2px; }
+        .badge.red-theme { background: var(--red-bg); color: var(--red-text); border: 1px solid rgba(248,113,113,0.2); }
+        .badge.blue-theme { background: var(--blue-bg); color: var(--blue-text); border: 1px solid rgba(59,130,246,0.2); }
+        .badge.green-theme { background: var(--green-bg); color: var(--green-text); border: 1px solid rgba(34,197,94,0.2); }
+        .badge.sold-out { opacity: 0.6; text-decoration: line-through; background:#f1f5f9; color:#94a3b8; border-color:#e2e8f0; }
         .badge-row { display:flex; justify-content:space-between; }
         
         /* 계산기 모달 */
@@ -107,7 +111,7 @@
         .calc-result-box { background:var(--bg); padding:15px; border-radius:8px; text-align:center; margin-top:15px; border:1px solid var(--border); }
         .calc-result-val { font-size:20px; font-weight:800; color:var(--blue-text); }
 
-        /* 공통 모달 오버레이 */
+        /* 모달 공통 */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(2px); z-index: 2000; justify-content: center; align-items: center; }
         .modal { background: white; border-radius: 16px; width: 450px; max-width: 95%; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; }
         .modal-header { padding: 15px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background:#f8fafc; }
@@ -125,16 +129,16 @@
         .log-item { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
         .btn-row button { margin-left: 4px; padding: 3px 6px; font-size: 11px; cursor: pointer; border-radius: 4px; border: 1px solid #cbd5e1; background: #fff; font-weight:600; }
         
-        /* 수익 텍스트 강조 */
         .profit-pos { color: #ef4444; font-weight:800; }
         .profit-neg { color: #3b82f6; font-weight:800; }
     </style>
 </head>
 <body>
-<div class="container">
+<div class="container" id="captureTarget">
     <div class="main-header">
-        <h1 class="main-title">🚀 매매일지 (Final)</h1>
+        <h1 class="main-title">🚀 매매일지 (Final Design)</h1>
         <div class="control-group">
+            <button class="util-btn" onclick="captureScreen()">📷 스크린샷</button>
             <button class="util-btn" onclick="openCalc()">🧮 물타기 계산기</button>
             <button class="util-btn active" id="togglePrivacyBtn" onclick="togglePrivacy()">🔒 달력만 보기</button>
             <div style="width:1px; height:20px; background:var(--border); margin:0 5px;"></div>
@@ -158,7 +162,6 @@
             <div class="stat-card"><h3>⚖️ 평균 손익비</h3><p id="avgRatio">0:0</p><div class="sub-stat">평균익:평균손</div></div>
             <div class="stat-card"><h3>⏱️ 평균 보유일</h3><p id="avgHold">0일</p></div>
         </div>
-        
         <div class="charts-row">
             <div class="chart-card"><canvas id="assetChart"></canvas></div>
             <div class="chart-card"><canvas id="winLossChart"></canvas></div>
@@ -222,7 +225,10 @@
                             <option value="other">기타 (예수금)</option>
                         </select>
                     </div>
-                    <div class="form-group"><label id="nameLabel">종목명</label><input type="text" id="inputName" placeholder="종목명"></div>
+                    <div class="form-group">
+                        <label id="nameLabel">종목명</label>
+                        <input type="text" id="inputName" placeholder="종목명 입력">
+                    </div>
                 </div>
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                     <div class="form-group"><label id="priceLabel">단가</label><input type="number" id="inputPrice" placeholder="원" oninput="calc()"></div>
@@ -254,21 +260,32 @@
     function formatMoney(n){ return n.toLocaleString()+'원'; }
     function getHoldingDays(d){ return Math.ceil((new Date().setHours(0,0,0,0) - new Date(d).setHours(0,0,0,0))/(1000*60*60*24)); }
 
-    // --- 시크릿 모드 토글 (달력만 남기기) ---
+    // --- 스크린샷 캡처 (회색 여백 해결: 흰색 배경 강제 적용) ---
+    function captureScreen() {
+        const target = document.getElementById('captureTarget');
+        html2canvas(target, {
+            backgroundColor: "#ffffff", // 배경을 흰색으로 고정
+            scale: 2 // 고해상도
+        }).then(canvas => {
+            let link = document.createElement('a');
+            link.download = 'trading_journal.png';
+            link.href = canvas.toDataURL("image/png");
+            link.click();
+        });
+    }
+
+    // --- 시크릿 모드 ---
     function togglePrivacy() {
         document.body.classList.toggle('privacy-mode');
         const btn = document.getElementById('togglePrivacyBtn');
-        
         if (document.body.classList.contains('privacy-mode')) {
-            btn.innerText = '🔓 전체 보기';
-            btn.classList.remove('active');
+            btn.innerText = '🔓 전체 보기'; btn.classList.remove('active');
         } else {
-            btn.innerText = '🔒 달력만 보기';
-            btn.classList.add('active');
+            btn.innerText = '🔒 달력만 보기'; btn.classList.add('active');
         }
     }
 
-    // --- 계산기 기능 ---
+    // --- 계산기 ---
     function openCalc() { document.getElementById('calcModal').style.display='block'; }
     function closeCalc() { document.getElementById('calcModal').style.display='none'; }
     function runCalc() {
@@ -281,21 +298,18 @@
         let tAmt = (cp*cq)+(ap*aq);
         let tQty = cq+aq;
         let avg = tAmt/tQty;
-        
         document.getElementById('c_resultAvg').innerText = Math.round(avg).toLocaleString()+'원';
         document.getElementById('c_resultQty').innerText = tQty.toLocaleString();
         document.getElementById('c_resultAmt').innerText = (Math.round(tAmt/10000)).toLocaleString()+'만';
     }
 
-    // --- 통계 및 차트 업데이트 ---
+    // --- 통계 업데이트 ---
     function updateSummary() {
         let tp=0, mp=0, dp=0, sc=0, lc=0, totalWinAmt=0, totalLossAmt=0;
         let totalHoldDays=0, holdCount=0;
-        
         let todayStr = new Date().toISOString().split('T')[0];
         let cm = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}`;
-
-        // 자산 차트용 데이터
+        
         let dateMap = new Map();
         let runningTotal = 0;
         let sorted = [...transactions].sort((a,b)=>new Date(a.date)-new Date(b.date));
@@ -305,11 +319,8 @@
                 let p = t.profit || 0;
                 tp += p;
                 if(t.date.startsWith(cm)) mp += p;
-                if(t.date === todayStr) dp += p; // 금일 수익 계산
-                
-                if(p >= 0) { sc++; totalWinAmt += p; }
-                else { lc++; totalLossAmt += Math.abs(p); }
-
+                if(t.date === todayStr) dp += p;
+                if(p >= 0) { sc++; totalWinAmt += p; } else { lc++; totalLossAmt += Math.abs(p); }
                 let buyT = transactions.find(x=>x.id===t.linkedBuyId);
                 if(buyT) {
                     let diff = Math.ceil((new Date(t.date) - new Date(buyT.date))/(1000*60*60*24));
@@ -325,12 +336,10 @@
             dateMap.set(t.date, runningTotal);
         });
 
-        // DOM 업데이트
         document.getElementById('totalProfit').innerText = formatMoney(tp);
         document.getElementById('totalProfit').className = tp>=0 ? 'text-up':'text-down';
         document.getElementById('monthProfit').innerText = formatMoney(mp);
         document.getElementById('monthProfit').className = mp>=0 ? 'text-up':'text-down';
-        // [NEW] 금일 수익 DOM 업데이트
         document.getElementById('todayProfit').innerText = formatMoney(dp);
         document.getElementById('todayProfit').className = dp>=0 ? 'text-up':'text-down';
 
@@ -341,12 +350,10 @@
 
         let pf = totalLossAmt > 0 ? (totalWinAmt / totalLossAmt).toFixed(2) : (totalWinAmt>0 ? '∞' : '0.0');
         document.getElementById('profitFactor').innerText = pf;
-        document.getElementById('profitFactor').style.color = pf >= 2.0 ? '#ef4444' : (pf >= 1.0 ? '#0f172a' : '#3b82f6');
-
+        
         let avgWin = sc > 0 ? Math.round(totalWinAmt / sc) : 0;
         let avgLoss = lc > 0 ? Math.round(totalLossAmt / lc) : 0;
         document.getElementById('avgRatio').innerText = `${(avgWin/10000).toFixed(1)} : ${(avgLoss/10000).toFixed(1)}`;
-        
         let avgHold = holdCount > 0 ? (totalHoldDays / holdCount).toFixed(1) : 0;
         document.getElementById('avgHold').innerText = `${avgHold}일`;
 
@@ -376,17 +383,12 @@
             type: 'doughnut',
             data: {
                 labels: ['수익', '손실'],
-                datasets: [{
-                    data: [sc, lc],
-                    backgroundColor: ['#ef4444', '#3b82f6'],
-                    borderWidth: 0
-                }]
+                datasets: [{ data: [sc, lc], backgroundColor: ['#ef4444', '#3b82f6'], borderWidth: 0 }]
             },
             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: {position:'bottom'} } }
         });
     }
 
-    // --- 검색 기능 ---
     function handleSearch(){
         let query = document.getElementById('searchInput').value.toLowerCase();
         let filtered = transactions.filter(t => t.name.toLowerCase().includes(query));
@@ -397,19 +399,17 @@
     function renderDashboard(sourceData = transactions) {
         const recentBox = document.getElementById('recentHistoryList');
         let sorted = [...sourceData].sort((a,b) => new Date(b.date) - new Date(a.date) || b.id - a.id).slice(0, 15);
-        
         let html = '';
         if(sorted.length === 0) html = '<div style="text-align:center; color:#ccc; padding:20px;">기록 없음</div>';
         else {
             sorted.forEach(t => {
                 let badgeClass='', badgeText='', valText='';
                 if(t.type === 'buy') { badgeClass='badge-red'; badgeText='매수'; valText=`${t.qty}주`; }
-                else if(t.type === 'sell') { 
-                    badgeClass = (t.profit>=0) ? 'badge-red' : 'badge-blue'; 
-                    badgeText='매도'; valText=`${(t.profit||0).toLocaleString()}원`; 
-                } else { badgeClass='badge-green'; badgeText='기타'; valText=`${t.price.toLocaleString()}원`; }
+                else if(t.type === 'sell') { badgeClass = (t.profit>=0) ? 'badge-red' : 'badge-blue'; badgeText='매도'; valText=`${(t.profit||0).toLocaleString()}원`; } 
+                else { badgeClass='badge-green'; badgeText='기타'; valText=`${t.price.toLocaleString()}원`; }
                 
                 let memoHtml = t.memo ? `<div class="item-memo">📝 ${t.memo}</div>` : '';
+
                 html += `<div class="history-item">
                     <div class="item-info"><div><span class="badge-mini ${badgeClass}">${badgeText}</span> <span class="item-name">${t.name}</span></div><span class="item-date">${t.date}</span>${memoHtml}</div>
                     <div class="item-val" style="color:${(t.type==='sell' && t.profit<0)?'var(--blue-text)':'inherit'}">${valText}</div>
@@ -430,7 +430,7 @@
         topBox.innerHTML = html2;
     }
 
-    // --- 달력 및 기본 로직 ---
+    // --- 달력 (텍스트 히트맵 적용 + 이모지 복구) ---
     function renderCalendar(){
         const grid=document.getElementById('calendarGrid'), y=currentDate.getFullYear(), m=currentDate.getMonth();
         document.getElementById('currentMonthLabel').innerText=`${y}년 ${m+1}월`;
@@ -438,15 +438,46 @@
         const first=new Date(y,m,1).getDay(), last=new Date(y,m+1,0).getDate();
         for(let i=0;i<first;i++) grid.innerHTML+=`<div class="day" style="opacity:0; pointer-events:none;"></div>`;
 
+        // [히트맵] 이번달 최대 수익/손실 구하기
+        let maxProfitInMonth = 0;
+        for(let i=1; i<=last; i++) {
+            const dStr = `${y}-${String(m+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+            let dailySum = 0;
+            transactions.filter(t=>t.date===dStr && t.type==='sell').forEach(l=> dailySum += (l.profit||0));
+            if(Math.abs(dailySum) > maxProfitInMonth) maxProfitInMonth = Math.abs(dailySum);
+        }
+
         for(let i=1;i<=last;i++){
             const dStr=`${y}-${String(m+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
             const isToday=new Date().toISOString().split('T')[0]===dStr;
             const logs=transactions.filter(t=>t.date===dStr);
-            let prof=0, hasSell=false;
-            logs.forEach(l=>{ if(l.type==='sell'){ hasSell=true; prof+=(l.profit||0); }});
+            let prof=0, hasSell=false, hasBuy=false;
+            logs.forEach(l=>{ 
+                if(l.type==='sell'){ hasSell=true; prof+=(l.profit||0); }
+                if(l.type==='buy') hasBuy=true;
+            });
+
+            // 이모지 (부활)
+            let emoji = '';
+            if(hasSell) emoji += (prof > 0 ? '😄' : '😭');
+            if(hasBuy) emoji += '🔥';
+
+            // 텍스트 히트맵 색상
+            let textColor = '';
+            if(hasSell && maxProfitInMonth > 0) {
+                let ratio = Math.abs(prof) / maxProfitInMonth;
+                let alpha = 0.4 + (ratio * 0.6); // 0.4~1.0
+                if(prof >= 0) textColor = `rgba(239, 68, 68, ${alpha})`;
+                else textColor = `rgba(59, 130, 246, ${alpha})`;
+            } else if(hasSell) {
+                textColor = prof >= 0 ? '#ef4444' : '#3b82f6';
+            }
 
             let html=`<div class="day ${isToday?'today':''}" onclick="openModal('${dStr}')">
-                <div class="day-num"><span>${i}</span> <span class="dot-indicator" style="font-size:10px;">${hasSell ? (prof>=0?'🔴':'🔵') : ''}</span></div>`;
+                <div class="day-num-wrapper">
+                    <span class="day-num">${i}</span>
+                    <span class="day-emoji">${emoji}</span>
+                </div>`;
             
             logs.forEach(l=>{
                 if(l.type==='buy'){
@@ -457,7 +488,8 @@
                     html+=`<div class="badge ${w?'red-theme':'blue-theme'}"><div class="badge-row"><span>${l.name}</span><span>${w?'+':''}${(l.profit/10000).toFixed(0)}</span></div></div>`;
                 }else{ html+=`<div class="badge green-theme"><div class="badge-row"><span>${l.name}</span><span>${(l.price/10000).toFixed(0)}</span></div></div>`; }
             });
-            if(hasSell) html+=`<div style="margin-top:auto; font-size:11px; font-weight:800; text-align:right;" class="${prof>=0?'profit-pos':'profit-neg'}">${prof>=0?'+':''}${prof.toLocaleString()}</div>`;
+            // 하단 수익금 (히트맵 적용)
+            if(hasSell) html+=`<div class="profit-val" style="margin-top:auto; font-size:11px; font-weight:800; text-align:right; color:${textColor};">${prof>=0?'+':''}${prof.toLocaleString()}</div>`;
             grid.innerHTML+=html+`</div>`;
         }
     }
