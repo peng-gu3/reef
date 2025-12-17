@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>주식 매매일지</title>
+    <title>매매일지</title>
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -256,7 +256,7 @@
         });
     }
 
-    // --- (기존 로직 유지) 달력/모달/저장 등 ---
+    // --- 달력/모달/저장 등 ---
     function renderCalendar(){
         const grid=document.getElementById('calendarGrid'), y=currentDate.getFullYear(), m=currentDate.getMonth();
         document.getElementById('currentMonthLabel').innerText=`${y}년 ${m+1}월`;
@@ -275,15 +275,18 @@
 
             let html=`<div class="day ${isToday?'today':''}" onclick="openModal('${dStr}')">
                 <div class="day-num-wrapper"><div class="day-num">${i}</div><div class="day-emoji">${emoji}</div></div>`;
+            
             logs.forEach(l=>{
                 if(l.type==='buy'){
                     let soldOut=l.remainingQty===0, tag=(!soldOut && getHoldingDays(l.date)>0)?`<div class="holding-tag">⏳${getHoldingDays(l.date)}일</div>`:'';
                     html+=`<div class="badge buy ${soldOut?'sold-out':''}"><div class="badge-row"><span>${l.name}</span><span>${l.remainingQty}주</span></div>${tag}</div>`;
                 }else if(l.type==='sell'){
                     let win=l.profit>=0;
-                    html+=`<div class="badge ${win?'sell-profit':'sell-loss'}"><div class="badge-row"><span>${l.name}</span><span>${win?'+':''}${(l.profit/10000).toFixed(0)}만</span></div></div>`;
+                    // [변경] 만 단위 절사 제거 -> toLocaleString()으로 변경
+                    html+=`<div class="badge ${win?'sell-profit':'sell-loss'}"><div class="badge-row"><span>${l.name}</span><span>${win?'+':''}${l.profit.toLocaleString()}</span></div></div>`;
                 }else{
-                    html+=`<div class="badge other"><div class="badge-row"><span>${l.name}</span><span>${l.price>0?'+':''}${(l.price/10000).toFixed(0)}만</span></div></div>`;
+                    // [변경] 만 단위 절사 제거 -> toLocaleString()으로 변경
+                    html+=`<div class="badge other"><div class="badge-row"><span>${l.name}</span><span>${l.price>0?'+':''}${l.price.toLocaleString()}</span></div></div>`;
                 }
             });
             grid.innerHTML+=html+`</div>`;
@@ -369,7 +372,7 @@
         }
         localStorage.setItem('stockData_v7', JSON.stringify(transactions));
         if(t==='sell' || !editingId){ if(t==='sell') closeModal(); else { document.getElementById('inputName').value=''; document.getElementById('inputPrice').value=''; if(t==='buy')document.getElementById('inputQty').value=''; renderLog(d); renderHold(); document.getElementById('modalTitle').innerText="거래 입력"; } }
-        renderCalendar(); updateSummary(); renderLog(d); renderHold(); renderChart(); // 차트 업데이트 추가
+        renderCalendar(); updateSummary(); renderLog(d); renderHold(); renderChart();
     }
 
     function renderLog(dStr){
@@ -396,38 +399,36 @@
         if(!confirm("삭제?"))return;
         transactions=transactions.filter(x=>x.id!==id);
         localStorage.setItem('stockData_v7', JSON.stringify(transactions));
-        renderLog(document.getElementById('inputDate').value); renderHold(); renderCalendar(); updateSummary(); renderChart(); // 차트 업데이트
+        renderLog(document.getElementById('inputDate').value); renderHold(); renderCalendar(); updateSummary(); renderChart(); 
     }
     
     function updateSummary(){
         let tp=0, mp=0, dp=0, sc=0, sps=0, maxP=-Infinity, maxN="없음";
         let todayDate = new Date();
-        // 오늘 날짜 문자열 생성 (YYYY-MM-DD)
         let todayStr = `${todayDate.getFullYear()}-${String(todayDate.getMonth()+1).padStart(2,'0')}-${String(todayDate.getDate()).padStart(2,'0')}`;
-        // 현재 달력의 월
         let cm=`${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}`;
 
         transactions.forEach(t=>{
             if(t.type==='sell'){
                 let p=(t.profit||0); tp+=p; sps+=p; sc++;
                 if(t.date.startsWith(cm)){ mp+=p; if(p>maxP){maxP=p; maxN=t.name;} }
-                if(t.date === todayStr) { dp += p; } // 금일 수익
+                if(t.date === todayStr) { dp += p; }
             } else if(t.type==='other'){
                 tp+=t.price; 
                 if(t.date.startsWith(cm)) mp+=t.price;
-                if(t.date === todayStr) dp += t.price; // 금일 기타 수익
+                if(t.date === todayStr) dp += t.price;
             }
         });
 
         document.getElementById('totalProfit').innerText=formatMoney(tp); document.getElementById('totalProfit').className=tp>=0?'text-up':'text-down';
         document.getElementById('monthProfit').innerText=formatMoney(mp); document.getElementById('monthProfit').className=mp>=0?'text-up':'text-down';
-        
-        // 금일 수익 DOM 업데이트
         document.getElementById('todayProfit').innerText=formatMoney(dp); document.getElementById('todayProfit').className=dp>=0?'text-up':'text-down';
-
+        
         let avg=sc>0?Math.round(sps/sc):0;
         document.getElementById('avgProfit').innerText=formatMoney(avg); document.getElementById('avgProfit').className=avg>=0?'text-up':'text-down';
-        document.getElementById('bestStock').innerHTML = (maxP!==-Infinity && maxP>0) ? `🏆 ${maxN} <span class="sub-text text-up">(+${(maxP/10000).toFixed(0)}만)</span>` : "-";
+        
+        // [변경] 만 단위 절사 제거
+        document.getElementById('bestStock').innerHTML = (maxP!==-Infinity && maxP>0) ? `🏆 ${maxN} <span class="sub-text text-up">(+${maxP.toLocaleString()}원)</span>` : "-";
     }
     init();
 </script>
