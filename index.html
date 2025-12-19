@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>매매일지 내꺼!!!!!!!!!!</title>
+    <title>매매일지 (한투 HTS 수수료 적용)</title>
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
@@ -40,8 +40,8 @@
         body.privacy-mode .summary-wrapper, 
         body.privacy-mode .dashboard-row,
         body.privacy-mode .search-bar { display: none !important; }
-        body.privacy-mode .day .profit-val { display: none !important; } /* 수익금 텍스트 숨김 */
-        body.privacy-mode .day-emoji { display:none !important; } /* 이모지 숨김 */
+        body.privacy-mode .day .profit-val { display: none !important; } 
+        body.privacy-mode .day-emoji { display:none !important; } 
 
         .summary-wrapper { transition: all 0.3s ease; }        
         .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 20px; }
@@ -137,7 +137,8 @@
 </head>
 <body>
 <div class="container" id="captureTarget">
-    <div class="main-header">🚀 하루 20만원 벌어보자!!!<h1 class="main-title">
+    <div class="main-header">
+        <h1 class="main-title">🚀 매매일지 (한투 HTS 0.014% + 세금)</h1>
         <div class="control-group">
             <button class="util-btn" onclick="captureScreen()">📷 스크린샷</button>
             <button class="util-btn" onclick="openCalc()">🧮 물타기 계산기</button>
@@ -237,7 +238,20 @@
                 </div>
                 <div class="form-group"><label>📝 매매 메모 (복기)</label><textarea id="inputMemo" rows="2" placeholder="진입/청산 이유..."></textarea></div>
                 
-                <div style="text-align: right; font-size: 13px; color: var(--text-sub); margin-top:5px;">합계: <strong id="calcTotal" style="color:var(--text-main); font-size:15px;">0</strong> 원</div>
+                <div id="feeInfoBox" style="background:#f8fafc; padding:10px; border-radius:8px; border:1px solid #e2e8f0; margin-top:5px; font-size:12px;">
+                    <div style="display:flex; justify-content:space-between; color:var(--text-sub); margin-bottom:4px;">
+                        <span>거래 금액:</span><span id="c_base">0원</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; color:var(--text-sub); margin-bottom:4px;">
+                        <span>예상 수수료/세금:</span><span id="c_fee">0원</span>
+                    </div>
+                    <div style="border-top:1px solid #e2e8f0; margin:4px 0;"></div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-weight:700;">최종 정산:</span>
+                        <strong id="calcTotal" style="color:var(--text-main); font-size:15px;">0원</strong>
+                    </div>
+                </div>
+
                 <div class="btn-group">
                     <button class="btn btn-close" onclick="closeModal()">취소</button>
                     <button class="btn btn-save" onclick="save()">저장</button>
@@ -256,6 +270,10 @@
 <script>
     let currentDate=new Date(), transactions=JSON.parse(localStorage.getItem('stockData_v7'))||[], currentMode='new', editingId=null, sellTargetName=null;
     let assetChart=null, winLossChart=null;
+
+    // 한국투자증권 HTS 기준 수수료 및 세금
+    const HTS_FEE_RATE = 0.000140527; // 0.0140527%
+    const TAX_RATE = 0.0018;          // 증권거래세+농특세 (0.18%)
 
     function init(){ renderCalendar(); updateSummary(); renderDashboard(); }
     function formatMoney(n){ return n.toLocaleString()+'원'; }
@@ -553,7 +571,38 @@
         calc();
     }
     
-    function calc(){ document.getElementById('calcTotal').innerText = (Number(document.getElementById('inputPrice').value)*Number(document.getElementById('inputQty').value)).toLocaleString(); }
+    function calc(){ 
+        let price = Number(document.getElementById('inputPrice').value);
+        let qty = Number(document.getElementById('inputQty').value);
+        let type = document.getElementById('inputType').value;
+        
+        if(!price || !qty) {
+            document.getElementById('c_base').innerText = '0원';
+            document.getElementById('c_fee').innerText = '0원';
+            document.getElementById('calcTotal').innerText = '0원';
+            return;
+        }
+
+        let baseAmount = price * qty;
+        let fee = 0, tax = 0, finalAmount = 0;
+
+        if(type === 'buy') {
+            // 매수: 원금 + 수수료 (0.0140527%)
+            fee = Math.floor(baseAmount * HTS_FEE_RATE);
+            finalAmount = baseAmount + fee;
+        } else if(type === 'sell') {
+            // 매도: 원금 - 수수료 - 세금(0.18%)
+            fee = Math.floor(baseAmount * HTS_FEE_RATE);
+            tax = Math.floor(baseAmount * TAX_RATE);
+            finalAmount = baseAmount - fee - tax;
+        } else {
+            finalAmount = baseAmount;
+        }
+
+        document.getElementById('c_base').innerText = baseAmount.toLocaleString() + '원';
+        document.getElementById('c_fee').innerText = (fee + tax).toLocaleString() + '원';
+        document.getElementById('calcTotal').innerText = finalAmount.toLocaleString() + '원';
+    }
     
     function save(){
         let d=document.getElementById('inputDate').value, t=document.getElementById('inputType').value, n=document.getElementById('inputName').value, p=Number(document.getElementById('inputPrice').value), q=Number(document.getElementById('inputQty').value), m=document.getElementById('inputMemo').value;
@@ -573,7 +622,7 @@
                 let totalAvailable = targets.reduce((acc,cur)=>acc+cur.remainingQty, 0);
                 if(q > totalAvailable){ alert(`보유 수량 부족! (최대: ${totalAvailable}주)`); return; }
 
-                // 보유일수 계산 (가장 먼저 산 주식의 날짜 기준)
+                // 보유일수 계산
                 let firstBuyDate = targets.length > 0 ? targets[0].date : d;
                 let hDays = Math.ceil((new Date(d) - new Date(firstBuyDate))/(1000*60*60*24));
 
@@ -589,7 +638,23 @@
                     }
                 });
 
-                let profit = Math.round((p - avgPrice) * q);
+                // --- [중요] 수익 계산 시 수수료/세금 적용 ---
+                // 1. 매도 총액 (수수료/세금 차감 전)
+                let sellGross = p * q;
+                // 2. 매도 비용 (수수료 + 세금)
+                let sellFee = Math.floor(sellGross * HTS_FEE_RATE);
+                let sellTax = Math.floor(sellGross * TAX_RATE);
+                let sellNet = sellGross - sellFee - sellTax;
+
+                // 3. 매수 원금
+                let buyCost = avgPrice * q;
+                // 4. 매수 당시 추정 수수료 (이미 지불한 것으로 간주하여 수익에서 차감)
+                let buyFee = Math.floor(buyCost * HTS_FEE_RATE);
+                let buyTotal = buyCost + buyFee;
+
+                // 최종 순수익 = 정산받은 매도금액 - (매수원금 + 매수수수료)
+                let profit = Math.round(sellNet - buyTotal);
+
                 transactions.push({
                     id: Date.now(), date: d, type: 'sell', name: n, price: p, qty: q, 
                     profit: profit, memo: m, holdDays: hDays
@@ -619,9 +684,9 @@
         logs.forEach(g=>{
             let btn=`<div class="btn-row"><button onclick="editLog(${g.id})">수정</button><button onclick="del(${g.id})">삭제</button></div>`;
             let mH = g.memo ? `<div style="font-size:11px; color:#64748b; background:#f1f5f9; padding:2px 4px; border-radius:4px; margin-top:2px;">📝 ${g.memo}</div>`:'';
-            if(g.type==='buy') h+=`<div class="log-item" style="border-left:3px solid var(--red);"><div class="item-info"><span class="item-name">[매수] ${g.name}</span><span style="font-size:11px; color:#64748b;">${g.qty}주 @ ${g.price}</span>${mH}</div>${btn}</div>`;
-            else if(g.type==='sell') h+=`<div class="log-item" style="border-left:3px solid ${g.profit>=0?'var(--red)':'var(--blue)'};"><div class="item-info"><span class="item-name">[매도] ${g.name}</span><span style="font-size:11px; color:${g.profit>=0?'#ef4444':'#3b82f6'};">${g.profit>=0?'+':''}${g.profit} (${g.holdDays? 'D+'+g.holdDays : '-'})</span>${mH}</div>${btn}</div>`;
-            else h+=`<div class="log-item" style="border-left:3px solid var(--green);"><div class="item-info"><span class="item-name">[기타] ${g.name}</span><span style="font-size:11px;">${g.price}</span>${mH}</div>${btn}</div>`;
+            if(g.type==='buy') h+=`<div class="log-item" style="border-left:3px solid var(--red);"><div class="item-info"><span class="item-name">[매수] ${g.name}</span><span style="font-size:11px; color:#64748b;">${g.qty}주 @ ${g.price.toLocaleString()}</span>${mH}</div>${btn}</div>`;
+            else if(g.type==='sell') h+=`<div class="log-item" style="border-left:3px solid ${g.profit>=0?'var(--red)':'var(--blue)'};"><div class="item-info"><span class="item-name">[매도] ${g.name}</span><span style="font-size:11px; color:${g.profit>=0?'#ef4444':'#3b82f6'};">${g.profit>=0?'+':''}${g.profit.toLocaleString()} (${g.holdDays? 'D+'+g.holdDays : '-'})</span>${mH}</div>${btn}</div>`;
+            else h+=`<div class="log-item" style="border-left:3px solid var(--green);"><div class="item-info"><span class="item-name">[기타] ${g.name}</span><span style="font-size:11px;">${g.price.toLocaleString()}</span>${mH}</div>${btn}</div>`;
         });
         l.innerHTML=h;
     }
