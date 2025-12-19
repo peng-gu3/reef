@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>매매일지 (평단가 자동합산 Ver)</title>
+    <title>매매일지 (달력 상세 Ver)</title>
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
@@ -40,7 +40,6 @@
         body.privacy-mode .summary-wrapper, 
         body.privacy-mode .dashboard-row,
         body.privacy-mode .search-bar { display: none !important; }
-        body.privacy-mode .day .badge,
         body.privacy-mode .day .profit-val { display: none !important; } /* 수익금 텍스트 숨김 */
         body.privacy-mode .day-emoji { display:none !important; } /* 이모지 숨김 */
 
@@ -71,7 +70,7 @@
         .item-memo { font-size: 11px; color: var(--text-sub); background:#f8fafc; padding:2px 4px; border-radius:4px; margin-top:2px; width:fit-content; }
         .item-val { font-weight: 700; text-align: right; }
         
-        /* 뱃지 */
+        /* 뱃지 미니 */
         .badge-mini { font-size: 10px; padding: 2px 5px; border-radius: 4px; margin-right: 5px; font-weight: 700; display: inline-block; min-width: 24px; text-align: center; }
         .badge-red { background: var(--red-bg); color: var(--red-text); }
         .badge-blue { background: var(--blue-bg); color: var(--blue-text); }
@@ -86,7 +85,7 @@
         .calendar-wrapper { background: var(--surface); border-radius: 12px; border: 1px solid var(--border); padding: 15px; }
         .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
         .day-header { text-align: center; font-weight: 700; color: var(--text-sub); padding-bottom: 5px; font-size: 12px; }
-        .day { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; min-height: 100px; padding: 6px; cursor: pointer; display: flex; flex-direction: column; gap: 4px; position: relative; transition: 0.1s; }
+        .day { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; min-height: 110px; padding: 6px; cursor: pointer; display: flex; flex-direction: column; gap: 4px; position: relative; transition: 0.1s; }
         .day:hover { border-color: var(--blue); z-index: 10; transform: scale(1.02); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .day.today { border-color: var(--blue); border-width: 2px; }
         
@@ -95,14 +94,18 @@
         .day.today .day-num { background: var(--blue); color: white; border-radius: 50%; width: 20px; height: 20px; display: flex; justify-content: center; align-items: center; }
         .day-emoji { font-size:14px; } 
 
-        /* 뱃지 */
-        .badge { font-size: 10px; padding: 3px 6px; border-radius: 4px; font-weight: 600; display:flex; flex-direction:column; gap:1px; margin-bottom:2px; }
+        /* 달력 뱃지 상세 스타일 */
+        .badge { font-size: 10px; padding: 4px 5px; border-radius: 6px; font-weight: 600; display:flex; flex-direction:column; gap:1px; margin-bottom:2px; box-shadow: 0 1px 1px rgba(0,0,0,0.05); }
         .badge.red-theme { background: var(--red-bg); color: var(--red-text); border: 1px solid rgba(248,113,113,0.2); }
         .badge.blue-theme { background: var(--blue-bg); color: var(--blue-text); border: 1px solid rgba(59,130,246,0.2); }
         .badge.green-theme { background: var(--green-bg); color: var(--green-text); border: 1px solid rgba(34,197,94,0.2); }
         .badge.sold-out { opacity: 0.6; text-decoration: line-through; background:#f1f5f9; color:#94a3b8; border-color:#e2e8f0; }
-        .badge-row { display:flex; justify-content:space-between; }
         
+        .badge-header { display:flex; justify-content:space-between; align-items:center; }
+        .badge-title { font-weight:800; font-size:10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .badge-days { font-size:9px; background:rgba(255,255,255,0.6); padding:0 3px; border-radius:3px; }
+        .badge-detail { display:flex; justify-content:space-between; font-size:9px; opacity:0.85; margin-top:2px; font-family:'Roboto', sans-serif; }
+
         /* 계산기 모달 */
         .calc-modal { display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:300px; background:var(--surface); padding:20px; border-radius:16px; box-shadow:0 10px 40px rgba(0,0,0,0.2); z-index:3000; border:1px solid var(--border); }
         .calc-row { display:flex; justify-content:space-between; margin-bottom:10px; align-items:center; font-size:13px; font-weight:600; }
@@ -257,6 +260,7 @@
 
     function init(){ renderCalendar(); updateSummary(); renderDashboard(); }
     function formatMoney(n){ return n.toLocaleString()+'원'; }
+    function formatK(n){ if(n>=10000) return (n/10000).toFixed(1)+'만'; else if(n>=1000) return (n/1000).toFixed(1)+'k'; return n; }
     function getHoldingDays(d){ return Math.ceil((new Date().setHours(0,0,0,0) - new Date(d).setHours(0,0,0,0))/(1000*60*60*24)); }
 
     // --- 스크린샷 캡처 ---
@@ -317,7 +321,9 @@
                 if(t.date.startsWith(cm)) mp += p;
                 if(t.date === todayStr) dp += p;
                 if(p >= 0) { sc++; totalWinAmt += p; } else { lc++; totalLossAmt += Math.abs(p); }
-                // 보유일수 계산은 간단히 처리 (매도 시점 기준 단순화)
+                
+                // 보유일수 통계 (기록이 있는 경우만)
+                if(t.holdDays) { totalHoldDays+=t.holdDays; holdCount++; }
                 runningTotal += p;
             } else if(t.type==='other'){
                 tp += t.price;
@@ -346,6 +352,9 @@
         let avgWin = sc > 0 ? Math.round(totalWinAmt / sc) : 0;
         let avgLoss = lc > 0 ? Math.round(totalLossAmt / lc) : 0;
         document.getElementById('avgRatio').innerText = `${(avgWin/10000).toFixed(1)} : ${(avgLoss/10000).toFixed(1)}`;
+        
+        let ah = holdCount > 0 ? Math.round(totalHoldDays/holdCount) : 0;
+        document.getElementById('avgHold').innerText = `${ah}일`;
         
         // 차트 렌더링
         renderCharts(dateMap, sc, lc);
@@ -400,9 +409,10 @@
                 else { badgeClass='badge-green'; badgeText='기타'; valText=`${t.price.toLocaleString()}원`; }
                 
                 let memoHtml = t.memo ? `<div class="item-memo">📝 ${t.memo}</div>` : '';
+                let holdHtml = (t.type==='sell' && t.holdDays) ? `<span style="font-size:10px; color:#94a3b8; margin-left:5px;">(D+${t.holdDays})</span>` : '';
 
                 html += `<div class="history-item">
-                    <div class="item-info"><div><span class="badge-mini ${badgeClass}">${badgeText}</span> <span class="item-name">${t.name}</span></div><span class="item-date">${t.date}</span>${memoHtml}</div>
+                    <div class="item-info"><div><span class="badge-mini ${badgeClass}">${badgeText}</span> <span class="item-name">${t.name}</span>${holdHtml}</div><span class="item-date">${t.date}</span>${memoHtml}</div>
                     <div class="item-val" style="color:${(t.type==='sell' && t.profit<0)?'var(--blue-text)':'inherit'}">${valText}</div>
                 </div>`;
             });
@@ -429,7 +439,6 @@
         const first=new Date(y,m,1).getDay(), last=new Date(y,m+1,0).getDate();
         for(let i=0;i<first;i++) grid.innerHTML+=`<div class="day" style="opacity:0; pointer-events:none;"></div>`;
 
-        // 이번달 최대 수익/손실 구하기 (히트맵용)
         let maxProfitInMonth = 0;
         for(let i=1; i<=last; i++) {
             const dStr = `${y}-${String(m+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
@@ -448,7 +457,6 @@
                 if(l.type==='buy') hasBuy=true;
             });
 
-            // 이모지 & 히트맵
             let emoji = '';
             if(hasSell) emoji += (prof > 0 ? '😄' : '😭');
             if(hasBuy) emoji += '🔥';
@@ -471,13 +479,24 @@
             
             logs.forEach(l=>{
                 if(l.type==='buy'){
-                    // 매수는 달력에 평단가나 합산 로직이 아닌 개별 기록을 보여줌 (히스토리 차원)
                     let so=l.remainingQty===0;
-                    html+=`<div class="badge red-theme ${so?'sold-out':''}"><div class="badge-row"><span>${l.name}</span><span>${l.remainingQty}</span></div></div>`;
+                    html+=`<div class="badge red-theme ${so?'sold-out':''}">
+                        <div class="badge-header"><span class="badge-title">${l.name}</span></div>
+                        <div class="badge-detail"><span>${l.qty}주</span><span>@${formatK(l.price)}</span></div>
+                    </div>`;
                 }else if(l.type==='sell'){
                     let w=l.profit>=0;
-                    html+=`<div class="badge ${w?'red-theme':'blue-theme'}"><div class="badge-row"><span>${l.name}</span><span>${w?'+':''}${(l.profit/10000).toFixed(0)}</span></div></div>`;
-                }else{ html+=`<div class="badge green-theme"><div class="badge-row"><span>${l.name}</span><span>${(l.price/10000).toFixed(0)}</span></div></div>`; }
+                    let daysInfo = l.holdDays ? `<span class="badge-days">D+${l.holdDays}</span>` : '';
+                    html+=`<div class="badge ${w?'red-theme':'blue-theme'}">
+                        <div class="badge-header"><span class="badge-title">${l.name}</span>${daysInfo}</div>
+                        <div class="badge-detail"><span>${l.qty}주</span><span>${w?'+':''}${formatK(l.profit)}</span></div>
+                    </div>`;
+                }else{ 
+                    html+=`<div class="badge green-theme">
+                        <div class="badge-header"><span class="badge-title">${l.name}</span></div>
+                        <div class="badge-detail"><span>${formatK(l.price)}</span></div>
+                    </div>`; 
+                }
             });
 
             if(hasSell) html+=`<div class="profit-val" style="margin-top:auto; font-size:11px; font-weight:800; text-align:right; color:${textColor};">${prof>=0?'+':''}${prof.toLocaleString()}</div>`;
@@ -501,7 +520,6 @@
     
     function closeModal(){ document.getElementById('modalOverlay').style.display='none'; }
     
-    // 로그 수정 기능
     function editLog(id){
         let t=transactions.find(x=>x.id===id); if(!t)return;
         editingId=id; currentMode='edit';
@@ -514,17 +532,15 @@
         calc();
     }
 
-    // [핵심 변경] 매도 시작 - 특정 종목명으로 매도 시작
     function initiateSell(nameStr, totalQty, avgPrice){
         currentMode='sell_new'; sellTargetName=nameStr; editingId=null;
         document.getElementById('inputType').value='sell'; document.getElementById('inputType').disabled=true;
         document.getElementById('inputName').value=nameStr; document.getElementById('inputName').readOnly=true;
         document.getElementById('inputPrice').value=''; 
-        document.getElementById('inputQty').value=totalQty; // 기본값은 전량매도
+        document.getElementById('inputQty').value=totalQty;
         document.getElementById('inputQty').disabled=false; 
         document.getElementById('inputMemo').value='';
         
-        // 상단 정보 박스
         document.getElementById('sellInfoBox').style.display='flex'; 
         document.getElementById('infoBuyPrice').innerText=Math.round(avgPrice).toLocaleString(); 
         document.getElementById('infoRemQty').innerText=totalQty;
@@ -541,36 +557,31 @@
     
     function calc(){ document.getElementById('calcTotal').innerText = (Number(document.getElementById('inputPrice').value)*Number(document.getElementById('inputQty').value)).toLocaleString(); }
     
-    // [핵심 변경] 저장 로직 (FIFO 및 평단가 적용)
     function save(){
         let d=document.getElementById('inputDate').value, t=document.getElementById('inputType').value, n=document.getElementById('inputName').value, p=Number(document.getElementById('inputPrice').value), q=Number(document.getElementById('inputQty').value), m=document.getElementById('inputMemo').value;
         if(!n||(!p && p!==0)||!q){ alert("입력 확인"); return; }
         
-        // 수정 모드
         if(editingId){
             let tg=transactions.find(x=>x.id===editingId);
             if(tg){
-                // 단순 수정(날짜, 메모 등)만 허용하고 수량 등 핵심 로직 변경은 복잡도를 위해 제한하거나 단순 업데이트
-                // 여기서는 단순 값 업데이트만 처리
                 tg.date=d; tg.name=n; tg.price=p; tg.memo=m;
-                // 수량 변경 로직은 복잡하여 생략하거나 재계산 필요
                 editingId=null;
             }
         } else {
-            // 신규 저장
             if(t==='sell'){
-                // 1. 해당 종목의 보유 기록(FIFO 순서) 가져오기
                 let targets = transactions.filter(x => x.type === 'buy' && x.name === n && x.remainingQty > 0)
                                           .sort((a,b) => new Date(a.date) - new Date(b.date) || a.id - b.id);
                 
                 let totalAvailable = targets.reduce((acc,cur)=>acc+cur.remainingQty, 0);
                 if(q > totalAvailable){ alert(`보유 수량 부족! (최대: ${totalAvailable}주)`); return; }
 
-                // 2. 평단가 계산 (수익 계산용)
+                // 보유일수 계산 (가장 먼저 산 주식의 날짜 기준)
+                let firstBuyDate = targets.length > 0 ? targets[0].date : d;
+                let hDays = Math.ceil((new Date(d) - new Date(firstBuyDate))/(1000*60*60*24));
+
                 let totalCost = targets.reduce((acc,cur) => acc + (cur.remainingQty * cur.price), 0);
                 let avgPrice = totalCost / totalAvailable;
                 
-                // 3. FIFO 방식으로 수량 차감
                 let remainingSellQty = q;
                 targets.forEach(buyItem => {
                     if(remainingSellQty > 0) {
@@ -580,11 +591,10 @@
                     }
                 });
 
-                // 4. 매도 기록 생성 (수익 = (매도가 - 평단가) * 수량)
                 let profit = Math.round((p - avgPrice) * q);
                 transactions.push({
                     id: Date.now(), date: d, type: 'sell', name: n, price: p, qty: q, 
-                    profit: profit, memo: m
+                    profit: profit, memo: m, holdDays: hDays
                 });
 
             } else if(t==='buy'){
@@ -596,7 +606,6 @@
         
         localStorage.setItem('stockData_v7', JSON.stringify(transactions));
         
-        // 입력창 초기화 및 닫기
         if(t==='sell') closeModal(); 
         else { 
             document.getElementById('inputName').value=''; document.getElementById('inputPrice').value=''; document.getElementById('inputMemo').value=''; 
@@ -613,17 +622,14 @@
             let btn=`<div class="btn-row"><button onclick="editLog(${g.id})">수정</button><button onclick="del(${g.id})">삭제</button></div>`;
             let mH = g.memo ? `<div style="font-size:11px; color:#64748b; background:#f1f5f9; padding:2px 4px; border-radius:4px; margin-top:2px;">📝 ${g.memo}</div>`:'';
             if(g.type==='buy') h+=`<div class="log-item" style="border-left:3px solid var(--red);"><div class="item-info"><span class="item-name">[매수] ${g.name}</span><span style="font-size:11px; color:#64748b;">${g.qty}주 @ ${g.price}</span>${mH}</div>${btn}</div>`;
-            else if(g.type==='sell') h+=`<div class="log-item" style="border-left:3px solid ${g.profit>=0?'var(--red)':'var(--blue)'};"><div class="item-info"><span class="item-name">[매도] ${g.name}</span><span style="font-size:11px; color:${g.profit>=0?'#ef4444':'#3b82f6'};">${g.profit>=0?'+':''}${g.profit}</span>${mH}</div>${btn}</div>`;
+            else if(g.type==='sell') h+=`<div class="log-item" style="border-left:3px solid ${g.profit>=0?'var(--red)':'var(--blue)'};"><div class="item-info"><span class="item-name">[매도] ${g.name}</span><span style="font-size:11px; color:${g.profit>=0?'#ef4444':'#3b82f6'};">${g.profit>=0?'+':''}${g.profit} (${g.holdDays? 'D+'+g.holdDays : '-'})</span>${mH}</div>${btn}</div>`;
             else h+=`<div class="log-item" style="border-left:3px solid var(--green);"><div class="item-info"><span class="item-name">[기타] ${g.name}</span><span style="font-size:11px;">${g.price}</span>${mH}</div>${btn}</div>`;
         });
         l.innerHTML=h;
     }
 
-    // [핵심 변경] 보유 목록 렌더링 (종목별 합산)
     function renderHold(){
         let l=document.getElementById('holdingsList');
-        
-        // 1. 종목별로 그룹화
         let holdings = {};
         transactions.filter(x => x.type === 'buy' && x.remainingQty > 0).forEach(t => {
             if(!holdings[t.name]) {
@@ -631,7 +637,6 @@
             }
             holdings[t.name].totalQty += t.remainingQty;
             holdings[t.name].totalCost += (t.remainingQty * t.price);
-            // 날짜는 가장 오래된 날짜 유지
             if(new Date(t.date) < new Date(holdings[t.name].firstDate)) holdings[t.name].firstDate = t.date;
         });
 
@@ -647,7 +652,7 @@
             h += `<div class="log-item" style="border-left:3px solid var(--blue);">
                     <div class="item-info">
                         <span class="item-name">${name}</span>
-                        <span style="font-size:11px; color:#64748b;">평단 ${Math.round(avgPrice).toLocaleString()}원 / 잔여 ${item.totalQty}주 / ${dy}일째</span>
+                        <span style="font-size:11px; color:#64748b;">평단 ${Math.round(avgPrice).toLocaleString()}원 / 잔여 ${item.totalQty}주 / D+${dy}</span>
                     </div>
                     <div class="btn-row">
                         <button onclick="initiateSell('${name}', ${item.totalQty}, ${avgPrice})" style="background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe;">매도</button>
