@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>매매일지</title>
+    <title>매매일지 (V5.9 - 매도 복구 기능 추가)</title>
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
@@ -18,67 +18,67 @@
             --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: var(--text-main); margin: 0; padding: 20px; line-height: 1.4; font-size: 14px; }
-        .container { max-width: 1400px; margin: 0 auto; background: var(--surface); padding: 20px; border-radius: 20px; box-shadow: var(--shadow); }
+        .container { max-width: 1300px; margin: 0 auto; background: var(--surface); padding: 20px; border-radius: 20px; box-shadow: var(--shadow); }
         
-        /* 헤더 & 컨트롤 */
         .main-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .main-title { font-size: 24px; font-weight: 900; margin: 0; display:flex; align-items:center; gap:10px; }
         .util-btn { padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); background: white; cursor: pointer; font-weight: 700; color: var(--text-sub); font-size: 13px; transition: 0.2s; display:flex; align-items:center; gap:5px; }
+        .util-btn:hover { background: #f8fafc; color: var(--text-main); }
+        .util-btn.active { background: #eff6ff; color: #2563eb; border-color: #bfdbfe; }
 
-        /* 시크릿 모드 스타일 */
         body.privacy-mode .summary-grid, body.privacy-mode .charts-row, body.privacy-mode .search-bar { display: none !important; }
 
-        /* 통계 카드 7개 */
+        /* 통계 카드 */
         .summary-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-bottom: 20px; }
-        @media (max-width: 1200px) { .summary-grid { grid-template-columns: repeat(4, 1fr); } }
+        @media (max-width: 1100px) { .summary-grid { grid-template-columns: repeat(4, 1fr); } }
         .stat-card { background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid var(--border); }
         .stat-card h3 { margin: 0; font-size: 11px; color: var(--text-sub); font-weight: 700; }
         .stat-card p { margin: 5px 0 0 0; font-size: 18px; font-weight: 800; letter-spacing: -0.5px; }
         .sub-stat { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+        .text-up { color: var(--blue-text); } .text-down { color: var(--red-text); }
 
-        /* 차트 */
         .charts-row { display: grid; grid-template-columns: 2.5fr 1fr; gap: 15px; margin-bottom: 20px; }
         .chart-card { background: var(--surface); padding: 15px; border-radius: 12px; border: 1px solid var(--border); height: 250px; }
 
-        /* 달력 헤더 정렬 수정 */
+        /* 달력 */
         .calendar-header { display: flex; justify-content: center; align-items: center; gap: 30px; margin-bottom: 15px; background: var(--bg); padding: 12px; border-radius: 12px; }
         .calendar-header h2 { margin: 0; font-size: 20px; font-weight: 800; min-width: 150px; text-align: center; }
-
-        /* 달력 그리드 */
         .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); }
-        .day { background: white; min-height: 120px; padding: 8px; cursor: pointer; }
+        .day { background: white; min-height: 120px; padding: 8px; cursor: pointer; position: relative; }
+        .day:hover { background: #fcfdfe; }
         .day-num { font-weight: 700; font-size: 12px; color: var(--text-sub); }
+        
         .badge { font-size: 10px; padding: 4px 6px; border-radius: 4px; margin-bottom: 3px; font-weight: 600; display: flex; justify-content: space-between; }
         .badge-buy { background: var(--red-bg); color: var(--red-text); }
-        /* 매도: 배경 파란색, 글자색 로직은 JS에서 처리 */
         .badge-sell { background: var(--blue-bg); border: 1px solid rgba(59,130,246,0.2); }
+        .badge-other { background: var(--green-bg); color: var(--green-text); }
 
-        /* 모달 (수직 UI 완벽 복구) */
+        /* 모달 */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center; }
         .modal { background: white; border-radius: 12px; width: 450px; max-height: 95vh; overflow-y: auto; display: flex; flex-direction: column; }
         .modal-header { padding: 15px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
         .modal-body { padding: 15px; }
-        
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; font-size: 12px; font-weight: 700; color: var(--text-sub); margin-bottom: 5px; }
         .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; outline: none; }
-        
         .calc-box { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 15px; background: #f8fafc; padding: 10px; }
         .calc-row { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-sub); margin-bottom: 4px; }
-        
-        .btn-group { display: flex; gap: 10px; margin-bottom: 20px; }
+        .btn-group { display: flex; gap: 10px; margin-bottom: 15px; }
         .btn-main { flex: 1; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 15px; }
 
         .calc-modal { display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:320px; background:var(--surface); padding:20px; border-radius:16px; box-shadow:0 10px 40px rgba(0,0,0,0.2); z-index:3000; border:1px solid var(--border); }
         .item-card { border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
         .sm-btn { padding: 4px 8px; font-size: 11px; border: 1px solid var(--border); background: white; border-radius: 4px; cursor: pointer; font-weight: 600; color: var(--text-sub); }
+        .sm-btn-blue { color: var(--blue-text); border-color: #bfdbfe; background: #eff6ff; }
+        #receiptView { width: 300px; background: white; padding: 40px 20px; font-family: 'Courier New', monospace; color: #333; }
+        .receipt-line { border-top: 1px dashed #000; margin: 10px 0; }
     </style>
 </head>
 <body>
 
 <div class="container" id="captureTarget">
     <div class="main-header">
-        <h1 class="main-title">🚀 하루 20만원 목표</h1>
+        <h1 class="main-title">🚀 매매일지 <span id="userTier" style="font-size:14px; background:#eee; padding:2px 8px; border-radius:10px;">아이언 🧊</span></h1>
         <div style="display:flex; gap:5px;">
             <button class="util-btn" onclick="captureScreen()">📷 스크린샷</button>
             <button class="util-btn" onclick="openCalc()">🧮 물타기 계산기</button>
@@ -88,6 +88,8 @@
             <input type="file" id="fileInput" style="display:none" onchange="importData(this)">
         </div>
     </div>
+
+    <div class="search-bar" style="margin-bottom:20px; position:relative;"><input type="text" placeholder="🔍 종목명 검색" oninput="handleSearch(this.value)" style="width:100%; padding:12px; border-radius:12px; border:1px solid var(--border); box-shadow:var(--shadow); outline:none;"></div>
 
     <div class="summary-grid">
         <div class="stat-card"><h3>💰 총 누적 손익</h3><p id="totalProfit">0원</p></div>
@@ -115,29 +117,31 @@
 <div id="calcModal" class="calc-modal">
     <div style="display:flex; justify-content:space-between; margin-bottom:15px;"><h3 style="margin:0; font-size:16px;">🧮 평단가 계산</h3><span onclick="closeCalc()" style="cursor:pointer; font-size:20px;">&times;</span></div>
     <div style="display:flex; flex-direction:column; gap:10px;">
-        <input type="number" id="c_curPrice" placeholder="현재 단가">
-        <input type="number" id="c_curQty" placeholder="현재 수량">
-        <input type="number" id="c_addPrice" placeholder="추가 단가">
-        <input type="number" id="c_addQty" placeholder="추가 수량">
-        <button class="util-btn" style="background:var(--blue); color:white; justify-content:center; padding:12px;" onclick="runCalc()">계산하기</button>
-        <div id="c_resultAvg" style="text-align:center; font-size:18px; font-weight:800; color:var(--blue-text); margin-top:10px;">-원</div>
+        <input type="number" id="c_curPrice" placeholder="현재 단가" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
+        <input type="number" id="c_curQty" placeholder="현재 수량" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
+        <input type="number" id="c_addPrice" placeholder="추가 단가" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
+        <input type="number" id="c_addQty" placeholder="추가 수량" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
+        <button class="btn-main" style="background:var(--blue); color:white; width:100%; margin-top:10px;" onclick="runCalc()">계산하기</button>
+        <div id="c_resultAvg" style="text-align:center; font-size:18px; font-weight:800; color:var(--blue-text); margin-top:15px;">-원</div>
     </div>
 </div>
 
 <div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this) closeModal()">
     <div class="modal">
         <div class="modal-header">
-            <h2 style="margin:0; font-size:16px; font-weight:800;">거래 입력</h2>
+            <h2 id="modalTitle" style="margin:0; font-size:16px; font-weight:800;">거래 입력</h2>
             <div style="display:flex; gap:10px; align-items:center;">
                 <button class="util-btn" onclick="showReceipt()" style="padding:4px 8px; font-size:11px;">🧾 영수증</button>
                 <span onclick="closeModal()" style="cursor:pointer; font-size:20px; color:#999;">&times;</span>
             </div>
         </div>
         <div class="modal-body">
+            <div id="sellInfoBox" style="background:#eff6ff; border:1px solid #dbeafe; padding:10px; border-radius:8px; font-size:12px; margin-bottom:15px; display:none;">
+                <strong>ℹ️ 통합 보유:</strong> 평단 <span id="infoBuyPrice">0</span>원 / 총 잔여 <span id="infoRemQty">0</span>주
+            </div>
             <div class="form-group"><label>날짜</label><input type="date" id="inputDate"></div>
             <div style="display:grid; grid-template-columns: 1fr 2fr; gap:10px;">
-                <div class="form-group">
-                    <label>구분</label>
+                <div class="form-group"><label>구분</label>
                     <select id="inputType" onchange="handleTypeChange()">
                         <option value="buy">매수 (Buy)</option><option value="sell">매도 (Sell)</option><option value="other">기타 (예수금)</option>
                     </select>
@@ -145,10 +149,10 @@
                 <div class="form-group"><label>종목명</label><input type="text" id="inputName" placeholder="종목명 입력"></div>
             </div>
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                <div class="form-group"><label id="priceLabel">단가</label><input type="number" id="inputPrice" oninput="calc()"></div>
+                <div class="form-group"><label id="priceLabel">매수 단가</label><input type="number" id="inputPrice" oninput="calc()"></div>
                 <div class="form-group"><label>수량</label><input type="number" id="inputQty" value="1" oninput="calc()"></div>
             </div>
-            <div class="form-group"><label>📝 매매 메모 (복기)</label><textarea id="inputMemo" rows="3"></textarea></div>
+            <div class="form-group"><label>📝 매매 메모 (복기)</label><textarea id="inputMemo" rows="2" placeholder="진입/청산 이유..."></textarea></div>
             <div class="calc-box">
                 <div class="calc-row"><span>거래 금액:</span><span id="c_base">0원</span></div>
                 <div class="calc-row"><span>수수료/세금:</span><span id="c_fee">0원</span></div>
@@ -156,23 +160,46 @@
                 <div style="display:flex; justify-content:space-between; padding:5px 10px; font-weight:800;"><span>최종 정산:</span><span id="calcTotal" style="font-size:16px;">0원</span></div>
             </div>
             <div class="btn-group">
-                <button class="btn-main" onclick="closeModal()" style="background:#e2e8f0;">취소</button>
+                <button class="btn-main" onclick="closeModal()" style="background:#e2e8f0; color:var(--text-sub);">취소</button>
                 <button class="btn-main" onclick="save()" style="background:#1e293b; color:white;">저장</button>
             </div>
             <div style="font-size:12px; font-weight:800; color:var(--text-sub); margin-bottom:10px;">📅 당일 기록</div>
             <div id="dayLogList"></div>
-            <div style="font-size:12px; font-weight:800; color:var(--blue-text); margin:15px 0 10px 0;">📦 통합 보유 목록</div>
+            <div style="font-size:12px; font-weight:800; color:var(--blue-text); margin:15px 0 10px 0;">📦 통합 보유 목록 (평단가 적용)</div>
             <div id="holdingsList"></div>
         </div>
     </div>
 </div>
 
+<div class="modal-overlay" id="receiptOverlay" onclick="if(event.target===this) this.style.display='none'">
+    <div style="background:white; padding:10px; border-radius:10px;">
+        <div id="receiptView">
+            <div style="text-align:center;"><h2 style="margin:0; font-size:18px;">TRADING RECEIPT</h2><p id="receiptDate" style="font-size:12px;"></p></div>
+            <div class="receipt-line"></div><div id="receiptItems"></div><div class="receipt-line"></div>
+            <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:16px;"><span>TOTAL PROFIT</span><span id="receiptTotal">0</span></div>
+            <div class="receipt-line" style="border-top-style: double; height: 3px;"></div>
+            <div style="text-align:center; font-size:10px; color:#666; margin-top:10px;">KEEP YOUR DISCIPLINE</div>
+        </div>
+        <button class="btn-main" onclick="downloadReceipt()" style="width:100%; background:#1e293b; color:white; margin-top:10px;">📷 이미지로 저장</button>
+    </div>
+</div>
+
 <script>
-    let currentDate = new Date(), transactions = JSON.parse(localStorage.getItem('stockData_v30')) || [];
-    let assetChart=null, portfolioChart=null, editingId = null;
+    let currentDate = new Date(), transactions = JSON.parse(localStorage.getItem('stockData_v35')) || [];
+    let assetChart=null, portfolioChart=null, editingId=null;
     const FEE = 0.000140527, TAX = 0.0018;
 
     function init() { renderCalendar(); updateSummary(); }
+
+    function getTier(profit) {
+        if (profit < 0) return { label: '아이언 🧊', color: '#94a3b8' };
+        if (profit < 1000000) return { label: '브론즈 🥉', color: '#92400e' };
+        if (profit < 5000000) return { label: '실버 🥈', color: '#94a3b8' };
+        if (profit < 20000000) return { label: '골드 🥇', color: '#eab308' };
+        if (profit < 100000000) return { label: '플래티넘 💎', color: '#2dd4bf' };
+        if (profit < 500000000) return { label: '다이아 ❄️', color: '#3b82f6' };
+        return { label: '챌린저 🔥', color: '#1e293b' };
+    }
 
     function updateSummary() {
         let tp=0, mp=0, dp=0, sc=0, lc=0, winSum=0, lossSum=0, totalHoldDays=0, holdCount=0;
@@ -194,7 +221,13 @@
             }
         });
 
+        // 티어 업데이트
+        const tier = getTier(tp);
+        const tEl = document.getElementById('userTier');
+        tEl.innerText = tier.label; tEl.style.backgroundColor = tier.color; tEl.style.color = 'white';
+
         document.getElementById('totalProfit').innerText = tp.toLocaleString() + '원';
+        document.getElementById('totalProfit').className = tp >= 0 ? 'text-up' : 'text-down';
         document.getElementById('monthProfit').innerText = mp.toLocaleString() + '원';
         document.getElementById('todayProfit').innerText = dp.toLocaleString() + '원';
         document.getElementById('winRate').innerText = (sc+lc > 0 ? (sc/(sc+lc)*100).toFixed(1) : 0) + '%';
@@ -238,40 +271,90 @@
 
     function openModal(dStr) { 
         editingId = null; document.getElementById('modalOverlay').style.display='flex'; 
-        document.getElementById('inputDate').value=dStr; document.getElementById('inputName').value=''; 
-        document.getElementById('inputPrice').value=''; document.getElementById('inputQty').value='1';
-        document.getElementById('inputMemo').value=''; renderDayLog(dStr); renderHold(); handleTypeChange();
+        // 입력 필드 강제 초기화
+        document.getElementById('inputDate').value=dStr; document.getElementById('inputType').value='buy';
+        document.getElementById('inputName').value=''; document.getElementById('inputPrice').value=''; 
+        document.getElementById('inputQty').value='1'; document.getElementById('inputMemo').value='';
+        document.getElementById('sellInfoBox').style.display='none';
+        handleTypeChange(); renderDayLog(dStr); renderHold(); 
     }
     function closeModal() { document.getElementById('modalOverlay').style.display='none'; }
     function handleTypeChange() { const t = document.getElementById('inputType').value; document.getElementById('priceLabel').innerText = (t==='buy'?'매수 단가':(t==='sell'?'매도 단가':'금액')); calc(); }
     function calc() { const p=Number(document.getElementById('inputPrice').value), q=Number(document.getElementById('inputQty').value), t=document.getElementById('inputType').value; let base=p*q, fee=Math.floor(base*FEE), tax=(t==='sell'?Math.floor(base*TAX):0); document.getElementById('c_base').innerText=base.toLocaleString()+'원'; document.getElementById('c_fee').innerText=(fee+tax).toLocaleString()+'원'; document.getElementById('calcTotal').innerText=(t==='buy'?base+fee:base-fee-tax).toLocaleString()+'원'; }
 
+    function editLog(id) {
+        editingId = id; const t = transactions.find(x => x.id === id);
+        document.getElementById('inputDate').value = t.date; document.getElementById('inputType').value = t.type;
+        document.getElementById('inputName').value = t.name; document.getElementById('inputPrice').value = t.price;
+        document.getElementById('inputQty').value = t.qty; document.getElementById('inputMemo').value = t.memo || '';
+        handleTypeChange();
+    }
+
     function save() {
         const d=document.getElementById('inputDate').value, t=document.getElementById('inputType').value, n=document.getElementById('inputName').value, p=Number(document.getElementById('inputPrice').value), q=Number(document.getElementById('inputQty').value), m=document.getElementById('inputMemo').value;
         if(!n || !p) return;
-        if(t==='sell') {
-            let buys = transactions.filter(x=>x.type==='buy' && x.name===n && x.remainingQty>0).sort((a,b)=>new Date(a.date)-new Date(b.date));
-            if(q > buys.reduce((a,c)=>a+c.remainingQty, 0)){alert('수량부족');return;}
-            let totalBuyQty = buys.reduce((a,c)=>a+c.remainingQty,0);
-            let avgP = buys.reduce((a,c)=>a+(c.remainingQty*c.price),0)/totalBuyQty;
-            transactions.push({id:Date.now(), date:d, type:'sell', name:n, price:p, qty:q, profit:Math.round((p*q*(1-FEE-TAX))-(avgP*q*(1+FEE))), memo:m, holdDays:Math.ceil((new Date(d)-new Date(buys[0].date))/(1000*60*60*24))});
-            let rem=q; buys.forEach(b=>{if(rem>0){let dQ=Math.min(b.remainingQty, rem); b.remainingQty-=dQ; rem-=dQ;}});
-        } else transactions.push({id:Date.now(), date:d, type:t, name:n, price:p, qty:q, remainingQty:q, memo:m});
-        localStorage.setItem('stockData_v30', JSON.stringify(transactions)); init(); openModal(d);
+        if(editingId) {
+            let idx = transactions.findIndex(x=>x.id===editingId);
+            transactions[idx] = {...transactions[idx], date:d, name:n, price:p, qty:q, memo:m};
+            editingId = null;
+        } else {
+            if(t==='sell') {
+                let buys = transactions.filter(x=>x.type==='buy' && x.name===n && x.remainingQty>0).sort((a,b)=>new Date(a.date)-new Date(b.date));
+                if(q > buys.reduce((a,c)=>a+c.remainingQty, 0)){alert('수량부족');return;}
+                let totalBuyQty = buys.reduce((a,c)=>a+c.remainingQty,0);
+                let avgP = buys.reduce((a,c)=>a+(c.remainingQty*c.price),0)/totalBuyQty;
+                transactions.push({id:Date.now(), date:d, type:'sell', name:n, price:p, qty:q, profit:Math.round((p*q*(1-FEE-TAX))-(avgP*q*(1+FEE))), memo:m, holdDays:Math.ceil((new Date(d)-new Date(buys[0].date))/(1000*60*60*24))});
+                let rem=q; buys.forEach(b=>{if(rem>0){let dQ=Math.min(b.remainingQty, rem); b.remainingQty-=dQ; rem-=dQ;}});
+            } else transactions.push({id:Date.now(), date:d, type:t, name:n, price:p, qty:q, remainingQty:q, memo:m});
+        }
+        localStorage.setItem('stockData_v35', JSON.stringify(transactions)); init(); openModal(d);
     }
 
-    function renderDayLog(dStr) { document.getElementById('dayLogList').innerHTML = transactions.filter(t=>t.date===dStr).map(t=>`<div class="item-card"><div><b>[${t.type}] ${t.name}</b><br><small>${t.qty}주 / ${t.type==='sell'?t.profit.toLocaleString():t.price.toLocaleString()}원</small></div><div><button class="sm-btn" onclick="del(${t.id})">삭제</button></div></div>`).join(''); }
-    function renderHold() { let hMap = {}; transactions.filter(x=>x.type==='buy' && x.remainingQty>0).forEach(t=>{ if(!hMap[t.name]) hMap[t.name]={q:0, c:0}; hMap[t.name].q+=t.remainingQty; hMap[t.name].c+=(t.remainingQty*t.price); }); document.getElementById('holdingsList').innerHTML = Object.keys(hMap).map(k=>`<div class="item-card"><div><b>${k}</b><br><small>평단 ${Math.round(hMap[k].c/hMap[k].q).toLocaleString()}원 / ${hMap[k].q}주</small></div></div>`).join(''); }
-    function del(id) { if(confirm("삭제?")){transactions=transactions.filter(x=>x.id!==id); localStorage.setItem('stockData_v30', JSON.stringify(transactions)); init(); closeModal(); }}
+    function initiateSell(name, qty, avg) { document.getElementById('inputType').value='sell'; document.getElementById('inputName').value=name; document.getElementById('inputQty').value=qty; document.getElementById('sellInfoBox').style.display='block'; document.getElementById('infoBuyPrice').innerText=Math.round(avg).toLocaleString(); document.getElementById('infoRemQty').innerText=qty; handleTypeChange(); }
+    
+    function renderDayLog(dStr) { document.getElementById('dayLogList').innerHTML = transactions.filter(t=>t.date===dStr).map(t=>`<div class="item-card"><div><b>[${t.type}] ${t.name}</b><br><small>${t.qty}주 / ${t.type==='sell'?t.profit.toLocaleString():t.price.toLocaleString()}원</small></div><div style="display:flex; gap:5px;"><button class="sm-btn" onclick="editLog(${t.id})">수정</button><button class="sm-btn" onclick="del(${t.id})">삭제</button></div></div>`).join(''); }
+    
+    function renderHold() { let hMap = {}; transactions.filter(x=>x.type==='buy' && x.remainingQty>0).forEach(t=>{ if(!hMap[t.name]) hMap[t.name]={q:0, c:0}; hMap[t.name].q+=t.remainingQty; hMap[t.name].c+=(t.remainingQty*t.price); }); document.getElementById('holdingsList').innerHTML = Object.keys(hMap).map(k=>`<div class="item-card"><div><b>${k}</b><br><small>평단 ${Math.round(hMap[k].c/hMap[k].q).toLocaleString()}원 / ${hMap[k].q}주</small></div><div style="display:flex; gap:5px;"><button class="sm-btn sm-btn-blue" onclick="initiateSell('${k}', ${hMap[k].q}, ${hMap[k].c/hMap[k].q})">매도</button></div></div>`).join(''); }
+    
+    // 매도 삭제 시 보유량 복구 로직 포함
+    function del(id) { 
+        if(!confirm("이 기록을 삭제하시겠습니까? (매도 기록 삭제 시 보유 수량이 복구됩니다)")) return;
+        const idx = transactions.findIndex(t => t.id === id);
+        if(idx === -1) return;
+        const target = transactions[idx];
+
+        // 매도 기록 삭제 시, 해당 종목의 매수 기록을 찾아 수량 복구 (FIFO 역산)
+        if (target.type === 'sell') {
+            let restoreQty = target.qty;
+            let buys = transactions.filter(t => t.type === 'buy' && t.name === target.name)
+                                .sort((a, b) => new Date(a.date) - new Date(b.date) || a.id - b.id);
+            for (let b of buys) {
+                if (restoreQty <= 0) break;
+                let lost = b.qty - b.remainingQty; 
+                if (lost > 0) {
+                    let amountToRestore = Math.min(lost, restoreQty);
+                    b.remainingQty += amountToRestore;
+                    restoreQty -= amountToRestore;
+                }
+            }
+        }
+        transactions.splice(idx, 1);
+        localStorage.setItem('stockData_v35', JSON.stringify(transactions)); 
+        init(); 
+        closeModal(); 
+    }
+
     function togglePrivacy() { document.body.classList.toggle('privacy-mode'); }
     function changeMonth(v) { currentDate.setMonth(currentDate.getMonth()+v); renderCalendar(); }
     function openCalc() { document.getElementById('calcModal').style.display='block'; }
     function closeCalc() { document.getElementById('calcModal').style.display='none'; }
     function runCalc() { const cp=Number(document.getElementById('c_curPrice').value), cq=Number(document.getElementById('c_curQty').value), ap=Number(document.getElementById('c_addPrice').value), aq=Number(document.getElementById('c_addQty').value); document.getElementById('c_resultAvg').innerText = Math.round((cp*cq + ap*aq)/(cq+aq)).toLocaleString()+'원'; }
-    function captureScreen() { html2canvas(document.getElementById('captureTarget')).then(c => { const a=document.createElement('a'); a.download='TradingLog.png'; a.href=c.toDataURL(); a.click(); }); }
     function exportData() { const a=document.createElement('a'); a.href='data:text/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(transactions)); a.download='backup.json'; a.click(); }
-    function importData(i) { const r=new FileReader(); r.onload=e=>{ transactions=JSON.parse(e.target.result); localStorage.setItem('stockData_v30', JSON.stringify(transactions)); location.reload(); }; r.readAsText(i.files[0]); }
-    function showReceipt() { /* 영수증 로직 생략 */ }
+    function importData(i) { const r=new FileReader(); r.onload=e=>{ transactions=JSON.parse(e.target.result); localStorage.setItem('stockData_v35', JSON.stringify(transactions)); location.reload(); }; r.readAsText(i.files[0]); }
+    function captureScreen() { html2canvas(document.getElementById('captureTarget')).then(c => { const a=document.createElement('a'); a.download='TradingLog.png'; a.href=c.toDataURL(); a.click(); }); }
+    function showReceipt() { const d=document.getElementById('inputDate').value, logs=transactions.filter(t=>t.date===d && t.type==='sell'); if(!logs.length){alert('매도내역없음');return;} document.getElementById('receiptDate').innerText=d; let t=0; document.getElementById('receiptItems').innerHTML=logs.map(l=>{t+=l.profit; return `<div style="display:flex; justify-content:space-between;"><span>${l.name}</span><span>${l.profit.toLocaleString()}</span></div>`}).join(''); document.getElementById('receiptTotal').innerText=t.toLocaleString(); document.getElementById('receiptOverlay').style.display='flex'; }
+    function downloadReceipt() { html2canvas(document.getElementById('receiptView')).then(c => { const a=document.createElement('a'); a.download='receipt.png'; a.href=c.toDataURL(); a.click(); }); }
+    
     init();
 </script>
 </body>
