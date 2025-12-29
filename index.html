@@ -66,12 +66,14 @@
         .calc-row { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-sub); margin-bottom: 4px; }
         .btn-group { display: flex; gap: 10px; margin-bottom: 15px; }
         .btn-main { flex: 1; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 15px; }
+        .btn-danger { background: #fee2e2; color: #b91c1c; flex:1; padding:12px; border:none; border-radius:8px; cursor:pointer; font-weight:700; font-size:15px; }
 
         /* 리스트 스타일 */
         .item-card { border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
         .item-clickable:hover { text-decoration: underline; color: var(--blue-text); cursor: pointer; }
         .sm-btn { padding: 4px 8px; font-size: 11px; border: 1px solid var(--border); background: white; border-radius: 4px; cursor: pointer; font-weight: 600; color: var(--text-sub); }
         .sm-btn-blue { color: var(--blue-text); border-color: #bfdbfe; background: #eff6ff; }
+        .sm-btn-red { color: var(--red-text); border-color: #fecaca; background: #fef2f2; }
 
         .calc-modal { display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:320px; background:var(--surface); padding:20px; border-radius:16px; box-shadow:0 10px 40px rgba(0,0,0,0.2); z-index:3000; border:1px solid var(--border); }
         #receiptView { width: 300px; background: white; padding: 40px 20px; font-family: 'Courier New', monospace; color: #333; }
@@ -183,6 +185,38 @@
     </div>
 </div>
 
+<div class="modal-overlay" id="holdEditModal" onclick="if(event.target===this) this.style.display='none'">
+    <div class="modal" style="width:350px;">
+        <div class="modal-header">
+            <h2 style="margin:0; font-size:16px; font-weight:800; color:var(--red-text);">🛠️ 보유 잔고 강제 수정</h2>
+            <span onclick="document.getElementById('holdEditModal').style.display='none'" style="cursor:pointer;font-size:20px">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div style="background:#fff7ed; color:#9a3412; padding:10px; border-radius:8px; font-size:12px; margin-bottom:15px; border:1px solid #ffedd5;">
+                ⚠️ <b>주의:</b> 이 기능은 계산된 평단가/수량이 실제와 다를 때 사용합니다.<br>
+                수정 시, 해당 종목의 <b>기존 매수 잔여량이 모두 초기화</b>되며 입력한 값으로 새로운 '보유 정정' 기록이 생성됩니다.
+            </div>
+            <div class="form-group">
+                <label>종목명</label>
+                <input type="text" id="he_name" readonly style="background:#f1f5f9; color:#64748b;">
+            </div>
+            <div class="form-group">
+                <label>실제 평단가</label>
+                <input type="number" id="he_price" placeholder="실제 평단가 입력">
+            </div>
+            <div class="form-group">
+                <label>실제 보유수량</label>
+                <input type="number" id="he_qty" placeholder="실제 보유수량 입력">
+            </div>
+            <div class="form-group">
+                <label>기준 날짜 (정정 기록 날짜)</label>
+                <input type="date" id="he_date">
+            </div>
+            <button class="btn-main" onclick="applyHoldCorrection()" style="background:var(--red); color:white; width:100%;">수정 사항 적용</button>
+        </div>
+    </div>
+</div>
+
 <div class="modal-overlay" id="receiptOverlay" onclick="if(event.target===this) this.style.display='none'">
     <div style="background:white; padding:10px; border-radius:10px;">
         <div id="receiptView">
@@ -219,7 +253,7 @@
             <div class="report-stat"><span>월 승률</span><span id="repWinRate">0%</span></div>
             <div class="report-stat"><span>BEST 종목</span><span id="repBest">-</span></div>
             <div class="report-stat"><span>WORST 종목</span><span id="repWorst">-</span></div>
-            <div style="margin-top:20px; font-size:12px; color:#94a3b8;">Trading Journal V6.1</div>
+            <div style="margin-top:20px; font-size:12px; color:#94a3b8;">Trading Journal V6.2</div>
         </div>
         <button class="btn-main" onclick="downloadReport()" style="width:100%; background:#1e293b; color:white; margin-top:10px;">📷 성적표 저장</button>
     </div>
@@ -287,7 +321,6 @@
         portfolioChart = new Chart(document.getElementById('portfolioChart'), { type:'pie', data:{labels:Object.keys(holdings), datasets:[{data:Object.values(holdings), backgroundColor:['#ef4444','#3b82f6','#22c55e','#eab308','#a855f7']}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom', labels:{boxWidth:12}}}}});
     }
 
-    // [통합 기능 적용된 캘린더 렌더링]
     function renderCalendar() {
         const grid = document.getElementById('calendarGrid');
         const y = currentDate.getFullYear();
@@ -317,7 +350,6 @@
             let dayP = 0;
             let badges = '';
             
-            // 데이터 통합 (같은 종목+타입 묶기)
             let summary = {};
             logs.forEach(l => {
                 const key = l.name + '_' + l.type;
@@ -409,8 +441,54 @@
 
     function initiateSell(name, qty, avg) { document.getElementById('inputType').value='sell'; document.getElementById('inputName').value=name; document.getElementById('inputQty').value=qty; document.getElementById('sellInfoBox').style.display='block'; document.getElementById('infoBuyPrice').innerText=Math.round(avg).toLocaleString(); document.getElementById('infoRemQty').innerText=qty; handleTypeChange(); }
     
-    function editFromHold(name) { const lastBuy = [...transactions].reverse().find(t => t.name === name && t.type === 'buy'); if(lastBuy) editLog(lastBuy.id); else alert("수정 가능한 기록 없음"); }
-    
+    // [보유 목록] 수정 버튼 클릭시 -> '보유 정정' 모달 열기
+    function openHoldEdit(name, currentQty, currentAvg) {
+        document.getElementById('he_name').value = name;
+        document.getElementById('he_price').value = Math.round(currentAvg);
+        document.getElementById('he_qty').value = currentQty;
+        document.getElementById('he_date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('holdEditModal').style.display = 'flex';
+    }
+
+    // [보유 목록] 강제 수정 적용 로직
+    function applyHoldCorrection() {
+        const name = document.getElementById('he_name').value;
+        const newPrice = Number(document.getElementById('he_price').value);
+        const newQty = Number(document.getElementById('he_qty').value);
+        const date = document.getElementById('he_date').value;
+
+        if (!newPrice || !newQty) { alert("평단가와 수량을 올바르게 입력해주세요."); return; }
+        if (!confirm(`${name}의 잔고를\n평단: ${newPrice}원, 수량: ${newQty}주로 강제 변경하시겠습니까?\n(기존 매수 기록은 모두 소진 처리됩니다.)`)) return;
+
+        // 1. 해당 종목의 기존 매수 잔여량을 모두 0으로 만듦 (소진 처리)
+        transactions.forEach(t => {
+            if (t.type === 'buy' && t.name === name && t.remainingQty > 0) {
+                t.remainingQty = 0;
+            }
+        });
+
+        // 2. 새로운 정정 기록 추가
+        transactions.push({
+            id: Date.now(),
+            date: date,
+            type: 'buy',
+            name: name,
+            price: newPrice,
+            qty: newQty,
+            remainingQty: newQty,
+            memo: '보유 잔고 강제 정정 (수동 수정)'
+        });
+
+        localStorage.setItem('stockData_v40', JSON.stringify(transactions));
+        alert("수정이 완료되었습니다.");
+        document.getElementById('holdEditModal').style.display = 'none';
+        init(); // 전체 다시 로드
+        // 모달 내 보유목록 갱신을 위해 renderHold 호출
+        if(document.getElementById('modalOverlay').style.display === 'flex') {
+            renderHold();
+        }
+    }
+
     function del(id) { 
         if(!confirm("삭제? (매도 삭제시 보유량 복구됨)")) return; 
         const idx=transactions.findIndex(t=>t.id===id); if(idx===-1)return; 
@@ -419,7 +497,6 @@
         transactions.splice(idx,1); localStorage.setItem('stockData_v40', JSON.stringify(transactions)); init(); closeModal(); 
     }
 
-    // [통합 기능 적용된 당일 기록 리스트]
     function renderDayLog(dStr) {
         const logs = transactions.filter(t => t.date === dStr);
         let groupedLogs = [], buyMap = {};
@@ -433,8 +510,7 @@
                 buyMap[t.name].totalQty += t.qty;
                 buyMap[t.name].totalCost += (t.price * t.qty);
                 buyMap[t.name].count++;
-                buyMap[t.name].id = t.id; // 마지막 항목 ID로 수정/삭제 연결
-                // 표시용 평단 업데이트
+                buyMap[t.name].id = t.id; 
                 buyMap[t.name].price = Math.floor(buyMap[t.name].totalCost / buyMap[t.name].totalQty);
                 buyMap[t.name].qty = buyMap[t.name].totalQty;
             } else {
@@ -457,7 +533,29 @@
         }).join('');
     }
 
-    function renderHold() { let hMap = {}; transactions.filter(x=>x.type==='buy' && x.remainingQty>0).forEach(t=>{ if(!hMap[t.name]) hMap[t.name]={q:0, c:0}; hMap[t.name].q+=t.remainingQty; hMap[t.name].c+=(t.remainingQty*t.price); }); document.getElementById('holdingsList').innerHTML = Object.keys(hMap).map(k=>`<div class="item-card"><div><b class="item-clickable" onclick="showHistory('${k}')">${k}</b><br><small>평단 ${Math.round(hMap[k].c/hMap[k].q).toLocaleString()}원 / ${hMap[k].q}주</small></div><div style="display:flex; gap:5px;"><button class="sm-btn" onclick="editFromHold('${k}')">수정</button><button class="sm-btn sm-btn-blue" onclick="initiateSell('${k}', ${hMap[k].q}, ${hMap[k].c/hMap[k].q})">매도</button></div></div>`).join(''); }
+    // [수정된 함수] 보유목록 렌더링 - 수정 버튼이 '강제 정정 모달'을 열도록 변경
+    function renderHold() { 
+        let hMap = {}; 
+        transactions.filter(x=>x.type==='buy' && x.remainingQty>0).forEach(t=>{ 
+            if(!hMap[t.name]) hMap[t.name]={q:0, c:0}; 
+            hMap[t.name].q+=t.remainingQty; 
+            hMap[t.name].c+=(t.remainingQty*t.price); 
+        }); 
+        
+        document.getElementById('holdingsList').innerHTML = Object.keys(hMap).map(k=>{
+            const avg = hMap[k].c/hMap[k].q;
+            return `<div class="item-card">
+                <div>
+                    <b class="item-clickable" onclick="showHistory('${k}')">${k}</b><br>
+                    <small>평단 ${Math.round(avg).toLocaleString()}원 / ${hMap[k].q}주</small>
+                </div>
+                <div style="display:flex; gap:5px;">
+                    <button class="sm-btn sm-btn-red" onclick="openHoldEdit('${k}', ${hMap[k].q}, ${avg})">보유수정</button>
+                    <button class="sm-btn sm-btn-blue" onclick="initiateSell('${k}', ${hMap[k].q}, ${avg})">매도</button>
+                </div>
+            </div>`;
+        }).join(''); 
+    }
 
     function showHistory(name) {
         const logs = transactions.filter(t => t.name === name && (t.type==='buy'||t.type==='sell')).sort((a,b)=>new Date(b.date)-new Date(a.date));
