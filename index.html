@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>매매일지 -*</title>
+    <title>매매일지 - Pro (Player Stats)</title>
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
@@ -18,7 +18,7 @@
             --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: var(--text-main); margin: 0; padding: 20px; line-height: 1.4; font-size: 14px; }
-        .container { max-width: 1400px; margin: 0 auto; background: var(--surface); padding: 20px; border-radius: 20px; box-shadow: var(--shadow); }
+        .container { max-width: 1600px; margin: 0 auto; background: var(--surface); padding: 20px; border-radius: 20px; box-shadow: var(--shadow); }
         
         .main-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .main-title { font-size: 24px; font-weight: 900; margin: 0; display:flex; align-items:center; gap:10px; }
@@ -48,8 +48,22 @@
         .sub-stat { font-size: 11px; color: #94a3b8; margin-top: 2px; }
         .text-up { color: var(--red-text); } .text-down { color: var(--blue-text); }
 
-        .charts-row { display: grid; grid-template-columns: 2.5fr 1fr; gap: 15px; margin-bottom: 20px; }
-        .chart-card { background: var(--surface); padding: 15px; border-radius: 12px; border: 1px solid var(--border); height: 250px; }
+        /* 차트 및 포트폴리오 영역 */
+        .charts-row { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 15px; margin-bottom: 20px; height: 350px; }
+        @media (max-width: 1200px) { .charts-row { grid-template-columns: 1fr; height: auto; } }
+        
+        .chart-card { background: var(--surface); padding: 15px; border-radius: 12px; border: 1px solid var(--border); height: 100%; box-sizing: border-box; display: flex; flex-direction: column; }
+        .chart-title { font-size: 14px; font-weight: 800; margin-bottom: 10px; color: var(--text-main); display: flex; justify-content: space-between; align-items: center; }
+        
+        /* 포트폴리오 테이블 스타일 */
+        .pf-container { overflow-y: auto; flex: 1; }
+        .pf-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .pf-table th { position: sticky; top: 0; background: #f8fafc; text-align: left; padding: 8px; color: var(--text-sub); font-weight: 700; border-bottom: 1px solid var(--border); z-index: 10; }
+        .pf-table td { padding: 8px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+        .pf-input { width: 70px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; font-weight: bold; font-size: 12px; }
+        .pf-val { font-weight: 700; }
+        .pf-summary-mini { font-size: 11px; color: var(--text-sub); font-weight: 400; }
+        .pf-summary-mini span { font-weight: 800; color: var(--text-main); margin-left: 2px; }
 
         .calendar-header { display: flex; justify-content: center; align-items: center; gap: 30px; margin-bottom: 15px; background: var(--bg); padding: 12px; border-radius: 12px; }
         .calendar-header h2 { margin: 0; font-size: 20px; font-weight: 800; min-width: 150px; text-align: center; }
@@ -98,7 +112,7 @@
         <div style="display:flex; gap:5px;">
             <button class="util-btn" onclick="captureScreen()">📷 스크린샷</button>
             <button class="util-btn" onclick="openCalc()">🧮 물타기 계산기</button>
-            <button class="util-btn active" id="togglePrivacyBtn" onclick="togglePrivacy()">🔒 달력만 보기</button>
+            <button class="util-btn" id="togglePrivacyBtn" onclick="togglePrivacy()">🔒 달력만 보기</button>
             <button class="util-btn" onclick="exportCSV()">📊 엑셀</button>
             <button class="util-btn" onclick="exportData()">💾 백업</button>
             <button class="util-btn" onclick="document.getElementById('fileInput').click()">📂 복구</button>
@@ -135,13 +149,40 @@
         <div class="stat-card"><h3>🌞 금일 수익</h3><p id="todayProfit">0원</p></div>
         <div class="stat-card"><h3>🎯 승률 (WIN RATE)</h3><p id="winRate">0%</p><div class="sub-stat" id="winLossCnt">0승 0패</div></div>
         <div class="stat-card"><h3>🧮 PROFIT FACTOR</h3><p id="profitFactor">0.0</p><div class="sub-stat">총수익/총손실</div></div>
-        <div class="stat-card"><h3>⚖️ 평균 손익비</h3><p id="avgRatio">0:0</p><div class="sub-stat">평균익:평균손</div></div>
+        <div class="stat-card"><h3⚖️ 평균 손익비</h3><p id="avgRatio">0:0</p><div class="sub-stat">평균익:평균손</div></div>
         <div class="stat-card"><h3>⏱️ 평균 보유일</h3><p id="avgHold">0일</p></div>
     </div>
 
     <div class="charts-row">
-        <div class="chart-card"><canvas id="assetChart"></canvas></div>
-        <div class="chart-card"><canvas id="portfolioChart"></canvas></div>
+        <div class="chart-card">
+            <div class="chart-title">
+                💼 보유 현황 (수익률)
+                <div class="pf-summary-mini">평가손: <span id="pfTotalProfit">0원</span></div>
+            </div>
+            <div class="pf-container">
+                <table class="pf-table">
+                    <thead>
+                        <tr>
+                            <th>종목</th>
+                            <th style="text-align:right">보유/평단</th>
+                            <th style="text-align:right">현재가</th>
+                            <th style="text-align:right">수익률</th>
+                            <th style="text-align:right">평가손익</th>
+                        </tr>
+                    </thead>
+                    <tbody id="portfolioList">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-title">⚾ 나의 투자 스탯 (능력치)</div>
+            <div style="flex:1; position:relative;"><canvas id="radarChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-title">🍰 보유 비중</div>
+            <div style="flex:1; position:relative;"><canvas id="portfolioChart"></canvas></div>
+        </div>
     </div>
 
     <div class="calendar-header">
@@ -192,7 +233,7 @@
             
             <div class="calc-box">
                 <div class="calc-row"><span>거래 금액:</span><span id="c_base">0원</span></div>
-                <div class="calc-row"><span>수수료/세금:</span><span id="c_fee">0원</span></div>
+                <div class="calc-row"><span>수수료/세금 (26년 한투/정부):</span><span id="c_fee">0원</span></div>
                 <div style="border-top:1px solid var(--border); margin:5px 0;"></div>
                 <div style="display:flex; justify-content:space-between; padding:5px 10px; font-weight:800;"><span>최종 정산:</span><span id="calcTotal" style="font-size:16px;">0원</span></div>
             </div>
@@ -267,7 +308,7 @@
             <div class="report-stat"><span>월 승률</span><span id="repWinRate">0%</span></div>
             <div class="report-stat"><span>BEST 종목</span><span id="repBest">-</span></div>
             <div class="report-stat"><span>WORST 종목</span><span id="repWorst">-</span></div>
-            <div style="margin-top:20px; font-size:12px; color:#94a3b8;">Trading Journal V6.4</div>
+            <div style="margin-top:20px; font-size:12px; color:#94a3b8;">Trading Journal V7.3</div>
         </div>
         <button class="btn-main" onclick="downloadReport()" style="width:100%; background:#1e293b; color:white; margin-top:10px;">📷 성적표 저장</button>
     </div>
@@ -275,12 +316,20 @@
 
 <script>
     let currentDate = new Date(), transactions = JSON.parse(localStorage.getItem('stockData_v40')) || [];
-    let assetChart=null, portfolioChart=null, editingId=null;
-    const FEE = 0.0000634, TAX = 0.0015;
+    let savedPrices = JSON.parse(localStorage.getItem('savedPrices_v1')) || {}; 
+    let radarChart=null, portfolioChart=null, editingId=null;
+
+    // 2026 기준 수수료/세금 적용 (한투 + 유관기관 + 거래세/농특세)
+    // 매수: 한투(0.0130527) + 유관(0.0031833) = 0.016236% -> 0.00016236
+    // 매도: 매수수수료 + 세금(0.20%) = 0.016236% + 0.2% = 0.216236% -> 0.00216236
+    const BUY_FEE_RATE = 0.00016236; 
+    const SELL_FEE_RATE = 0.00016236; // 매도 수수료
+    const SELL_TAX_RATE = 0.0020;     // 매도 세금 (0.20%)
 
     function init() { 
         renderCalendar(); 
         updateSummary();
+        renderPortfolioTable(); 
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('rangeStart').value = today;
         document.getElementById('rangeEnd').value = today;
@@ -299,24 +348,27 @@
     function updateSummary() {
         let tp=0, mp=0, dp=0, sc=0, lc=0, winSum=0, lossSum=0, totalHoldDays=0, holdCount=0;
         let todayStr = new Date().toISOString().split('T')[0], cmStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}`;
-        let balanceHistory = [0], dates = ['Start'], holdings = {};
+        let holdings = {};
+        
+        // 차트용 변수
+        let wins=0, losses=0, totalTrades=0;
 
         [...transactions].sort((a,b)=>new Date(a.date)-new Date(b.date)).forEach(t => {
+            if(t.type === 'sell' || t.type === 'other') {
+                let p = t.profit || t.price;
+                tp += p;
+                if(t.date.startsWith(cmStr)) mp += p;
+                if(t.date === todayStr) dp += p;
+            }
+
             if(t.type === 'sell') {
-                tp += t.profit;
-                if(t.date.startsWith(cmStr)) mp += t.profit;
-                if(t.date === todayStr) dp += t.profit;
-                if(t.profit >= 0) { sc++; winSum += t.profit; } else { lc++; lossSum += Math.abs(t.profit); }
+                totalTrades++;
+                if(t.profit >= 0) { sc++; wins++; winSum += t.profit; } 
+                else { lc++; losses++; lossSum += Math.abs(t.profit); }
+                
                 if(t.holdDays !== undefined) { totalHoldDays += t.holdDays; holdCount++; }
-                balanceHistory.push(tp); dates.push(t.date);
             } else if(t.type === 'buy' && t.remainingQty > 0) {
                 holdings[t.name] = (holdings[t.name] || 0) + (t.remainingQty * t.price);
-            } else if(t.type === 'other') {
-                // 기타(예수금) 항목: 금액만큼 더함 (음수면 자동 차감)
-                tp += t.price; 
-                if(t.date.startsWith(cmStr)) mp += t.price;
-                if(t.date === todayStr) dp += t.price;
-                balanceHistory.push(tp); dates.push(t.date);
             }
         });
 
@@ -333,14 +385,66 @@
         document.getElementById('profitFactor').innerText = lossSum > 0 ? (winSum/lossSum).toFixed(2) : (winSum>0?'∞':'0.0');
         let avgWin = sc > 0 ? winSum/sc : 0, avgLoss = lc > 0 ? lossSum/lc : 0;
         document.getElementById('avgRatio').innerText = `${(avgWin/10000).toFixed(1)} : ${(avgLoss/10000).toFixed(1)}`;
-        document.getElementById('avgHold').innerText = (holdCount > 0 ? Math.round(totalHoldDays/holdCount) : 0) + '일';
+        let avgHold = holdCount > 0 ? totalHoldDays/holdCount : 0;
+        document.getElementById('avgHold').innerText = Math.round(avgHold) + '일';
 
-        renderCharts(dates, balanceHistory, holdings);
+        renderCharts({wins, losses, totalTrades, winSum, lossSum, avgHold}, holdings);
     }
 
-    function renderCharts(labels, data, holdings) {
-        if(assetChart) assetChart.destroy();
-        assetChart = new Chart(document.getElementById('assetChart'), { type:'line', data:{labels, datasets:[{data, borderColor:'#3b82f6', fill:true, backgroundColor:'rgba(59,130,246,0.1)', tension:0.3, pointRadius:0}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{display:false}}}});
+    function renderCharts(stats, holdings) {
+        // --- 타자 스탯 (레이더) 데이터 계산 ---
+        let contact = stats.totalTrades > 0 ? (stats.wins / stats.totalTrades) * 100 : 0; // 컨택(승률)
+        
+        let avgWin = stats.wins > 0 ? stats.winSum / stats.wins : 0;
+        let avgLoss = stats.losses > 0 ? stats.lossSum / stats.losses : 0;
+
+        // 장타력: 평균수익금 (10만원을 100점으로 기준 잡음)
+        let power = Math.min(100, (avgWin / 100000) * 100); 
+
+        // 선구안: 손익비 (PF 3.0 이상이면 100점)
+        let ratio = avgLoss > 0 ? avgWin / avgLoss : (avgWin>0?3:0);
+        let eye = Math.min(100, (ratio / 3) * 100);
+
+        // 수비: 방어율 (평균손실이 적을수록 점수 높음. 0원이면 100점, 10만원 잃으면 0점)
+        let defense = Math.max(0, 100 - (avgLoss / 100000 * 100));
+
+        // 주루: 회전율 (보유일 짧을수록 점수 높음. 1일=100점, 10일=10점)
+        let speed = stats.avgHold <= 0 ? 0 : Math.max(10, 110 - (stats.avgHold * 10));
+        if(stats.totalTrades === 0) speed = 0;
+
+        if(radarChart) radarChart.destroy();
+        radarChart = new Chart(document.getElementById('radarChart'), { 
+            type:'radar', 
+            data:{
+                labels: ['컨택(승률)', '장타력(수익금)', '선구안(손익비)', '수비(손실방어)', '주루(회전율)'],
+                datasets:[{
+                    label: 'My Stats',
+                    data: [contact, power, eye, defense, speed],
+                    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                    borderColor: '#3b82f6',
+                    pointBackgroundColor: '#1e293b',
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: '#3b82f6'
+                }]
+            }, 
+            options:{
+                responsive:true, 
+                maintainAspectRatio:false, 
+                scales: {
+                    r: {
+                        angleLines: { color: '#e2e8f0' },
+                        grid: { color: '#e2e8f0' },
+                        pointLabels: { font: { size: 11, weight: '700' }, color: '#64748b' },
+                        suggestedMin: 0,
+                        suggestedMax: 100,
+                        ticks: { display: false } // 눈금 숫자 숨김
+                    }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+
         if(portfolioChart) portfolioChart.destroy();
         portfolioChart = new Chart(document.getElementById('portfolioChart'), { type:'pie', data:{labels:Object.keys(holdings), datasets:[{data:Object.values(holdings), backgroundColor:['#ef4444','#3b82f6','#22c55e','#eab308','#a855f7']}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom', labels:{boxWidth:12}}}}});
     }
@@ -359,7 +463,6 @@
                 profit += t.profit;
                 if(t.profit >= 0) wins++; else losses++;
             } else if (t.type === 'other') {
-                // 기타 항목도 기간 수익에 합산
                 profit += t.price;
             }
         });
@@ -454,7 +557,7 @@
                     badges += `<div class="badge badge-sell"><span>${item.name}${countStr}</span><span style="color: ${p>=0 ? '#ef4444' : '#1d4ed8'}">${p>=0?'+':''}${(p/10000).toFixed(1)}만</span></div>`;
                 } else {
                     const p = item.price;
-                    const color = p >= 0 ? '#15803d' : '#1d4ed8'; // 양수:초록, 음수:파랑
+                    const color = p >= 0 ? '#15803d' : '#1d4ed8'; 
                     const sign = p >= 0 ? '+' : '';
                     badges += `<div class="badge badge-other" style="color:${color}; background:${p>=0?'#dcfce7':'#eff6ff'}"><span>${item.name}</span><span>${sign}${(p/10000).toFixed(1)}만</span></div>`;
                 }
@@ -485,10 +588,21 @@
     
     function calc() { 
         const p=Number(document.getElementById('inputPrice').value), q=Number(document.getElementById('inputQty').value), t=document.getElementById('inputType').value; 
-        let base=p*q, fee=Math.floor(base*FEE), tax=(t==='sell'?Math.floor(base*TAX):0); 
-        document.getElementById('c_base').innerText=base.toLocaleString()+'원'; 
-        document.getElementById('c_fee').innerText=(fee+tax).toLocaleString()+'원'; 
-        document.getElementById('calcTotal').innerText=(t==='buy'?base+fee:base-fee-tax).toLocaleString()+'원'; 
+        
+        let base = p * q;
+        let fee = 0;
+        let tax = 0;
+
+        if (t === 'buy') {
+            fee = Math.floor(base * BUY_FEE_RATE); // 1원단위 절사
+        } else if (t === 'sell') {
+            fee = Math.floor(base * SELL_FEE_RATE);
+            tax = Math.floor(base * SELL_TAX_RATE);
+        }
+
+        document.getElementById('c_base').innerText = base.toLocaleString() + '원'; 
+        document.getElementById('c_fee').innerText = (fee + tax).toLocaleString() + '원'; 
+        document.getElementById('calcTotal').innerText = (t==='buy' ? base + fee : base - fee - tax).toLocaleString() + '원'; 
     }
 
     function editLog(id) {
@@ -512,17 +626,30 @@
                 if(q > buys.reduce((a,c)=>a+c.remainingQty, 0)){alert('수량부족');return;}
                 let totalBuyQty = buys.reduce((a,c)=>a+c.remainingQty,0);
                 let avgP = buys.reduce((a,c)=>a+(c.remainingQty*c.price),0)/totalBuyQty;
-                let sellNet = (p*q) - Math.floor(p*q*FEE) - Math.floor(p*q*TAX);
-                let buyTotal = (avgP*q) + Math.floor(avgP*q*FEE);
+                
+                // 매도 정산 (세금/수수료 적용)
+                let baseSell = p * q;
+                let sellFee = Math.floor(baseSell * SELL_FEE_RATE);
+                let sellTax = Math.floor(baseSell * SELL_TAX_RATE);
+                let sellNet = baseSell - sellFee - sellTax;
+
+                // 매수 원금 (매수 수수료 포함)
+                // 기존 매수단가는 순수 가격이지만, 정확한 손익 계산을 위해 매수 수수료도 비용으로 치는게 맞으나
+                // 보통 '실현손익'은 (매도금액 - 제비용) - (매수평단 * 수량) - (매수시 수수료 추정) 식으로 계산함.
+                // 여기선 간단히 (매도정산금) - (매수평단 * 수량)으로 계산하되, 매수수수료는 기 반영된걸로 가정하거나 무시하는 경우가 많음.
+                // 정확히 하려면: buyTotal = (avgP * q) + Math.floor(avgP * q * BUY_FEE_RATE);
+                let buyBase = avgP * q;
+                let buyFee = Math.floor(buyBase * BUY_FEE_RATE);
+                let buyTotal = buyBase + buyFee;
+
                 transactions.push({id:Date.now(), date:d, type:'sell', name:n, price:p, qty:q, profit:Math.round(sellNet-buyTotal), memo:m, holdDays:Math.ceil((new Date(d)-new Date(buys[0].date))/(1000*60*60*24))});
                 let rem=q; buys.forEach(b=>{if(rem>0){let dQ=Math.min(b.remainingQty, rem); b.remainingQty-=dQ; rem-=dQ;}});
             } else transactions.push({id:Date.now(), date:d, type:t, name:n, price:p, qty:q, remainingQty:q, memo:m});
         }
-        localStorage.setItem('stockData_v40', JSON.stringify(transactions)); init(); openModal(d);
+        localStorage.setItem('stockData_v40', JSON.stringify(transactions)); init(); openModal(d); renderPortfolioTable();
     }
 
     function initiateSell(name, qty, avg) { document.getElementById('inputType').value='sell'; document.getElementById('inputName').value=name; document.getElementById('inputQty').value=qty; document.getElementById('sellInfoBox').style.display='block'; document.getElementById('infoBuyPrice').innerText=Math.round(avg).toLocaleString(); document.getElementById('infoRemQty').innerText=qty; handleTypeChange(); }
-    
     function openHoldEdit(name, currentQty, currentAvg) {
         document.getElementById('he_name').value = name;
         document.getElementById('he_price').value = Math.round(currentAvg);
@@ -546,6 +673,7 @@
         alert("수정이 완료되었습니다.");
         document.getElementById('holdEditModal').style.display = 'none';
         init();
+        renderPortfolioTable();
         if(document.getElementById('modalOverlay').style.display === 'flex') renderHold();
     }
 
@@ -554,7 +682,7 @@
         const idx=transactions.findIndex(t=>t.id===id); if(idx===-1)return; 
         const tr=transactions[idx]; 
         if(tr.type==='sell'){let rq=tr.qty, buys=transactions.filter(t=>t.type==='buy'&&t.name===tr.name).sort((a,b)=>new Date(a.date)-new Date(b.date)); for(let b of buys){if(rq<=0)break; let lost=b.qty-b.remainingQty; if(lost>0){let r=Math.min(lost,rq); b.remainingQty+=r; rq-=r;}}} 
-        transactions.splice(idx,1); localStorage.setItem('stockData_v40', JSON.stringify(transactions)); init(); closeModal(); 
+        transactions.splice(idx,1); localStorage.setItem('stockData_v40', JSON.stringify(transactions)); init(); closeModal(); renderPortfolioTable();
     }
 
     function renderDayLog(dStr) {
@@ -599,8 +727,7 @@
             if(!hMap[t.name]) hMap[t.name]={q:0, c:0}; 
             hMap[t.name].q+=t.remainingQty; 
             hMap[t.name].c+=(t.remainingQty*t.price); 
-        }); 
-        
+        });         
         document.getElementById('holdingsList').innerHTML = Object.keys(hMap).map(k=>{
             const avg = hMap[k].c/hMap[k].q;
             return `<div class="item-card">
@@ -614,6 +741,87 @@
                 </div>
             </div>`;
         }).join(''); 
+    }
+
+    function renderPortfolioTable() {
+        let hMap = {}; 
+        transactions.filter(x=>x.type==='buy' && x.remainingQty>0).forEach(t=>{ 
+            if(!hMap[t.name]) hMap[t.name]={q:0, c:0}; 
+            hMap[t.name].q+=t.remainingQty; 
+            hMap[t.name].c+=(t.remainingQty*t.price); 
+        });
+
+        const list = document.getElementById('portfolioList');
+        let html = '';
+
+        Object.keys(hMap).forEach(name => {
+            const avg = Math.floor(hMap[name].c / hMap[name].q);
+            const qty = hMap[name].q;
+            const lastPrice = savedPrices[name] || avg; 
+            
+            html += `
+            <tr data-name="${name}" data-avg="${avg}" data-qty="${qty}">
+                <td style="font-weight:700;">${name}</td>
+                <td style="text-align:right;">${qty}주<br><span style="color:#94a3b8; font-size:11px;">@${avg.toLocaleString()}</span></td>
+                <td style="text-align:right;">
+                    <input type="number" class="pf-input" value="${lastPrice}" oninput="updateRow(this)" onchange="savePrice('${name}', this.value)">
+                </td>
+                <td style="text-align:right;" class="pf-val pf-yield">0.0%</td>
+                <td style="text-align:right;" class="pf-val pf-profit">0</td>
+            </tr>`;
+        });
+
+        if (html === '') html = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#94a3b8;">보유 종목이 없습니다.</td></tr>';
+        
+        list.innerHTML = html;
+        document.querySelectorAll('.pf-input').forEach(input => updateRow(input));
+    }
+
+    function updateRow(input) {
+        const row = input.closest('tr');
+        const avg = Number(row.dataset.avg);
+        const qty = Number(row.dataset.qty);
+        const curPrice = Number(input.value);
+
+        if(!curPrice) return;
+
+        const valuation = curPrice * qty;
+        const buyVal = avg * qty;
+        // 단순 평가손익 계산 (수수료 제외된 순수 등락)
+        const profit = valuation - buyVal; 
+        const yieldRate = ((curPrice - avg) / avg) * 100;
+
+        const yieldEl = row.querySelector('.pf-yield');
+        const profitEl = row.querySelector('.pf-profit');
+
+        yieldEl.innerText = yieldRate.toFixed(1) + '%';
+        yieldEl.style.color = yieldRate >= 0 ? 'var(--red-text)' : 'var(--blue-text)';
+
+        profitEl.innerText = (profit/10000).toFixed(1) + '만'; 
+        profitEl.style.color = profit >= 0 ? 'var(--red-text)' : 'var(--blue-text)';
+
+        calcPortfolioTotal();
+    }
+
+    function calcPortfolioTotal() {
+        let totalProfit = 0;
+        document.querySelectorAll('#portfolioList tr').forEach(tr => {
+            if(tr.querySelector('input')) {
+                const qty = Number(tr.dataset.qty);
+                const curPrice = Number(tr.querySelector('input').value);
+                const avg = Number(tr.dataset.avg);
+                totalProfit += (curPrice * qty) - (avg * qty);
+            }
+        });
+
+        const tpEl = document.getElementById('pfTotalProfit');
+        tpEl.innerText = totalProfit.toLocaleString() + '원';
+        tpEl.style.color = totalProfit >= 0 ? '#ef4444' : '#3b82f6';
+    }
+
+    function savePrice(name, price) {
+        savedPrices[name] = price;
+        localStorage.setItem('savedPrices_v1', JSON.stringify(savedPrices));
     }
 
     function showHistory(name) {
@@ -633,7 +841,6 @@
 
     function showMonthlyReport() {
         const cmStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}`;
-        // 기타(other)도 월간 수익에 포함
         const logs = transactions.filter(t => t.date.startsWith(cmStr) && (t.type === 'sell' || t.type === 'other'));
         
         let profit=0, wins=0, totalTrades=0;
