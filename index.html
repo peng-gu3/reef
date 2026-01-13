@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>매매일지 - Pro (Player Stats)</title>
+    <title>매매일지</title>
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
@@ -149,8 +149,9 @@
         <div class="stat-card"><h3>🌞 금일 수익</h3><p id="todayProfit">0원</p></div>
         <div class="stat-card"><h3>🎯 승률 (WIN RATE)</h3><p id="winRate">0%</p><div class="sub-stat" id="winLossCnt">0승 0패</div></div>
         <div class="stat-card"><h3>🧮 PROFIT FACTOR</h3><p id="profitFactor">0.0</p><div class="sub-stat">총수익/총손실</div></div>
-        <div class="stat-card"><h3⚖️ 평균 손익비</h3><p id="avgRatio">0:0</p><div class="sub-stat">평균익:평균손</div></div>
-        <div class="stat-card"><h3>⏱️ 평균 보유일</h3><p id="avgHold">0일</p></div>
+        <div class="stat-card"><h3>⚖️ 평균 손익비</h3><p id="avgRatio">0:0</p><div class="sub-stat">평균익:평균손</div></div>
+        
+        <div class="stat-card"><h3>💸 1회 평균 수익</h3><p id="avgExp">0원</p><div class="sub-stat">매매손익/매매횟수</div></div>
     </div>
 
     <div class="charts-row">
@@ -346,7 +347,7 @@
     }
 
     function updateSummary() {
-        let tp=0, mp=0, dp=0, sc=0, lc=0, winSum=0, lossSum=0, totalHoldDays=0, holdCount=0;
+        let tp=0, mp=0, dp=0, sc=0, lc=0, winSum=0, lossSum=0;
         let todayStr = new Date().toISOString().split('T')[0], cmStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}`;
         let holdings = {};
         
@@ -365,8 +366,6 @@
                 totalTrades++;
                 if(t.profit >= 0) { sc++; wins++; winSum += t.profit; } 
                 else { lc++; losses++; lossSum += Math.abs(t.profit); }
-                
-                if(t.holdDays !== undefined) { totalHoldDays += t.holdDays; holdCount++; }
             } else if(t.type === 'buy' && t.remainingQty > 0) {
                 holdings[t.name] = (holdings[t.name] || 0) + (t.remainingQty * t.price);
             }
@@ -383,12 +382,19 @@
         document.getElementById('winRate').innerText = (sc+lc > 0 ? (sc/(sc+lc)*100).toFixed(1) : 0) + '%';
         document.getElementById('winLossCnt').innerText = `${sc}승 ${lc}패`;
         document.getElementById('profitFactor').innerText = lossSum > 0 ? (winSum/lossSum).toFixed(2) : (winSum>0?'∞':'0.0');
+        
         let avgWin = sc > 0 ? winSum/sc : 0, avgLoss = lc > 0 ? lossSum/lc : 0;
         document.getElementById('avgRatio').innerText = `${(avgWin/10000).toFixed(1)} : ${(avgLoss/10000).toFixed(1)}`;
-        let avgHold = holdCount > 0 ? totalHoldDays/holdCount : 0;
-        document.getElementById('avgHold').innerText = Math.round(avgHold) + '일';
+        
+        // Expectancy 계산 (순수 매매 손익의 평균)
+        let tradeNetProfit = winSum - lossSum;
+        let avgExp = totalTrades > 0 ? tradeNetProfit / totalTrades : 0;
+        
+        const avgExpEl = document.getElementById('avgExp');
+        avgExpEl.innerText = Math.round(avgExp).toLocaleString() + '원';
+        avgExpEl.className = avgExp >= 0 ? 'text-up' : 'text-down';
 
-        renderCharts({wins, losses, totalTrades, winSum, lossSum, avgHold}, holdings);
+        renderCharts({wins, losses, totalTrades, winSum, lossSum, avgExp}, holdings);
     }
 
     function renderCharts(stats, holdings) {
@@ -398,28 +404,29 @@
         let avgWin = stats.wins > 0 ? stats.winSum / stats.wins : 0;
         let avgLoss = stats.losses > 0 ? stats.lossSum / stats.losses : 0;
 
-        // 장타력: 평균수익금 (10만원을 100점으로 기준 잡음)
+        // 장타력: 평균수익금 (10만원을 100점으로 기준)
         let power = Math.min(100, (avgWin / 100000) * 100); 
 
         // 선구안: 손익비 (PF 3.0 이상이면 100점)
         let ratio = avgLoss > 0 ? avgWin / avgLoss : (avgWin>0?3:0);
         let eye = Math.min(100, (ratio / 3) * 100);
 
-        // 수비: 방어율 (평균손실이 적을수록 점수 높음. 0원이면 100점, 10만원 잃으면 0점)
+        // 수비: 방어율 (평균손실이 적을수록 점수 높음)
         let defense = Math.max(0, 100 - (avgLoss / 100000 * 100));
 
-        // 주루: 회전율 (보유일 짧을수록 점수 높음. 1일=100점, 10일=10점)
-        let speed = stats.avgHold <= 0 ? 0 : Math.max(10, 110 - (stats.avgHold * 10));
-        if(stats.totalTrades === 0) speed = 0;
+        // [변경] 주루 -> 기대치 (1회 평균 수익)
+        // 0원이면 50점. 50,000원이면 75점. -50,000원이면 25점.
+        // 공식: 50 + (수익금 / 2000원). 최대 100, 최소 0.
+        let expScore = Math.max(0, Math.min(100, 50 + (stats.avgExp / 2000)));
 
         if(radarChart) radarChart.destroy();
         radarChart = new Chart(document.getElementById('radarChart'), { 
             type:'radar', 
             data:{
-                labels: ['컨택(승률)', '장타력(수익금)', '선구안(손익비)', '수비(손실방어)', '주루(회전율)'],
+                labels: ['컨택(승률)', '장타력(수익금)', '선구안(손익비)', '수비(손실방어)', '기대치(1회수익)'],
                 datasets:[{
                     label: 'My Stats',
-                    data: [contact, power, eye, defense, speed],
+                    data: [contact, power, eye, defense, expScore],
                     backgroundColor: 'rgba(59, 130, 246, 0.2)',
                     borderColor: '#3b82f6',
                     pointBackgroundColor: '#1e293b',
@@ -438,7 +445,7 @@
                         pointLabels: { font: { size: 11, weight: '700' }, color: '#64748b' },
                         suggestedMin: 0,
                         suggestedMax: 100,
-                        ticks: { display: false } // 눈금 숫자 숨김
+                        ticks: { display: false } 
                     }
                 },
                 plugins: { legend: { display: false } }
@@ -616,35 +623,41 @@
     function save() {
         const d=document.getElementById('inputDate').value, t=document.getElementById('inputType').value, n=document.getElementById('inputName').value, p=Number(document.getElementById('inputPrice').value), q=Number(document.getElementById('inputQty').value), m=document.getElementById('inputMemo').value;
         if(!n || !p) return;
+        
         if(editingId) {
             let idx = transactions.findIndex(x=>x.id===editingId);
             transactions[idx] = {...transactions[idx], date:d, name:n, price:p, qty:q, memo:m};
             editingId = null;
         } else {
             if(t==='sell') {
+                // 선입선출 이익 계산 (보유기간 로직은 제거됨)
                 let buys = transactions.filter(x=>x.type==='buy' && x.name===n && x.remainingQty>0).sort((a,b)=>new Date(a.date)-new Date(b.date));
                 if(q > buys.reduce((a,c)=>a+c.remainingQty, 0)){alert('수량부족');return;}
+                
                 let totalBuyQty = buys.reduce((a,c)=>a+c.remainingQty,0);
                 let avgP = buys.reduce((a,c)=>a+(c.remainingQty*c.price),0)/totalBuyQty;
                 
-                // 매도 정산 (세금/수수료 적용)
                 let baseSell = p * q;
                 let sellFee = Math.floor(baseSell * SELL_FEE_RATE);
                 let sellTax = Math.floor(baseSell * SELL_TAX_RATE);
                 let sellNet = baseSell - sellFee - sellTax;
-
-                // 매수 원금 (매수 수수료 포함)
-                // 기존 매수단가는 순수 가격이지만, 정확한 손익 계산을 위해 매수 수수료도 비용으로 치는게 맞으나
-                // 보통 '실현손익'은 (매도금액 - 제비용) - (매수평단 * 수량) - (매수시 수수료 추정) 식으로 계산함.
-                // 여기선 간단히 (매도정산금) - (매수평단 * 수량)으로 계산하되, 매수수수료는 기 반영된걸로 가정하거나 무시하는 경우가 많음.
-                // 정확히 하려면: buyTotal = (avgP * q) + Math.floor(avgP * q * BUY_FEE_RATE);
                 let buyBase = avgP * q;
                 let buyFee = Math.floor(buyBase * BUY_FEE_RATE);
                 let buyTotal = buyBase + buyFee;
 
-                transactions.push({id:Date.now(), date:d, type:'sell', name:n, price:p, qty:q, profit:Math.round(sellNet-buyTotal), memo:m, holdDays:Math.ceil((new Date(d)-new Date(buys[0].date))/(1000*60*60*24))});
-                let rem=q; buys.forEach(b=>{if(rem>0){let dQ=Math.min(b.remainingQty, rem); b.remainingQty-=dQ; rem-=dQ;}});
-            } else transactions.push({id:Date.now(), date:d, type:t, name:n, price:p, qty:q, remainingQty:q, memo:m});
+                transactions.push({id:Date.now(), date:d, type:'sell', name:n, price:p, qty:q, profit:Math.round(sellNet-buyTotal), memo:m});
+                
+                let rem=q; 
+                buys.forEach(b=>{
+                    if(rem>0){
+                        let dQ=Math.min(b.remainingQty, rem); 
+                        b.remainingQty-=dQ; 
+                        rem-=dQ;
+                    }
+                });
+            } else {
+                transactions.push({id:Date.now(), date:d, type:t, name:n, price:p, qty:q, remainingQty:q, memo:m});
+            }
         }
         localStorage.setItem('stockData_v40', JSON.stringify(transactions)); init(); openModal(d); renderPortfolioTable();
     }
@@ -727,7 +740,8 @@
             if(!hMap[t.name]) hMap[t.name]={q:0, c:0}; 
             hMap[t.name].q+=t.remainingQty; 
             hMap[t.name].c+=(t.remainingQty*t.price); 
-        });         
+        }); 
+        
         document.getElementById('holdingsList').innerHTML = Object.keys(hMap).map(k=>{
             const avg = hMap[k].c/hMap[k].q;
             return `<div class="item-card">
