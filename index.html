@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>매매일지</title>
+    <title>매매일지 V7.6</title>
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
@@ -102,10 +102,51 @@
         #reportView { width: 350px; background: #fff; padding: 30px; border-radius: 20px; text-align: center; border: 2px solid #1e293b; color: #1e293b; }
         .report-rank { font-size: 40px; margin: 10px 0; }
         .report-stat { display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: 700; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+
+        /* --- [NEW] 매매 타임라인 (Slim & Compact) --- */
+        .timeline-container { 
+            display: flex; flex-direction: column; gap: 8px; /* 간격 축소 */
+            padding: 10px; background: #f8fafc; border-radius: 8px; 
+        }
+        .t-row { display: flex; width: 100%; align-items: flex-end; } /* 아래쪽 정렬로 깔끔하게 */
+        .t-row.buy { justify-content: flex-start; }
+        .t-row.sell { justify-content: flex-end; }
+
+        .t-bubble { 
+            min-width: 180px; max-width: 85%; 
+            padding: 8px 12px; /* 패딩 대폭 축소 */
+            border-radius: 8px; position: relative; 
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05); 
+            font-size: 12px; line-height: 1.3; 
+        }
+        .t-bubble.buy { background: white; border: 1px solid #fee2e2; border-left: 3px solid #ef4444; }
+        .t-bubble.sell { background: #eff6ff; border: 1px solid #dbeafe; border-right: 3px solid #3b82f6; text-align: right; }
+
+        /* 헤더: 날짜와 배지를 한 줄에 */
+        .t-header { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; opacity: 0.8; font-size: 11px; }
+        .t-bubble.sell .t-header { justify-content: flex-end; }
+
+        /* 메인: 가격과 수량을 한 줄에 */
+        .t-main { display: flex; align-items: baseline; gap: 5px; margin-bottom: 3px; }
+        .t-bubble.sell .t-main { justify-content: flex-end; }
+        
+        .t-price { font-weight: 800; font-size: 14px; color: var(--text-main); }
+        .t-qty { font-size: 11px; color: #64748b; font-weight: 600; }
+
+        .t-badge { padding: 1px 4px; border-radius: 3px; font-size: 10px; font-weight: 800; line-height: 1; }
+        .badge-b { background: #fef2f2; color: #ef4444; border: 1px solid #fecaca; }
+        .badge-s { background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; }
+
+        /* 손익 비교 영역: 더 작고 심플하게 */
+        .t-compare { 
+            margin-top: 4px; padding-top: 4px; 
+            border-top: 1px dashed rgba(0,0,0,0.1); 
+            font-size: 11px; color: #64748b; 
+            display: flex; justify-content: space-between; align-items: center;
+        }
     </style>
 </head>
 <body>
-
 <div class="container" id="captureTarget">
     <div class="main-header">
         <h1 class="main-title">🚀 하루20만원 목표+_+ 🚀  <span id="userTier" style="font-size:14px; background:#eee; padding:2px 8px; border-radius:10px;">아이언 🧊</span></h1>
@@ -150,7 +191,6 @@
         <div class="stat-card"><h3>🎯 승률 (WIN RATE)</h3><p id="winRate">0%</p><div class="sub-stat" id="winLossCnt">0승 0패</div></div>
         <div class="stat-card"><h3>🧮 PROFIT FACTOR</h3><p id="profitFactor">0.0</p><div class="sub-stat">총수익/총손실</div></div>
         <div class="stat-card"><h3>⚖️ 평균 손익비</h3><p id="avgRatio">0:0</p><div class="sub-stat">평균익:평균손</div></div>
-        
         <div class="stat-card"><h3>💸 1회 평균 수익</h3><p id="avgExp">0원</p><div class="sub-stat">매매손익/매매횟수</div></div>
     </div>
 
@@ -294,7 +334,7 @@
                 <div class="stat-card" style="padding:10px;"><h3 style="margin:0">총 손익</h3><p id="histProfit">0원</p></div>
                 <div class="stat-card" style="padding:10px;"><h3 style="margin:0">승률</h3><p id="histWinRate">0%</p></div>
             </div>
-            <div id="histList" style="max-height:300px; overflow-y:auto;"></div>
+            <div id="histList" style="max-height:600px; overflow-y:auto;"></div>
         </div>
     </div>
 </div>
@@ -309,7 +349,7 @@
             <div class="report-stat"><span>월 승률</span><span id="repWinRate">0%</span></div>
             <div class="report-stat"><span>BEST 종목</span><span id="repBest">-</span></div>
             <div class="report-stat"><span>WORST 종목</span><span id="repWorst">-</span></div>
-            <div style="margin-top:20px; font-size:12px; color:#94a3b8;">Trading Journal V7.3</div>
+            <div style="margin-top:20px; font-size:12px; color:#94a3b8;">Trading Journal V7.6</div>
         </div>
         <button class="btn-main" onclick="downloadReport()" style="width:100%; background:#1e293b; color:white; margin-top:10px;">📷 성적표 저장</button>
     </div>
@@ -320,12 +360,9 @@
     let savedPrices = JSON.parse(localStorage.getItem('savedPrices_v1')) || {}; 
     let radarChart=null, portfolioChart=null, editingId=null;
 
-    // 2026 기준 수수료/세금 적용 (한투 + 유관기관 + 거래세/농특세)
-    // 매수: 한투(0.0130527) + 유관(0.0031833) = 0.016236% -> 0.00016236
-    // 매도: 매수수수료 + 세금(0.20%) = 0.016236% + 0.2% = 0.216236% -> 0.00216236
     const BUY_FEE_RATE = 0.00016236; 
-    const SELL_FEE_RATE = 0.00016236; // 매도 수수료
-    const SELL_TAX_RATE = 0.0020;     // 매도 세금 (0.20%)
+    const SELL_FEE_RATE = 0.00016236; 
+    const SELL_TAX_RATE = 0.0020; 
 
     function init() { 
         renderCalendar(); 
@@ -351,7 +388,6 @@
         let todayStr = new Date().toISOString().split('T')[0], cmStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}`;
         let holdings = {};
         
-        // 차트용 변수
         let wins=0, losses=0, totalTrades=0;
 
         [...transactions].sort((a,b)=>new Date(a.date)-new Date(b.date)).forEach(t => {
@@ -386,7 +422,6 @@
         let avgWin = sc > 0 ? winSum/sc : 0, avgLoss = lc > 0 ? lossSum/lc : 0;
         document.getElementById('avgRatio').innerText = `${(avgWin/10000).toFixed(1)} : ${(avgLoss/10000).toFixed(1)}`;
         
-        // Expectancy 계산 (순수 매매 손익의 평균)
         let tradeNetProfit = winSum - lossSum;
         let avgExp = totalTrades > 0 ? tradeNetProfit / totalTrades : 0;
         
@@ -398,25 +433,15 @@
     }
 
     function renderCharts(stats, holdings) {
-        // --- 타자 스탯 (레이더) 데이터 계산 ---
-        let contact = stats.totalTrades > 0 ? (stats.wins / stats.totalTrades) * 100 : 0; // 컨택(승률)
+        let contact = stats.totalTrades > 0 ? (stats.wins / stats.totalTrades) * 100 : 0; 
         
         let avgWin = stats.wins > 0 ? stats.winSum / stats.wins : 0;
         let avgLoss = stats.losses > 0 ? stats.lossSum / stats.losses : 0;
 
-        // 장타력: 평균수익금 (10만원을 100점으로 기준)
         let power = Math.min(100, (avgWin / 100000) * 100); 
-
-        // 선구안: 손익비 (PF 3.0 이상이면 100점)
         let ratio = avgLoss > 0 ? avgWin / avgLoss : (avgWin>0?3:0);
         let eye = Math.min(100, (ratio / 3) * 100);
-
-        // 수비: 방어율 (평균손실이 적을수록 점수 높음)
         let defense = Math.max(0, 100 - (avgLoss / 100000 * 100));
-
-        // [변경] 주루 -> 기대치 (1회 평균 수익)
-        // 0원이면 50점. 50,000원이면 75점. -50,000원이면 25점.
-        // 공식: 50 + (수익금 / 2000원). 최대 100, 최소 0.
         let expScore = Math.max(0, Math.min(100, 50 + (stats.avgExp / 2000)));
 
         if(radarChart) radarChart.destroy();
@@ -630,7 +655,6 @@
             editingId = null;
         } else {
             if(t==='sell') {
-                // 선입선출 이익 계산 (보유기간 로직은 제거됨)
                 let buys = transactions.filter(x=>x.type==='buy' && x.name===n && x.remainingQty>0).sort((a,b)=>new Date(a.date)-new Date(b.date));
                 if(q > buys.reduce((a,c)=>a+c.remainingQty, 0)){alert('수량부족');return;}
                 
@@ -801,7 +825,7 @@
 
         const valuation = curPrice * qty;
         const buyVal = avg * qty;
-        // 단순 평가손익 계산 (수수료 제외된 순수 등락)
+        
         const profit = valuation - buyVal; 
         const yieldRate = ((curPrice - avg) / avg) * 100;
 
@@ -838,18 +862,98 @@
         localStorage.setItem('savedPrices_v1', JSON.stringify(savedPrices));
     }
 
+    /* --- [NEW] 전적 조회 (Slim Timeline 버전) --- */
     function showHistory(name) {
-        const logs = transactions.filter(t => t.name === name && (t.type==='buy'||t.type==='sell')).sort((a,b)=>new Date(b.date)-new Date(a.date));
-        if(!logs.length) return;
-        document.getElementById('histTitle').innerText = `${name} 전적`;
-        let totalP=0, wins=0, sells=0;
-        let html = logs.map(t => {
-            if(t.type==='sell'){ totalP+=t.profit; sells++; if(t.profit>=0) wins++; }
-            return `<div style="border-bottom:1px solid #eee; padding:5px; font-size:12px; display:flex; justify-content:space-between;"><span>${t.date} [${t.type==='buy'?'매수':'매도'}]</span><span style="color:${t.profit>=0?'red':'blue'}">${t.type==='sell'?t.profit.toLocaleString()+'원':t.qty+'주'}</span></div>`;
+        const logs = transactions
+            .filter(t => t.name === name && (t.type === 'buy' || t.type === 'sell'))
+            .sort((a, b) => (new Date(a.date) - new Date(b.date)) || (a.id - b.id));
+
+        if (!logs.length) return;
+
+        // 제목 심플하게
+        document.getElementById('histTitle').innerHTML = `<span style="color:#1e293b; font-weight:900;">${name}</span>`;
+        
+        let curQty = 0, curTotalCost = 0, totalRealizedProfit = 0, winCount = 0, sellCount = 0;
+
+        let html = `<div class="timeline-container">`;
+
+        html += logs.map(t => {
+            let content = '';
+            let rowClass = '';
+            let snapshotAvg = curQty > 0 ? Math.floor(curTotalCost / curQty) : 0;
+
+            if (t.type === 'buy') {
+                rowClass = 'buy';
+                curTotalCost += (t.price * t.qty);
+                curQty += t.qty;
+                
+                // [매수] 컴팩트 디자인: 날짜 | 가격 (수량)
+                content = `
+                    <div class="t-bubble buy">
+                        <div class="t-header">
+                            <span class="t-badge badge-b">BUY</span>
+                            <span>${t.date}</span>
+                        </div>
+                        <div class="t-main">
+                            <span class="t-price" style="color:var(--red-text)">${t.price.toLocaleString()}원</span>
+                            <span class="t-qty">(${t.qty}주)</span>
+                        </div>
+                        ${t.memo ? `<div style="font-size:10px; color:#999; margin-top:2px;">└ ${t.memo}</div>` : ''}
+                    </div>
+                `;
+            } else if (t.type === 'sell') {
+                rowClass = 'sell';
+                sellCount++;
+                if (t.profit >= 0) winCount++;
+                totalRealizedProfit += t.profit;
+
+                let percent = snapshotAvg > 0 ? ((t.price - snapshotAvg) / snapshotAvg * 100).toFixed(2) : 0;
+                let color = t.profit >= 0 ? '#ef4444' : '#3b82f6';
+                let sign = t.profit >= 0 ? '+' : '';
+
+                // [매도] 컴팩트 디자인: 우측 정렬
+                content = `
+                    <div class="t-bubble sell">
+                        <div class="t-header">
+                            <span>${t.date}</span>
+                            <span class="t-badge badge-s">SELL</span>
+                        </div>
+                        <div class="t-main">
+                            <span class="t-qty">(${t.qty}주)</span>
+                            <span class="t-price" style="color:var(--blue-text)">${t.price.toLocaleString()}원</span>
+                        </div>
+                        <div class="t-compare">
+                            <span>평단 ${snapshotAvg.toLocaleString()}</span>
+                            <b style="color:${color}">${sign}${t.profit.toLocaleString()} (${sign}${percent}%)</b>
+                        </div>
+                        ${t.memo ? `<div style="font-size:10px; color:#999; margin-top:2px;">└ ${t.memo}</div>` : ''}
+                    </div>
+                `;
+
+                if (curQty > 0) {
+                    let sellRatio = t.qty / curQty; 
+                    curTotalCost -= (curTotalCost * sellRatio);
+                    curQty -= t.qty;
+                }
+                if (curQty <= 0.0001) { curQty = 0; curTotalCost = 0; } 
+            }
+
+            return `<div class="t-row ${rowClass}">${content}</div>`;
         }).join('');
-        document.getElementById('histProfit').innerText = totalP.toLocaleString()+'원';
-        document.getElementById('histWinRate').innerText = sells>0 ? ((wins/sells)*100).toFixed(1)+'%' : '-';
-        document.getElementById('histList').innerHTML = html;
+
+        html += `</div>`;
+
+        document.getElementById('histProfit').innerText = totalRealizedProfit.toLocaleString() + '원';
+        document.getElementById('histProfit').className = totalRealizedProfit >= 0 ? 'text-up' : 'text-down'; 
+        
+        let rate = sellCount > 0 ? ((winCount / sellCount) * 100).toFixed(0) : 0;
+        document.getElementById('histWinRate').innerText = `${rate}% (${winCount}/${sellCount})`;
+
+        // 모달 내용 영역 높이 확장 (스크롤 방지)
+        const listEl = document.getElementById('histList');
+        listEl.innerHTML = html;
+        listEl.style.maxHeight = '600px'; 
+
         document.getElementById('historyModal').style.display = 'flex';
     }
 
